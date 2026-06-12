@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/bitwise-media-group/evolve/internal/provider"
@@ -51,10 +50,7 @@ func (e *Exec) Run(ctx context.Context, spec provider.CommandSpec, timeout time.
 	cmd := exec.CommandContext(runCtx, spec.Argv[0], spec.Argv[1:]...)
 	cmd.Dir = spec.Dir
 	cmd.Env = append(os.Environ(), spec.Env...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	configureProcessTreeKill(cmd)
 	cmd.WaitDelay = waitDelay
 
 	stderr := &ring{max: stderrTailBytes}
