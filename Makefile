@@ -38,13 +38,16 @@ NPMBIN := ./node_modules/.bin
 SMOKE_MODEL ?= claude-haiku-4-5
 
 .DEFAULT_GOAL := help
-.PHONY: help pr fmt tidy vet lint lint-fix license test fuzz build run docs snapshot release smoke
+.PHONY: help pr fmt tidy vet lint lint-fix license test fuzz build run docs snapshot release smoke commit
 
 help: ## list available targets
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-pr: license tidy fmt vet lint-fix test fuzz build docs snapshot ## Full local gate — must pass before committing
+pr: license tidy fmt vet lint-fix test fuzz build docs snapshot commit ## Full local gate, then run any pending ./commit.sh
+
+commit: ## run ./commit.sh (agent-prepared commit batch) if present
+	@if [ -x ./commit.sh ]; then ./commit.sh; fi
 
 # Install the pinned Node tools exactly as locked in package-lock.json.
 # Re-runs only when package.json / the lockfile change.
