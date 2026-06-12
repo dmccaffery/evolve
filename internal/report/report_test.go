@@ -135,7 +135,7 @@ func TestGenerateGolden(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		goldenPath := filepath.Join("..", "..", "testdata", "golden", golden)
+		goldenPath := filepath.Join("..", "..", "e2e", "golden", golden)
 		if *update {
 			os.MkdirAll(filepath.Dir(goldenPath), 0o755)
 			if err := os.WriteFile(goldenPath, got, 0o644); err != nil {

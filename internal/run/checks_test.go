@@ -18,7 +18,7 @@ func runChecks(t *testing.T, fixture string) []Finding {
 
 func runChecksCfg(t *testing.T, fixture string, cfg CheckConfig) []Finding {
 	t.Helper()
-	root, err := filepath.Abs(filepath.Join("..", "..", "testdata", "repos", fixture))
+	root, err := filepath.Abs(filepath.Join("..", "..", "e2e", "repos", fixture))
 	if err != nil {
 		t.Fatal(err)
 	}

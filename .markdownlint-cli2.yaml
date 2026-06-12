@@ -21,7 +21,7 @@ globs:
 ignores:
   - "node_modules/**"
   - ".claude/**"
-  - "testdata/**"
+  - "e2e/**"
   - "dist/**"
   # Generated command reference — cobra's output, not house prose.
   - "docs/cli/**"

@@ -30,11 +30,8 @@ NPMBIN := ./node_modules/.bin
 # go.mod and runs the tool in the current directory, so relative paths just work.
 # Do not add a go.work that `use`s tools/ — -modfile cannot be used in workspace mode.
 
-# Smoke: a real `evolve run all` (live `claude` CLI + credentials) against a
-# throwaway copy of the marketplace fixture. The fixture's evals are toy specs
-# a live model may legitimately fail, so eval failures are tolerated (without
-# --strict they warn and exit 0; an exit 1 is tolerated too); the gate is that
-# the pipeline runs end-to-end and produces its artifacts.
+# Smoke: the live end-to-end test in e2e/ — its own module, so the root
+# `go test ./...` never picks it up. See e2e/smoke_test.go for what it asserts.
 SMOKE_MODEL ?= claude-haiku-4-5
 
 .DEFAULT_GOAL := help
@@ -57,14 +54,17 @@ node_modules: package.json package-lock.json
 
 fmt: node_modules ## format the go code, prose, and config (gofmt + prettier)
 	go fmt ./...
+	go -C e2e fmt ./...
 	$(NPMBIN)/prettier --write .
 
 tidy: ## tidy the go module references
 	@ rm -f go.sum; go mod tidy
 	@ rm -f tools/go.sum; go -C tools mod tidy
+	@ rm -f e2e/go.sum; go -C e2e mod tidy
 
 vet: node_modules ## vet the go code and lint markdown (go vet + markdownlint-cli2)
 	go vet ./...
+	go -C e2e vet ./...
 	$(NPMBIN)/markdownlint-cli2 "**/*.md"
 
 lint: ## lint the go code
@@ -85,22 +85,9 @@ test: ## run the unit tests (+ fuzz seed corpora)
 fuzz: ## fuzz one target (FUZZ=FuzzParse FUZZTIME=20s FUZZ_PKG=./internal/evalspec)
 	go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
 
-smoke: build ## real `evolve run all` on the marketplace fixture (SMOKE_MODEL=claude-haiku-4-5, 1 run, 1 job; needs the claude CLI + credentials)
+smoke: ## real `evolve run all` on the marketplace fixture (SMOKE_MODEL=claude-haiku-4-5, 1 run, 1 job; needs the claude CLI + credentials)
 	@command -v claude >/dev/null 2>&1 || { echo "smoke: claude CLI not found in PATH" >&2; exit 2; }
-	@tmp=$$(mktemp -d "$${TMPDIR:-/tmp}/evolve-smoke.XXXXXX"); \
-	trap 'rm -rf "$$tmp"' EXIT; \
-	cp -R testdata/repos/marketplace "$$tmp/repo"; \
-	EVOLVE_CACHE_DIR="$$tmp/cache" ./$(APP) run all --root "$$tmp/repo" \
-		--models $(SMOKE_MODEL) --runs 1 --jobs 1 --timeout 120; \
-	status=$$?; \
-	if [ "$$status" -gt 1 ]; then echo "smoke: evolve run all exited $$status" >&2; exit "$$status"; fi; \
-	for f in plugins/alpha/evals/alpha-skill/results.json plugins/beta/evals/beta-skill/results.json; do \
-		grep -q '"executed": true' "$$tmp/repo/$$f" \
-			|| { echo "smoke: $$f is missing executed agent runs" >&2; exit 1; }; \
-	done; \
-	test -s "$$tmp/repo/EVALUATION.md" && test -s "$$tmp/repo/EVALUATION.json" \
-		|| { echo "smoke: reports were not regenerated" >&2; exit 1; }; \
-	echo "smoke: ok — pipeline ran end-to-end with $(SMOKE_MODEL) (evolve exit $$status; toy-eval failures tolerated)"
+	SMOKE_MODEL=$(SMOKE_MODEL) go -C e2e test -v -count=1 -run '^TestSmoke$$' .
 
 build: ## build the binary (./$(APP)) with version ldflags
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o $(APP) $(APP_PKG)

@@ -60,7 +60,7 @@ linters:
         path: ".*_test\\.go$"
     paths:
       - node_modules
-      - testdata
+      - e2e
 formatters:
   enable:
     - gofmt
@@ -69,4 +69,4 @@ formatters:
     generated: lax
     paths:
       - node_modules
-      - testdata
+      - e2e

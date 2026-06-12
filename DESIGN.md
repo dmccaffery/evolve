@@ -41,7 +41,7 @@ restores exit 1 on failures (`cli.ErrFailures`). `report --check` always exits 1
 ./docs/cli/...         # generated command reference (make docs)
 ./docs/man/...         # generated man pages (make docs)
 ./docs/config/...      # generated configuration reference + annotated examples (make docs)
-./testdata/...         # fixture repositories and golden files
+./e2e/...              # separate module: live smoke test plus fixture repositories and golden files
 ./tools/go.mod         # pinned developer CLIs (addlicense, golangci-lint, goreleaser, syft)
 ```
 
