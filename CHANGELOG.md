@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/bitwise-media-group/evolve/compare/v0.2.0...v0.2.1) (2026-06-17)
+
+
+### Features
+
+* **evals:** surface runtime failures and isolate token-counting credentials ([e08452b](https://github.com/bitwise-media-group/evolve/commit/e08452b34d54aea123a640c4c201585310743385)), closes [#9](https://github.com/bitwise-media-group/evolve/issues/9)
+* **provider:** accept EVOLVE_CLAUDE_CODE_OAUTH_TOKEN for token counting ([1003ac9](https://github.com/bitwise-media-group/evolve/commit/1003ac99adc0e359e867acf200672a9e5f3759ac)), closes [#9](https://github.com/bitwise-media-group/evolve/issues/9)
+
 ## [0.2.0](https://github.com/bitwise-media-group/evolve/compare/v0.1.0...v0.2.0) (2026-06-13)
 
 
