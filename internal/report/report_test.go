@@ -57,9 +57,9 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 		Summary: results.TriggerSummary{Passed: ptr(1), Total: 2, AvgRunSeconds: ptr(7.1),
 			Estimate: &results.Estimate{InputTokens: 2770, InputCostUSD: ptr(0.0277)}},
 	})
-	f.SetTrigger("cursor/sonnet-4.5", &results.TriggerEntry{
+	f.SetTrigger("cursor/composer-2.5", &results.TriggerEntry{
 		Header: results.Header{
-			Provider: "cursor", Model: "sonnet-4.5", Display: "Cursor — Sonnet 4.5",
+			Provider: "cursor", Model: "composer-2.5", Display: "Cursor Composer 2.5",
 			ToolVersion: "test", RanAt: "2026-06-11T11:00:00Z", Executed: true,
 			RunsPerQuery: 3, TimeoutSeconds: 120, Pricing: nil,
 		},
@@ -171,7 +171,7 @@ func TestRenderingRules(t *testing.T) {
 
 	// Cursor rows render n/a for usage cells (capability absent), the
 	// count-only google row renders — for the executed columns.
-	cursorRow := lineContaining(t, text, "`sonnet-4.5`")
+	cursorRow := lineContaining(t, text, "`composer-2.5`")
 	for _, cell := range []string{"| n/a | n/a |"} {
 		if !strings.Contains(cursorRow, cell) {
 			t.Errorf("cursor row = %q, want usage cells %q", cursorRow, cell)

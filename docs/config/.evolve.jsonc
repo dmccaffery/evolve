@@ -7,7 +7,7 @@
   "layout": "auto",
 
   // Model spec used when --models is omitted: provider names, model ids,
-  // provider-qualified ids (cursor/sonnet-4.5), or all.
+  // provider-qualified ids (cursor/composer-2.5), or all.
   "default_models": ["anthropic"],
 
   // Directory holding the token-count cache.
@@ -62,7 +62,7 @@
   // "providers": {
   //   "cursor": {
   //     "models": [
-  //       { "id": "sonnet-4.5", "display": "Cursor - Sonnet 4.5", "input_per_mtok": 3.0, "output_per_mtok": 15.0 }
+  //       { "id": "composer-2.5", "display": "Cursor Composer 2.5", "input_per_mtok": 3.0, "output_per_mtok": 15.0 }
   //     ]
   //   }
   // }

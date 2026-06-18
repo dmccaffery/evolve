@@ -15,7 +15,7 @@ import (
 // Cursor exposes no token-counting API and its CLI reports no usage or cost,
 // so it implements neither TokenCounter nor returns usage from case runs:
 // estimate and measured fields stay absent in results and render as n/a.
-// Cursor runs other vendors' models, so its model ids (e.g. "sonnet-4.5")
+// Cursor can run other vendors' models alongside its own, so its model ids
 // are namespaced by the provider in results keys. The builtin model list is
 // a conservative default — `agent models` prints the live list, and
 // providers.cursor.models in the .evolve config file overrides it.
@@ -33,8 +33,7 @@ func NewCursor() *Cursor {
 			envKeys:   []string{"CURSOR_API_KEY"},
 			skillDirs: []string{filepath.Join(".cursor", "skills")},
 			models: []Model{
-				{ID: "composer-1", Display: "Cursor Composer 1"},
-				{ID: "sonnet-4.5", Display: "Cursor — Sonnet 4.5"},
+				{ID: "composer-2.5", Display: "Cursor Composer 2.5"},
 			},
 		},
 	}

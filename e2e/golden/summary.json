@@ -18,9 +18,9 @@
             "input_cost_usd": 0.0277
           }
         },
-        "cursor/sonnet-4.5": {
+        "cursor/composer-2.5": {
           "provider": "cursor",
-          "display": "Cursor — Sonnet 4.5",
+          "display": "Cursor Composer 2.5",
           "passed": 2,
           "failed": 0,
           "total": 2,

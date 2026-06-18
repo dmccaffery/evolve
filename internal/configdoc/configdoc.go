@@ -34,7 +34,7 @@ func Schema() []Option {
 		{
 			Key: "default_models", Type: "list of strings", Value: []string{"anthropic"},
 			Doc: "Model spec used when --models is omitted: provider names, model ids, " +
-				"provider-qualified ids (cursor/sonnet-4.5), or all.",
+				"provider-qualified ids (cursor/composer-2.5), or all.",
 		},
 		{
 			Key: "cache_dir", Type: "string", Example: "~/.cache/evolve",
@@ -164,8 +164,8 @@ func ExampleYAML() []byte {
 	b.WriteString(`# providers:
 #   cursor:
 #     models:
-#       - id: "sonnet-4.5"
-#         display: "Cursor - Sonnet 4.5"
+#       - id: "composer-2.5"
+#         display: "Cursor Composer 2.5"
 #         input_per_mtok: 3.0
 #         output_per_mtok: 15.0
 `)
@@ -186,7 +186,7 @@ func ExampleJSONC() []byte {
 	b.WriteString(`  // "providers": {
   //   "cursor": {
   //     "models": [
-  //       { "id": "sonnet-4.5", "display": "Cursor - Sonnet 4.5", "input_per_mtok": 3.0, "output_per_mtok": 15.0 }
+  //       { "id": "composer-2.5", "display": "Cursor Composer 2.5", "input_per_mtok": 3.0, "output_per_mtok": 15.0 }
   //     ]
   //   }
   // }

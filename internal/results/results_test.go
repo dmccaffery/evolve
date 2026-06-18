@@ -35,9 +35,9 @@ func sample() *File {
 	})
 	// A cursor-style entry: no pricing, no estimates.
 	chits, cruns, cpassed := 2, 3, true
-	f.SetTrigger("cursor/sonnet-4.5", &TriggerEntry{
+	f.SetTrigger("cursor/composer-2.5", &TriggerEntry{
 		Header: Header{
-			Provider: "cursor", Model: "sonnet-4.5", Display: "Cursor — Sonnet 4.5",
+			Provider: "cursor", Model: "composer-2.5", Display: "Cursor Composer 2.5",
 			ToolVersion: "0.1.0", RanAt: "2026-06-11T15:11:40Z", Executed: true,
 			RunsPerQuery: 3, TimeoutSeconds: 120, Pricing: nil,
 		},
@@ -75,7 +75,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			if entry.Pricing == nil || *entry.Pricing.InputPerMTok != 10.0 {
 				t.Errorf("pricing = %+v", entry.Pricing)
 			}
-			if loaded.Triggers["cursor/sonnet-4.5"].Pricing != nil {
+			if loaded.Triggers["cursor/composer-2.5"].Pricing != nil {
 				t.Error("cursor pricing must stay nil")
 			}
 		})
@@ -113,7 +113,7 @@ func TestSaveDirFormatSwitch(t *testing.T) {
 	if entry := again.Triggers["anthropic/claude-fable-5"]; entry == nil || *entry.Summary.Passed != 1 {
 		t.Errorf("yaml reload = %+v, want history preserved", entry)
 	}
-	if again.Triggers["cursor/sonnet-4.5"].Pricing != nil {
+	if again.Triggers["cursor/composer-2.5"].Pricing != nil {
 		t.Error("explicit-null pricing must survive the yaml round trip")
 	}
 }
@@ -132,7 +132,7 @@ func TestSerializedShape(t *testing.T) {
 		t.Error("absent usage blocks must be omitted, not nulled")
 	}
 	// Model keys are provider-qualified and sorted by encoding/json.
-	if strings.Index(text, "anthropic/claude-fable-5") > strings.Index(text, "cursor/sonnet-4.5") {
+	if strings.Index(text, "anthropic/claude-fable-5") > strings.Index(text, "cursor/composer-2.5") {
 		t.Error("model keys not sorted")
 	}
 }

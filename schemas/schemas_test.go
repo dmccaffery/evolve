@@ -163,9 +163,9 @@ func maximalResults() *results.File {
 			Evidence: "found X", Source: "expectation",
 		},
 	}
-	f.SetEval("cursor/sonnet-4.5", &results.EvalEntry{
+	f.SetEval("cursor/composer-2.5", &results.EvalEntry{
 		Header: results.Header{
-			Provider: "cursor", Model: "sonnet-4.5", Display: "Cursor",
+			Provider: "cursor", Model: "composer-2.5", Display: "Cursor",
 			ToolVersion: "test", RanAt: "2026-06-12T11:00:00Z", Executed: true,
 			TimeoutSeconds: 600, Pricing: nil, // explicit null in the file
 		},

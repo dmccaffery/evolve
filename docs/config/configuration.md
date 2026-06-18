@@ -10,7 +10,7 @@ defaults, the config file, `EVOLVE_*` environment variables, then explicit flags
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `layout` | string | `"auto"` | Repository layout: auto, marketplace, multi, or single. |
-| `default_models` | list of strings | `["anthropic"]` | Model spec used when --models is omitted: provider names, model ids, provider-qualified ids (cursor/sonnet-4.5), or all. |
+| `default_models` | list of strings | `["anthropic"]` | Model spec used when --models is omitted: provider names, model ids, provider-qualified ids (cursor/composer-2.5), or all. |
 | `cache_dir` | string | unset — the OS user cache dir | Directory holding the token-count cache. |
 | `results_format` | string | `"json"` | Format for committed results files and the EVALUATION rollup: json, jsonc, or yaml. |
 | `checks.license` | string | unset — the license field is forbidden | License every SKILL.md must declare; when unset, skills must not declare one. |

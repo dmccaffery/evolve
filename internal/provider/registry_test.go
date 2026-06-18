@@ -30,7 +30,7 @@ func TestSelect(t *testing.T) {
 			"anthropic/claude-haiku-4-5", "anthropic/claude-sonnet-4-6",
 			"anthropic/claude-opus-4-8", "anthropic/claude-fable-5"}},
 		{spec: "claude-fable-5", want: []string{"anthropic/claude-fable-5"}},
-		{spec: "cursor/sonnet-4.5", want: []string{"cursor/sonnet-4.5"}},
+		{spec: "cursor/composer-2.5", want: []string{"cursor/composer-2.5"}},
 		{spec: "copilot/claude-sonnet-4.6", want: []string{"copilot/claude-sonnet-4.6"}},
 		{spec: "antigravity/gemini-3.1-pro", want: []string{"antigravity/gemini-3.1-pro"}},
 		{spec: "claude-fable-5, gpt-5.5", want: []string{"anthropic/claude-fable-5", "openai/gpt-5.5"}},

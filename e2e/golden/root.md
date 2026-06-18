@@ -17,7 +17,7 @@ reporting, or no published pricing).
 | Provider | Model | Passed | Pass rate | Avg run | Input tokens | Est. input cost |
 | --- | --- | --- | --- | --- | --- | --- |
 | Anthropic | Claude Fable 5 (`claude-fable-5`) | 1/2 | 50% | 7.1s | 2,770 | $0.0277 |
-| Cursor | Cursor — Sonnet 4.5 (`sonnet-4.5`) | 2/2 | 100% | 12.7s | n/a | n/a |
+| Cursor | Cursor Composer 2.5 (`composer-2.5`) | 2/2 | 100% | 12.7s | n/a | n/a |
 | Google | Gemini 3.5 Flash (`gemini-3.5-flash`) | — | — | — | 2,580 | $0.0039 |
 
 ### Evals
@@ -47,7 +47,7 @@ Last run 2026-06-11T12:00:00Z (evolve test, timeout 600s).
 
 - `basic` failed `file x exists`: x missing
 
-## Cursor — `sonnet-4.5`
+## Cursor — `composer-2.5`
 
 ### Triggers — solo-skill
 

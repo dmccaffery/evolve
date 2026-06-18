@@ -128,7 +128,7 @@ best-effort path matching on the CLI's stdout. The LLM judge for `llm` assertion
 via `--judge-model`) so grading stays comparable across providers.
 
 Select models with `--models`: provider names (`anthropic`), model ids (`claude-fable-5`), provider-qualified ids
-(`cursor/sonnet-4.5`), or `all` — comma-separated.
+(`cursor/composer-2.5`), or `all` — comma-separated.
 
 ## Configuration: `.evolve.<ext>`
 
@@ -139,7 +139,7 @@ config > builtins. The full option reference and annotated example files for eac
 ```json
 {
   "layout": "marketplace",
-  "default_models": ["anthropic", "cursor/sonnet-4.5"],
+  "default_models": ["anthropic", "cursor/composer-2.5"],
   "results_format": "json",
   "checks": {
     "license": "MIT",
@@ -158,7 +158,7 @@ config > builtins. The full option reference and annotated example files for eac
   },
   "providers": {
     "cursor": {
-      "models": [{ "id": "sonnet-4.5", "display": "Cursor — Sonnet 4.5" }]
+      "models": [{ "id": "composer-2.5", "display": "Cursor Composer 2.5" }]
     }
   }
 }
