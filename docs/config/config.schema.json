@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bitwise-media-group/evolve/main/docs/config/config.schema.json",
+  "title": "evolve configuration",
+  "description": "Optional .evolve.<ext> configuration for an evolve repository (yaml, yml, json, or jsonc at the root; at most one). Generated from the viper config by `evolve docs --format config`; do not edit by hand.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optional URI of this schema; ignored by evolve, honored by editors.",
+      "type": "string"
+    },
+    "layout": {
+      "description": "Repository layout: auto, marketplace, multi, or single.",
+      "type": "string",
+      "enum": [
+        "auto",
+        "marketplace",
+        "multi",
+        "single"
+      ],
+      "default": "auto"
+    },
+    "default_models": {
+      "description": "Model spec used when --models is omitted: provider names, model ids, provider-qualified ids (cursor/sonnet-4.5), or all.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "anthropic"
+      ]
+    },
+    "cache_dir": {
+      "description": "Directory holding the token-count cache.",
+      "type": "string"
+    },
+    "results_format": {
+      "description": "Format for committed results files and the EVALUATION rollup: json, jsonc, or yaml.",
+      "type": "string",
+      "enum": [
+        "json",
+        "jsonc",
+        "yaml"
+      ],
+      "default": "json"
+    },
+    "checks": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "license": {
+          "description": "License every SKILL.md must declare; when unset, skills must not declare one.",
+          "type": "string"
+        },
+        "description_pattern": {
+          "description": "Regex every skill description must match.",
+          "type": "string",
+          "default": "Use (when|after|before)"
+        },
+        "max_skill_lines": {
+          "description": "Maximum SKILL.md line count.",
+          "type": "integer",
+          "default": 500
+        },
+        "require_codex_manifest": {
+          "description": "Require .codex-plugin/plugin.json beside Claude's manifest.",
+          "type": "boolean",
+          "default": true
+        },
+        "forbid_hooks": {
+          "description": "Forbid a hooks/ directory in plugins.",
+          "type": "boolean",
+          "default": true
+        },
+        "marketplace": {
+          "description": "Validate marketplace manifests (marketplace layout only).",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "report": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "thresholds": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "triggers_min_pass_rate": {
+              "description": "Minimum triggers pass rate (0-1); report --check exits 1 below it.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "evals_min_pass_rate": {
+              "description": "Minimum evals pass rate (0-1); report --check exits 1 below it.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "models": {
+              "description": "Model keys (provider/model-id) the thresholds apply to.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "providers": {
+      "description": "Per-provider overrides: providers.<name>.models replaces that provider's builtin model matrix (model ids, display names, USD-per-mtok pricing).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "description": "Replacement model matrix for this provider.",
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/model"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "model": {
+      "description": "One model in a provider's matrix.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "description": "Model id passed to the runner CLI (required).",
+          "type": "string",
+          "minLength": 1
+        },
+        "display": {
+          "description": "Human-readable name shown in reports (default: the id).",
+          "type": "string"
+        },
+        "input_per_mtok": {
+          "description": "Input price in USD per million tokens (omit when unpublished).",
+          "type": "number"
+        },
+        "output_per_mtok": {
+          "description": "Output price in USD per million tokens (omit when unpublished).",
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

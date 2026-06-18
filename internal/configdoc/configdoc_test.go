@@ -5,12 +5,17 @@ package configdoc
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/spf13/viper"
 	"github.com/tailscale/hujson"
+
+	"github.com/bitwise-media-group/evolve/internal/encfmt"
 )
 
 // parseExample loads a generated example the same way the CLI would, so the
@@ -91,9 +96,87 @@ func TestMarkdownCoversSchema(t *testing.T) {
 			t.Errorf("markdown is missing option %s", o.Key)
 		}
 	}
-	for _, want := range []string{"providers.<name>.models", ".evolve.yaml", ".evolve.jsonc"} {
+	for _, want := range []string{"providers.<name>.models", ".evolve.yaml", ".evolve.jsonc", "config.schema.json"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("markdown is missing %q", want)
+		}
+	}
+}
+
+// compileConfigSchema compiles the generated JSON Schema, which also proves it
+// is valid draft 2020-12 with a resolvable $ref.
+func compileConfigSchema(t *testing.T) *jsonschema.Schema {
+	t.Helper()
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(JSONSchema()))
+	if err != nil {
+		t.Fatalf("parse schema: %v", err)
+	}
+	c := jsonschema.NewCompiler()
+	if err := c.AddResource(schemaID, doc); err != nil {
+		t.Fatalf("add schema: %v", err)
+	}
+	sch, err := c.Compile(schemaID)
+	if err != nil {
+		t.Fatalf("compile schema: %v", err)
+	}
+	return sch
+}
+
+func validateInstance(sch *jsonschema.Schema, data []byte) error {
+	inst, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	return sch.Validate(inst)
+}
+
+// TestJSONSchemaValidatesExamples ties the two generators together: every
+// annotated example the docs ship must validate against the generated schema,
+// in each format the loader accepts. Normalization runs through the loader's
+// own path, so the schema sees exactly what the engine would.
+func TestJSONSchemaValidatesExamples(t *testing.T) {
+	sch := compileConfigSchema(t)
+	dir := t.TempDir()
+	for _, ex := range []struct {
+		name string
+		data []byte
+	}{
+		{".evolve.yaml", ExampleYAML()},
+		{".evolve.jsonc", ExampleJSONC()},
+	} {
+		t.Run(ex.name, func(t *testing.T) {
+			path := filepath.Join(dir, ex.name)
+			if err := os.WriteFile(path, ex.data, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			data, err := encfmt.NormalizeToJSON(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := validateInstance(sch, data); err != nil {
+				t.Errorf("%s does not validate against config.schema.json: %v", ex.name, err)
+			}
+		})
+	}
+}
+
+// TestJSONSchemaRejects pins that the schema actually constrains: malformed
+// configs that the loader would also reject must fail validation.
+func TestJSONSchemaRejects(t *testing.T) {
+	sch := compileConfigSchema(t)
+	for _, tc := range []struct {
+		why string
+		doc string
+	}{
+		{"unknown layout", `{"layout": "nope"}`},
+		{"unknown top-level key", `{"bogus": true}`},
+		{"non-integer max_skill_lines", `{"checks": {"max_skill_lines": "lots"}}`},
+		{"unknown checks key", `{"checks": {"nope": 1}}`},
+		{"pass rate above 1", `{"report": {"thresholds": {"evals_min_pass_rate": 2}}}`},
+		{"model without id", `{"providers": {"cursor": {"models": [{"display": "x"}]}}}`},
+	} {
+		if err := validateInstance(sch, []byte(tc.doc)); err == nil {
+			t.Errorf("%s: unexpectedly validates", tc.why)
 		}
 	}
 }

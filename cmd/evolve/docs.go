@@ -58,6 +58,7 @@ func writeConfigDocs(dir string) error {
 		data []byte
 	}{
 		{"configuration.md", configdoc.Markdown()},
+		{"config.schema.json", configdoc.JSONSchema()},
 		{".evolve.yaml", configdoc.ExampleYAML()},
 		{".evolve.jsonc", configdoc.ExampleJSONC()},
 	}

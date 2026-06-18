@@ -42,3 +42,10 @@ copy one to the repository root:
 
 - [`.evolve.yaml`](.evolve.yaml)
 - [`.evolve.jsonc`](.evolve.jsonc)
+
+## Schema
+
+[`config.schema.json`](config.schema.json) is the JSON Schema (draft 2020-12) for the config
+file, generated from the same keys. The annotated examples above already point at its published
+URL — a `# yaml-language-server: $schema=…` comment in the YAML, a `"$schema"` key in the JSONC —
+so an editor offers completion and validation as soon as you copy one to the repository root.

@@ -140,13 +140,23 @@ func Markdown() []byte {
 		"copy one to the repository root:\n" +
 		"\n" +
 		"- [`.evolve.yaml`](.evolve.yaml)\n" +
-		"- [`.evolve.jsonc`](.evolve.jsonc)\n")
+		"- [`.evolve.jsonc`](.evolve.jsonc)\n" +
+		"\n" +
+		"## Schema\n" +
+		"\n" +
+		"[`config.schema.json`](config.schema.json) is the JSON Schema (draft 2020-12) for the config\n" +
+		"file, generated from the same keys. The annotated examples above already point at its published\n" +
+		"URL — a `# yaml-language-server: $schema=…` comment in the YAML, a `\"$schema\"` key in the JSONC —\n" +
+		"so an editor offers completion and validation as soon as you copy one to the repository root.\n")
 	return []byte(b.String())
 }
 
-// ExampleYAML renders the annotated .evolve.yaml example.
+// ExampleYAML renders the annotated .evolve.yaml example. The leading
+// yaml-language-server directive is a comment, so it adds editor validation
+// without becoming a parsed key.
 func ExampleYAML() []byte {
 	var b strings.Builder
+	b.WriteString("# yaml-language-server: $schema=" + schemaID + "\n")
 	b.WriteString(header("#"))
 	writeYAML(&b, tree(), 0)
 	b.WriteString("\n")
@@ -169,6 +179,7 @@ func ExampleJSONC() []byte {
 	var b strings.Builder
 	b.WriteString(header("//"))
 	b.WriteString("{\n")
+	fmt.Fprintf(&b, "  %s: %s,\n\n", jsonValue("$schema"), jsonValue(schemaID))
 	writeJSONC(&b, tree(), 1)
 	b.WriteString("\n")
 	writeComment(&b, "  // ", providersBlockDoc())
