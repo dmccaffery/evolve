@@ -45,6 +45,9 @@ archives:
     name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - LICENSE
+      # Ship the man pages in the archive so the Homebrew cask can install
+      # them from the extracted tarball (see homebrew_casks.manpages below).
+      - docs/man/*.1
 
 # ^ref: https://goreleaser.com/customization/checksum/
 checksum:
@@ -120,6 +123,10 @@ release:
 homebrew_casks:
   - name: evolve
     binaries: [evolve]
+    # Glob-matched against the files bundled into the archive above; goreleaser
+    # emits a `manpage "..."` stanza for each match (e.g. docs/man/evolve.1).
+    manpages:
+      - docs/man/*.1
     generate_completions_from_executable:
       executable: evolve
       shell_parameter_format: cobra
