@@ -23,9 +23,10 @@ ignores:
   - ".claude/**"
   - "e2e/**"
   - "dist/**"
-  # Generated command reference — cobra's output, not house prose.
+  # generated command reference — cobra's output, not house prose.
   - "docs/cli/**"
-  # Generated configuration reference — evolve docs --format config.
+  # generated configuration reference — evolve docs --format config.
   - "docs/config/**"
-  # Machine-written by release-please, not house prose.
+  # machine-written by release-please, not house prose.
   - "CHANGELOG.md"
+  - "CLAUDE.md"
