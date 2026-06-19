@@ -30,11 +30,13 @@ restores exit 1 on failures (`cli.ErrFailures`). `report --check` always exits 1
 ./go.mod
 ./cmd/evolve/main.go   # main entry point and root command (package main)
 ./cmd/evolve/<verb>.go # one file per subcommand
+./cmd/evolve/runui.go  # TUI gating + the form -> engine -> dashboard wiring for `run`
 ./cmd/evolve/docs.go   # hidden command that regenerates docs/cli, docs/man, and docs/config
 
 ./internal/cli/...     # shared command plumbing: global Options, config layering,
                        # provider/repo/threshold resolution
 ./internal/run/...     # the three eval engines: checks, triggers, evals
+./internal/tui/...     # interactive selection form + live run dashboard (bubbletea)
 ./internal/<area>/...  # one package per remaining concern (grade, report, results,
                        # runner, workspace, ...)
 
@@ -62,3 +64,86 @@ they declare, so they test against fakes; `runner` is the only package that touc
 The CLI reference in `docs/cli` and the man pages in `docs/man` are generated from the cobra command tree, and the
 configuration reference plus annotated example config files in `docs/config` from `internal/configdoc`'s schema (all via
 `make docs`) and committed, so reviewing a flag or config change shows the documentation diff alongside the code.
+
+## TUI
+
+`evolve run triggers`, `run evals`, and `run all` show an interactive full-screen UI — a selection form, then a live run
+dashboard — when stdout is a real terminal and the user has not opted out (`--no-tui` / `EVOLVE_NO_TUI`). The check is
+`interactiveTUI` in `cmd/evolve/runui.go`; when it returns false the historical line-based path runs unchanged. The UI
+is built on [bubbletea](https://github.com/charmbracelet/bubbletea)/[lipgloss](https://github.com/charmbracelet/lipgloss)
+and lives entirely in `internal/tui`, which is a presentation layer over `internal/run` — it computes nothing about a run
+itself, it only displays what the engine reports.
+
+### The reporter seam
+
+`run.Reporter` (`internal/run/reporter.go`) is the single contract between the engine and any front end. The engine
+never writes progress to stdout directly; it calls `UnitStarted` / `UnitSkipped` / `ItemStarted` / `ItemDone` /
+`UnitFinished` / `Warn`. Two implementations exist:
+
+- `run.PlainReporter` — the default when `Options.Reporter` is nil, reproducing the legacy line output exactly, so
+  non-TTY runs and the engine tests are untouched by the indirection.
+- `tui.tuiReporter` — forwards each call into the bubbletea program as a message via `program.Send`, which is
+  goroutine-safe. That matters because `ItemDone` and `Warn` fire from the parallel agent-run goroutines (`--jobs`).
+
+Because the seam is the only coupling, the same `run.Sweep` drives either output with no engine changes.
+
+### Process model
+
+`runWithUI` (`cmd/evolve/runui.go`) runs two goroutines joined by channels:
+
+- The main goroutine runs `p.Run()` — bubbletea's event loop and renderer.
+- An engine goroutine blocks on the `runReq` channel. When the user chooses RUN the form sends a `tui.RunRequest`; the
+  goroutine invokes the `engine` callback (which calls `run.Sweep` with the reporter attached), then sends
+  `tui.RunDone(...)` back into the program.
+
+Quitting is cooperative: closing `progExited` releases the engine goroutine if the user cancels before running;
+`cancel()` on the command context stops a sweep already in flight (a resulting `context.Canceled` is swallowed — a
+user quit is not an error); `<-engineDone` joins before returning. Token-counter diagnostics are routed through a
+`switchWriter` that starts at `io.Discard` and is repointed at `forward(rep)` once the run begins, turning each counter
+line into a `Warn` event so it surfaces in the dashboard rather than corrupting the alt-screen.
+
+### Root model and screens
+
+`tui.Model` (`app.go`) is the bubbletea root. It holds two sub-models and a `screen` that advances `screenForm ->
+screenDashboard`. `Update` routes by message type: `WindowSizeMsg` fans the size out to both sub-models;
+`spinner.TickMsg` drives the dashboard spinner while a run is live; `KeyMsg` is delegated to whichever screen is active;
+and the progress messages (`unitStartedMsg`, `itemDoneMsg`, …, `runDoneMsg` — all defined in `messages.go`, one per
+`Reporter` method) are applied to the dashboard. `startRun` builds the execution plan with `run.PlanFor` per selected
+model, constructs the dashboard, and `tea.Batch`es dispatching the request with starting the spinner.
+
+### Selection form
+
+`formModel` (`form.go`) is a three-pane, lazygit-style screen: a providers/models tree on the left, and triggers and
+evals trees stacked on the right. All three are the generic collapsible checkbox `tree` (`tree.go`) whose leaves carry a
+tri-state (`nodeOff` / `nodePartial` / `nodeOn`). The initial selection is *derived*, not blank: `run.Needs` returns the
+per-model run matrix the non-TUI path would execute (honouring `--new`, `--skill`, `--eval`), and `deriveStates` turns it
+into the leaf states — so the form opens already matching flag-only mode, with `--new`'s partial units shown as partial.
+`request()` walks the final selection into a `tui.RunRequest` carrying a *per-model* `run.Filter`, letting each model run
+a different set of cases (needed so `--new` reruns only the stale units while a peer runs everything).
+
+### Live dashboard
+
+The dashboard is split across two files: `dashboard.go` holds the state, message handling, and key handling;
+`dashboard_view.go` holds all rendering. It is constructed from the plan at run start (`newDashboard`):
+
+- `unitState` is one (skill, model, tier) execution unit; its `caseState` rows are pre-populated from the catalog —
+  mirroring the engine's per-provider skips and the selection filter — so pending cases render with their real labels
+  before they run, and live updates are matched back by label.
+- `apply(msg)` is the reducer: each progress message mutates unit/case status, tallies, metrics, in-flight tracking, and
+  the warning ring buffer.
+- Units are execution-ordered and grouped plugin → skill → model for the left "Execution" pane. `buildNodeRefs`
+  collapses settled and not-yet-started groups to a single row and expands only the active one, and the highlight
+  auto-follows the live case until the user moves it (`manual`).
+- The view is a header line, the left execution pane (per-plugin progress bars plus the expanded active branch), a right
+  column split into a tabbed "Rollup" (Summary / Providers / Plugins / Skills) and an "Executing" detail pane (in-flight
+  cases plus the highlighted case's authored spec), and a footer of key hints.
+- `now func() time.Time` is injected so elapsed-time rendering is deterministic under test.
+
+### Rendering primitives and tests
+
+`panel.go` draws every framed box — a rounded border with the title, count, and tab strip embedded in the border edges,
+lazygit-style — and `panelContentWidth` is the single source of truth for body sizing. `styles.go` holds the ANSI-256
+palette (chosen to degrade on limited terminals) plus the cyberdream accent colours for the dashboard's panel borders,
+and `util.go` the width-aware `truncate`/`clip` helpers. `tui_test.go` exercises the models directly — feeding `KeyMsg`s
+and `Reporter` messages into `Update`/`apply` and asserting on `view()` output — so the whole UI is tested without a
+terminal.
