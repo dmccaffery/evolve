@@ -59,7 +59,6 @@ func NewAntigravity() *Antigravity {
 			models: []Model{
 				{ID: "gemini-3.1-pro", Display: "Antigravity — Gemini 3.1 Pro"},
 				{ID: "gemini-3.5-flash", Display: "Antigravity — Gemini 3.5 Flash"},
-				{ID: "claude-sonnet-4.6", Display: "Antigravity — Claude Sonnet 4.6"},
 			},
 		},
 	}
