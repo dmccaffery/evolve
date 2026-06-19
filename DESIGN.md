@@ -70,9 +70,10 @@ configuration reference plus annotated example config files in `docs/config` fro
 `evolve run triggers`, `run evals`, and `run all` show an interactive full-screen UI — a selection form, then a live run
 dashboard — when stdout is a real terminal and the user has not opted out (`--no-tui` / `EVOLVE_NO_TUI`). The check is
 `interactiveTUI` in `cmd/evolve/runui.go`; when it returns false the historical line-based path runs unchanged. The UI
-is built on [bubbletea](https://github.com/charmbracelet/bubbletea)/[lipgloss](https://github.com/charmbracelet/lipgloss)
-and lives entirely in `internal/tui`, which is a presentation layer over `internal/run` — it computes nothing about a run
-itself, it only displays what the engine reports.
+is built on
+[bubbletea](https://github.com/charmbracelet/bubbletea)/[lipgloss](https://github.com/charmbracelet/lipgloss) and lives
+entirely in `internal/tui`, which is a presentation layer over `internal/run` — it computes nothing about a run itself,
+it only displays what the engine reports.
 
 ### The reporter seam
 
@@ -97,15 +98,15 @@ Because the seam is the only coupling, the same `run.Sweep` drives either output
   `tui.RunDone(...)` back into the program.
 
 Quitting is cooperative: closing `progExited` releases the engine goroutine if the user cancels before running;
-`cancel()` on the command context stops a sweep already in flight (a resulting `context.Canceled` is swallowed — a
-user quit is not an error); `<-engineDone` joins before returning. Token-counter diagnostics are routed through a
+`cancel()` on the command context stops a sweep already in flight (a resulting `context.Canceled` is swallowed — a user
+quit is not an error); `<-engineDone` joins before returning. Token-counter diagnostics are routed through a
 `switchWriter` that starts at `io.Discard` and is repointed at `forward(rep)` once the run begins, turning each counter
 line into a `Warn` event so it surfaces in the dashboard rather than corrupting the alt-screen.
 
 ### Root model and screens
 
-`tui.Model` (`app.go`) is the bubbletea root. It holds two sub-models and a `screen` that advances `screenForm ->
-screenDashboard`. `Update` routes by message type: `WindowSizeMsg` fans the size out to both sub-models;
+`tui.Model` (`app.go`) is the bubbletea root. It holds two sub-models and a `screen` that advances
+`screenForm -> screenDashboard`. `Update` routes by message type: `WindowSizeMsg` fans the size out to both sub-models;
 `spinner.TickMsg` drives the dashboard spinner while a run is live; `KeyMsg` is delegated to whichever screen is active;
 and the progress messages (`unitStartedMsg`, `itemDoneMsg`, …, `runDoneMsg` — all defined in `messages.go`, one per
 `Reporter` method) are applied to the dashboard. `startRun` builds the execution plan with `run.PlanFor` per selected
@@ -115,11 +116,11 @@ model, constructs the dashboard, and `tea.Batch`es dispatching the request with 
 
 `formModel` (`form.go`) is a three-pane, lazygit-style screen: a providers/models tree on the left, and triggers and
 evals trees stacked on the right. All three are the generic collapsible checkbox `tree` (`tree.go`) whose leaves carry a
-tri-state (`nodeOff` / `nodePartial` / `nodeOn`). The initial selection is *derived*, not blank: `run.Needs` returns the
-per-model run matrix the non-TUI path would execute (honouring `--new`, `--skill`, `--eval`), and `deriveStates` turns it
-into the leaf states — so the form opens already matching flag-only mode, with `--new`'s partial units shown as partial.
-`request()` walks the final selection into a `tui.RunRequest` carrying a *per-model* `run.Filter`, letting each model run
-a different set of cases (needed so `--new` reruns only the stale units while a peer runs everything).
+tri-state (`nodeOff` / `nodePartial` / `nodeOn`). The initial selection is _derived_, not blank: `run.Needs` returns the
+per-model run matrix the non-TUI path would execute (honouring `--new`, `--skill`, `--eval`), and `deriveStates` turns
+it into the leaf states — so the form opens already matching flag-only mode, with `--new`'s partial units shown as
+partial. `request()` walks the final selection into a `tui.RunRequest` carrying a _per-model_ `run.Filter`, letting each
+model run a different set of cases (needed so `--new` reruns only the stale units while a peer runs everything).
 
 ### Live dashboard
 
