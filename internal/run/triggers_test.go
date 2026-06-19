@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,6 +52,14 @@ type countingTriggerProvider struct{ fakeTriggerProvider }
 
 func (c *countingTriggerProvider) CountTokens(_ context.Context, _, text string) (int, error) {
 	return len(text), nil
+}
+
+// failCountProvider is counting-capable but its counting API always fails, so a
+// run records execution results without token counts — the unfillable-count case.
+type failCountProvider struct{ fakeTriggerProvider }
+
+func (*failCountProvider) CountTokens(context.Context, string, string) (int, error) {
+	return 0, errors.New("counting unavailable")
 }
 
 // fakeTriggerRunner emits an activation line for queries containing "please
@@ -255,6 +265,41 @@ func TestTriggersNewRerunsAfterEvalChange(t *testing.T) {
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
 	if got := len(file.Triggers["fake/model-1"].Results); got != 3 {
 		t.Errorf("results = %d, want 3 after the added query", got)
+	}
+}
+
+func TestNeedsNewSkipsUnfillableCounts(t *testing.T) {
+	repo := triggerRepoFixture(t)
+	p := &failCountProvider{} // counting-capable, unpriced, but counting fails
+	topts := triggerOptions(t, repo, p)
+	topts.Stdout = io.Discard
+	topts.Stderr = io.Discard
+
+	// A first run executes but cannot produce token counts.
+	if _, err := Triggers(context.Background(), topts); err != nil {
+		t.Fatal(err)
+	}
+	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
+	entry := file.Triggers[topts.Selected[0].Key()]
+	if entry == nil || !entry.Executed {
+		t.Fatalf("entry = %+v, want an executed entry", entry)
+	}
+	if entry.Results[0].Estimate != nil {
+		t.Fatalf("estimate = %+v, want nil (counting failed)", entry.Results[0].Estimate)
+	}
+
+	// --new must NOT pre-select this unit: its only gap is a token count the
+	// model cannot produce, so a re-run could not fill it.
+	cat, err := Catalog(topts.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withNew := topts.Options
+	withNew.New = true
+	key := topts.Selected[0].Key()
+	tt := Target{Skill: "solo-skill", Kind: KindTriggers}
+	if n := Needs(withNew, cat, topts.Selected, Tiers{Triggers: true}, ""); n[key][tt] {
+		t.Error("--new pre-selected a unit whose only missing data is an unfillable token count")
 	}
 }
 

@@ -142,7 +142,9 @@ type Target struct {
 // evalFilter, and with applicable cases for the model, appear. The TUI derives
 // the form's initial tri-state selection from this so it matches non-TUI mode
 // exactly. The --new check reuses the engine's own skip logic with a
-// conservative always-rerun probe, so it needs no token-counting round trip.
+// counts-unfillable probe (see countsUnfillableTrigger), so it needs no
+// token-counting round trip and never pre-selects a unit whose only gap is a
+// count or price a re-run could not produce.
 func Needs(
 	opts Options, cat []SkillCatalog, sels []provider.Selection, def Tiers, evalFilter string,
 ) map[string]map[Target]bool {
@@ -183,8 +185,15 @@ func evalOnlyFilter(skill, evalFilter string) *Filter {
 	return &Filter{Evals: map[string]map[string]bool{skill: {evalFilter: true}}}
 }
 
-func alwaysRerunTrigger(evalspec.Trigger) bool { return true }
-func alwaysRerunEval(evalspec.Eval) bool       { return true }
+// countsUnfillable* are the probes the selection form uses instead of a live
+// token-counting round trip. Returning false means "treat a missing count as
+// unresolvable": a unit whose only gap is an absent token count or price — a
+// model with no counting API or pricing, or a prior run made without a working
+// credential (e.g. gpt-5.3-codex-spark) — is reported complete rather than
+// pre-selected for a --new re-run that could not fill it. The actual sweep still
+// probes the live counter, so a count that genuinely can be produced is.
+func countsUnfillableTrigger(evalspec.Trigger) bool { return false }
+func countsUnfillableEval(evalspec.Eval) bool       { return false }
 
 // triggerUnitNeeds reports whether the (model, skill, triggers) unit would run.
 func triggerUnitNeeds(opts Options, file *results.File, sel provider.Selection, app []evalspec.Trigger) bool {
@@ -198,7 +207,7 @@ func triggerUnitNeeds(opts Options, file *results.File, sel provider.Selection, 
 	if file != nil {
 		entry = file.Triggers[sel.Key()]
 	}
-	return triggerSkipReason(entry, app, sel.Model, execute, countCapable, alwaysRerunTrigger) == ""
+	return triggerSkipReason(entry, app, sel.Model, execute, countCapable, countsUnfillableTrigger) == ""
 }
 
 // evalUnitNeeds reports whether the (model, skill, evals) unit would run.
@@ -215,5 +224,5 @@ func evalUnitNeeds(opts Options, file *results.File, sel provider.Selection, app
 	if file != nil {
 		entry = file.Evals[sel.Key()]
 	}
-	return evalSkipReason(entry, app, sel.Model, execute, reportsUsage, countCapable, alwaysRerunEval) == ""
+	return evalSkipReason(entry, app, sel.Model, execute, reportsUsage, countCapable, countsUnfillableEval) == ""
 }
