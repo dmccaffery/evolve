@@ -138,29 +138,29 @@ config > builtins. The full option reference and annotated example files for eac
 
 ```json
 {
-  "layout": "marketplace",
-  "default_models": ["anthropic", "cursor/composer-2.5"],
-  "results_format": "json",
-  "checks": {
-    "license": "MIT",
-    "description_pattern": "Use (when|after|before)",
-    "max_skill_lines": 500,
-    "require_codex_manifest": true,
-    "forbid_hooks": true,
-    "marketplace": true
-  },
-  "report": {
-    "thresholds": {
-      "triggers_min_pass_rate": 0.8,
-      "evals_min_pass_rate": 0.9,
-      "models": ["anthropic/claude-fable-5"]
+    "layout": "marketplace",
+    "default_models": ["anthropic", "cursor/composer-2.5"],
+    "results_format": "json",
+    "checks": {
+        "license": "MIT",
+        "description_pattern": "Use (when|after|before)",
+        "max_skill_lines": 500,
+        "require_codex_manifest": true,
+        "forbid_hooks": true,
+        "marketplace": true
+    },
+    "report": {
+        "thresholds": {
+            "triggers_min_pass_rate": 0.8,
+            "evals_min_pass_rate": 0.9,
+            "models": ["anthropic/claude-fable-5"]
+        }
+    },
+    "providers": {
+        "cursor": {
+            "models": [{ "id": "composer-2.5", "display": "Cursor Composer 2.5" }]
+        }
     }
-  },
-  "providers": {
-    "cursor": {
-      "models": [{ "id": "composer-2.5", "display": "Cursor Composer 2.5" }]
-    }
-  }
 }
 ```
 

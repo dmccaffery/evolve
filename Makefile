@@ -18,10 +18,6 @@ FUZZ_PKG ?= ./internal/manifest
 FUZZ     ?= FuzzFrontmatter
 FUZZTIME ?= 20s
 
-# Run the Node lint/format CLIs straight from node_modules so the versions pinned
-# in package.json / package-lock.json are used — never a global or npx copy.
-NPMBIN := ./node_modules/.bin
-
 # Go developer CLIs (addlicense, goreleaser) are pinned in tools/go.mod — a
 # separate module so their dependency graphs never touch the application's go.mod —
 # and invoked with `go tool -modfile=tools/go.mod <name>`: compiled into the build
@@ -34,89 +30,92 @@ NPMBIN := ./node_modules/.bin
 SMOKE_MODEL ?= claude-haiku-4-5
 
 .DEFAULT_GOAL := help
-.PHONY: help pr fmt fmt-check tidy vet lint lint-fix lint-md license license-check test test-coverage vuln fuzz build run docs snapshot release smoke commit
 
+.PHONY: help
 help: ## list available targets
 	@ grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
 
-pr: license tidy fmt vet lint-fix lint-md test fuzz build docs snapshot commit ## Full local gate, then run any pending ./commit.sh
+.PHONY: pr
+pr: tidy fmt lint test fuzz build docs snapshot smoke commit ## full local gate, then run any pending ./commit.sh
 
+.PHONY: ci
+ci: lint test fuzz build docs snapshot ## continuous integration gate
+
+.PHONY: commit
 commit: ## run ./commit.sh (agent-prepared commit batch) if present
 	@ if [ -x ./commit.sh ]; then ./commit.sh; fi
 
 # Install the pinned Node tools exactly as locked in package-lock.json.
 # Re-runs only when package.json / the lockfile change.
 node_modules: package.json package-lock.json
-	npm ci
+	@ npm ci --ignore-scripts --no-fund
 	@ touch node_modules
 
+.PHONY: fmt
 fmt: node_modules ## format the go code, prose, and config (gofmt + prettier)
-	go fmt ./...
-	go -C e2e fmt ./...
-	$(NPMBIN)/prettier --write .
+	@ go tool -modfile=tools/go.mod addlicense -c 'BitWise Media Group Ltd' -l mit -s=only cmd internal schemas
+	@ go fmt ./...
+	@ go -C e2e fmt ./...
+	@ go tool -modfile=tools/go.mod golangci-lint run --fix
+	@ npm run format
+	@ npm run lint:fix
 
-fmt-check: node_modules ## check prose & config formatting (prettier --check)
-	$(NPMBIN)/prettier --check .
-
-tidy: ## tidy the go module references
+tidy: go.mod e2e/go.mod tools/go.mod ## tidy the go module references
 	@ rm -f go.sum; go mod tidy
 	@ rm -f tools/go.sum; go -C tools mod tidy
 	@ rm -f e2e/go.sum; go -C e2e mod tidy
 
-vet: ## vet the go code (go vet)
-	go vet ./...
-	go -C e2e vet ./...
+.PHONY: lint
+lint: node_modules ## lint the go code
+	@ go vet ./...
+	@ go -C e2e vet ./...
+	@ go tool -modfile=tools/go.mod golangci-lint run
+	@ go tool -modfile=tools/go.mod govulncheck ./...
+	@ npm run lint
+	@ npm run format:check
+	@ go tool -modfile=tools/go.mod addlicense -c 'BitWise Media Group Ltd' -l mit -s=only -check cmd internal schemas
 
-lint: ## lint the go code
-	go tool -modfile=tools/go.mod golangci-lint run
-
-lint-fix: ## lint the go code and auto-fix issues
-	go tool -modfile=tools/go.mod golangci-lint run --fix
-
-lint-md: node_modules ## lint markdown prose (markdownlint-cli2)
-	$(NPMBIN)/markdownlint-cli2 "**/*.md"
-
-license-check: ## check license headers
-	go tool -modfile=tools/go.mod addlicense -check cmd internal schemas
-
-license: ## inject license headers
-	go tool -modfile=tools/go.mod addlicense -c 'BitWise Media Group Ltd' -l mit -s=only -v cmd internal schemas
-
+.PHONY: test
 test: ## run the unit tests (+ fuzz seed corpora)
 	go test ./...
 
 # -covermode=atomic is the race-safe counter mode `-race` requires. gocover-cobertura
 # is pinned in tools/go.mod and run via `go tool` — no `go install` of an @latest tool.
+.PHONY: test-coverage
 test-coverage: ## run unit tests under -race and write cobertura-coverage.xml
-	go test -race -covermode=atomic -coverprofile=coverage.out ./...
-	go tool -modfile=tools/go.mod gocover-cobertura <coverage.out >cobertura-coverage.xml
+	@ go test -race -covermode=atomic -coverprofile=coverage.out ./...
+	@ go tool -modfile=tools/go.mod gocover-cobertura <coverage.out >cobertura-coverage.xml
 
-vuln: ## scan code and dependencies for known vulnerabilities (govulncheck)
-	go tool -modfile=tools/go.mod govulncheck ./...
-
+.PHONY: fuzz
 fuzz: ## fuzz one target (FUZZ=FuzzParse FUZZTIME=20s FUZZ_PKG=./internal/evalspec)
-	go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
+	@ go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
 
+.PHONY: smoke
 smoke: ## real `evolve run all` on the marketplace fixture (SMOKE_MODEL=claude-haiku-4-5, 1 run, 1 job; needs the claude CLI + credentials)
 	@ command -v claude >/dev/null 2>&1 || { echo "smoke: claude CLI not found in PATH" >&2; exit 2; }
-	SMOKE_MODEL=$(SMOKE_MODEL) go -C e2e test -v -count=1 -run '^TestSmoke$$' .
+	@ SMOKE_MODEL=$(SMOKE_MODEL) go -C e2e test -v -count=1 -run '^TestSmoke$$' .
 
+.PHONY: build
 build: ## build the binary (./evolve) with version ldflags
-	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o evolve $(APP_PKG)
+	@ CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o evolve $(APP_PKG)
 
+.PHONY: run
 run: build ## build and run locally (override args via ARGS=...)
-	./evolve $(ARGS)
+	@ ./evolve $(ARGS)
 
+.PHONY: docs
 docs: build ## regenerate the cli reference (docs/cli, docs/man) and config docs (docs/config)
-	./evolve docs --out docs/cli --format markdown
-	./evolve docs --out docs/man --format man
-	./evolve docs --out docs/config --format config
+	@ ./evolve docs --out docs/cli --format markdown
+	@ ./evolve docs --out docs/man --format man
+	@ ./evolve docs --out docs/config --format config
 
 # --skip=sign: cosign keyless signing needs the GitHub Actions OIDC token, so
 # it only works in the release workflow — locally it would fail or prompt.
+.PHONY: snapshot
 snapshot: ## build local snapshot (binaries, no publish, no signing)
-	go tool -modfile=tools/go.mod goreleaser release --snapshot --clean --skip=sign
+	@ go tool -modfile=tools/go.mod goreleaser release --snapshot --clean --skip=sign
 
+.PHONY: release
 release: ## build and publish a release (needs a vX.Y.Z tag + creds)
-	go tool -modfile=tools/go.mod goreleaser release --clean
+	@ go tool -modfile=tools/go.mod goreleaser release --clean
