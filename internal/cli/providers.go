@@ -72,6 +72,25 @@ func (o *Options) Selections(modelsFlag string) ([]provider.Selection, error) {
 	return provider.Select(o.ModelsSpec(modelsFlag), providers)
 }
 
+// ActiveModelKeys returns the set of "provider/model-id" keys allowed by a
+// configured default_models, and whether default_models is configured at all.
+// When it is not configured, configured is false and callers must not filter
+// (reports and results keep every model, as before).
+func (o *Options) ActiveModelKeys() (keys map[string]bool, configured bool, err error) {
+	if len(o.Viper.GetStringSlice("default_models")) == 0 {
+		return nil, false, nil
+	}
+	sels, err := o.Selections("") // empty flag → resolve from default_models
+	if err != nil {
+		return nil, false, err
+	}
+	keys = make(map[string]bool, len(sels))
+	for _, s := range sels {
+		keys[s.Key()] = true
+	}
+	return keys, true, nil
+}
+
 // ModelsSpec resolves the --models flag, falling back to the config's
 // default_models list and then to "anthropic".
 func (o *Options) ModelsSpec(flag string) string {

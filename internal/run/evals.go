@@ -208,7 +208,9 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	for _, f := range c.Files {
 		copies[f.Dest] = f.Source
 	}
-	ws, cleanup, err := workspace.New("evals.", set.Plugin.SkillsDir,
+	// Evals isolate the skill under test: only it is symlinked in, keeping the
+	// agent's per-turn context lean (no sibling-skill descriptions to re-read).
+	ws, cleanup, err := workspace.New("evals.", []string{set.SkillDir},
 		unionSkillDirs(opts.Selected), copies, opts.KeepWorkspaces)
 	if err != nil {
 		return outcomeError, results.EvalResult{}, err
@@ -222,9 +224,15 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	if c.TimeoutSeconds > 0 {
 		timeout = time.Duration(c.TimeoutSeconds) * time.Second
 	}
+	// Precedence: a per-eval max_turns wins; otherwise the run-level setting
+	// (CLI flag or config); otherwise the provider's DefaultMaxTurns (0 here).
+	maxTurns := c.MaxTurns
+	if maxTurns == 0 {
+		maxTurns = opts.MaxTurns
+	}
 	spec := evalRunner.EvalSpec(ws, provider.EvalInput{
 		Prompt:       c.Prompt,
-		MaxTurns:     c.MaxTurns,
+		MaxTurns:     maxTurns,
 		AllowedTools: c.AllowedTools,
 	}, sel.Model.ID)
 	spec.Argv[0] = cli
@@ -311,9 +319,8 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		Timing:       &results.Timing{ExecutorDurationSeconds: &runSeconds},
 		Measured:     measured(sel.Model, usage),
 	}
-	if m := result.Measured; m != nil && m.InputTokens != nil && m.OutputTokens != nil {
-		total := *m.InputTokens + *m.OutputTokens
-		result.Timing.TotalTokens = &total
+	if result.Measured != nil {
+		result.Timing.TotalTokens = result.Measured.TotalTokens()
 	}
 	rep.ItemDone(ref, ItemResult{
 		Index: index, Label: c.ID, Status: status, Detail: lines,
@@ -332,6 +339,8 @@ func evalItemMetrics(dur *float64, m *results.Measured, s *results.GradeSummary)
 	im := ItemMetrics{AvgRunSeconds: dur}
 	if m != nil {
 		im.InputTokens = m.InputTokens
+		im.CacheReadTokens = m.CacheReadTokens
+		im.CacheCreationTokens = m.CacheCreationTokens
 		im.OutputTokens = m.OutputTokens
 		im.CostUSD = m.CostUSD
 	}
@@ -373,9 +382,11 @@ func measured(model provider.Model, usage *provider.Usage) *results.Measured {
 		cost = &rounded
 	}
 	return &results.Measured{
-		InputTokens:  usage.InputTokens,
-		OutputTokens: usage.OutputTokens,
-		CostUSD:      cost,
+		InputTokens:         usage.InputTokens,
+		CacheReadTokens:     usage.CacheReadTokens,
+		CacheCreationTokens: usage.CacheCreationTokens,
+		OutputTokens:        usage.OutputTokens,
+		CostUSD:             cost,
 	}
 }
 
@@ -430,9 +441,9 @@ func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
 }
 
 func sumMeasured(entryResults []results.EvalResult) *results.Measured {
-	var in, out int
+	var in, cacheRead, cacheCreation, out int
 	var cost float64
-	var hasIn, hasOut, hasCost bool
+	var hasIn, hasCacheRead, hasCacheCreation, hasOut, hasCost bool
 	for _, r := range entryResults {
 		if r.Measured == nil {
 			continue
@@ -440,6 +451,14 @@ func sumMeasured(entryResults []results.EvalResult) *results.Measured {
 		if r.Measured.InputTokens != nil {
 			in += *r.Measured.InputTokens
 			hasIn = true
+		}
+		if r.Measured.CacheReadTokens != nil {
+			cacheRead += *r.Measured.CacheReadTokens
+			hasCacheRead = true
+		}
+		if r.Measured.CacheCreationTokens != nil {
+			cacheCreation += *r.Measured.CacheCreationTokens
+			hasCacheCreation = true
 		}
 		if r.Measured.OutputTokens != nil {
 			out += *r.Measured.OutputTokens
@@ -450,12 +469,18 @@ func sumMeasured(entryResults []results.EvalResult) *results.Measured {
 			hasCost = true
 		}
 	}
-	if !hasIn && !hasOut && !hasCost {
+	if !hasIn && !hasCacheRead && !hasCacheCreation && !hasOut && !hasCost {
 		return nil
 	}
 	sum := &results.Measured{}
 	if hasIn {
 		sum.InputTokens = &in
+	}
+	if hasCacheRead {
+		sum.CacheReadTokens = &cacheRead
+	}
+	if hasCacheCreation {
+		sum.CacheCreationTokens = &cacheCreation
 	}
 	if hasOut {
 		sum.OutputTokens = &out

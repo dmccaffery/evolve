@@ -51,7 +51,9 @@
             "input_cost_usd": 0.01827
           },
           "measured": {
-            "input_tokens": 233680,
+            "input_tokens": 8200,
+            "cache_read_input_tokens": 220000,
+            "cache_creation_input_tokens": 5480,
             "output_tokens": 3142,
             "cost_usd": 0.782363
           }

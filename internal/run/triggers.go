@@ -62,7 +62,13 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 			opts.Repo.Rel(results.Find(set.ResultsDir)), results.Schema)
 	}
 
-	ws, cleanup, err := workspace.New("triggers.", set.Plugin.SkillsDir,
+	// Triggers need every sibling skill present: the test is whether the model
+	// activates the right one among the alternatives.
+	skills, err := workspace.SkillDirs(set.Plugin.SkillsDir)
+	if err != nil {
+		return false, err
+	}
+	ws, cleanup, err := workspace.New("triggers.", skills,
 		unionSkillDirs(opts.Selected), nil, opts.KeepWorkspaces)
 	if err != nil {
 		return false, err

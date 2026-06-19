@@ -147,8 +147,11 @@ func TestParseEvalOutputAnthropic(t *testing.T) {
 	if text != "done" {
 		t.Errorf("text = %q, want done", text)
 	}
-	if usage == nil || *usage.InputTokens != 100 || *usage.OutputTokens != 42 || *usage.CostUSD != 0.12 {
-		t.Errorf("usage = %+v, want input=100 output=42 cost=0.12", usage)
+	// Input is fresh-only; cache reads/writes stay on their own fields rather
+	// than folding into input.
+	if usage == nil || *usage.InputTokens != 10 || *usage.CacheReadTokens != 85 ||
+		*usage.CacheCreationTokens != 5 || *usage.OutputTokens != 42 || *usage.CostUSD != 0.12 {
+		t.Errorf("usage = %+v, want input=10 cacheRead=85 cacheCreation=5 output=42 cost=0.12", usage)
 	}
 
 	text, usage = NewAnthropic().ParseEvalOutput([]byte("not json at all"))

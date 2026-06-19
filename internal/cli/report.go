@@ -33,11 +33,16 @@ func (o *Options) RegenerateReports() error {
 	if err != nil {
 		return err
 	}
+	active, _, err := o.ActiveModelKeys()
+	if err != nil {
+		return err
+	}
 	_, err = report.Generate(report.Options{
-		Repo:        repo,
-		ToolVersion: version.Version,
-		Providers:   providers,
-		Format:      o.ResultsFormat,
+		Repo:         repo,
+		ToolVersion:  version.Version,
+		Providers:    providers,
+		Format:       o.ResultsFormat,
+		ActiveModels: active,
 	})
 	return err
 }

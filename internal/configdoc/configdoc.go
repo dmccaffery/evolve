@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -44,6 +45,16 @@ func Schema() []Option {
 		{
 			Key: "results_format", Type: "string", Value: "json",
 			Doc: "Format for committed results files and the EVALUATION rollup: json, jsonc, or yaml.",
+		},
+		{
+			Key: "max_turns", Type: "int", Value: provider.DefaultMaxTurns,
+			Doc: "Default maximum agent turns per behavioral eval; --max-turns and a per-eval max_turns override it.",
+		},
+		{
+			Key: "stale_results", Type: "string", Example: "keep",
+			Fallback: "prompt on a terminal, otherwise keep",
+			Doc: "How run/report treat stored results for models outside default_models: keep or drop. " +
+				"--stale-results overrides.",
 		},
 		{
 			Key: "checks.license", Type: "string", Example: "MIT",

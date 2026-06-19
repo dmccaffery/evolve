@@ -102,7 +102,7 @@ func (a *Anthropic) ScanLine(line []byte, skill string) (bool, string) {
 func (a *Anthropic) EvalSpec(ws string, c EvalInput, model string) CommandSpec {
 	maxTurns := c.MaxTurns
 	if maxTurns == 0 {
-		maxTurns = 25
+		maxTurns = DefaultMaxTurns
 	}
 	tools := c.AllowedTools
 	if tools == "" {
@@ -120,9 +120,11 @@ func (a *Anthropic) EvalSpec(ws string, c EvalInput, model string) CommandSpec {
 	}
 }
 
-// ParseEvalOutput reads the claude JSON payload. Cache writes/reads are input
-// tokens too; they are folded in so the figure reflects everything the
-// session consumed (cost_usd already does).
+// ParseEvalOutput reads the claude JSON payload. Cache writes and reads are
+// reported on their own fields rather than folded into input: a multi-turn
+// cached session re-reads the same base context every turn, so lumping cache
+// reads into "input" inflates it many-fold over the (cheaply cached) reality.
+// total_cost_usd still reflects everything the session consumed.
 func (a *Anthropic) ParseEvalOutput(stdout []byte) (string, *Usage) {
 	var payload struct {
 		Result string `json:"result"`
@@ -140,11 +142,15 @@ func (a *Anthropic) ParseEvalOutput(stdout []byte) (string, *Usage) {
 	if payload.Usage == nil {
 		return payload.Result, nil
 	}
-	in := payload.Usage.InputTokens + payload.Usage.CacheCreationInputTokens + payload.Usage.CacheReadInputTokens
+	in := payload.Usage.InputTokens
+	cacheRead := payload.Usage.CacheReadInputTokens
+	cacheCreation := payload.Usage.CacheCreationInputTokens
 	return payload.Result, &Usage{
-		InputTokens:  &in,
-		OutputTokens: payload.Usage.OutputTokens,
-		CostUSD:      payload.TotalCostUSD,
+		InputTokens:         &in,
+		CacheReadTokens:     &cacheRead,
+		CacheCreationTokens: &cacheCreation,
+		OutputTokens:        payload.Usage.OutputTokens,
+		CostUSD:             payload.TotalCostUSD,
 	}
 }
 

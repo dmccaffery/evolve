@@ -7,7 +7,7 @@
   "required": ["schema", "plugin", "skill"],
   "properties": {
     "$schema": { "type": "string" },
-    "schema": { "const": 2 },
+    "schema": { "const": 3 },
     "plugin": { "type": "string" },
     "skill": { "type": "string" },
     "triggers": {

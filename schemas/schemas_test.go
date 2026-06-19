@@ -172,7 +172,7 @@ func maximalResults() *results.File {
 		Results: []results.EvalResult{{
 			ID: "1", Name: "Ocean", Passed: ptr(true),
 			Estimate:     &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured:     &results.Measured{InputTokens: ptr(100), OutputTokens: ptr(10), CostUSD: ptr(0.0003)},
+			Measured:     &results.Measured{InputTokens: ptr(100), CacheReadTokens: ptr(880), CacheCreationTokens: ptr(40), OutputTokens: ptr(10), CostUSD: ptr(0.0003)},
 			Expectations: graded,
 			Summary:      results.SummarizeExpectations(graded),
 			ExecutionMetrics: &results.ExecutionMetrics{
@@ -181,7 +181,7 @@ func maximalResults() *results.File {
 				ErrorsEncountered: ptr(0), OutputChars: ptr(120), TranscriptChars: ptr(3200),
 			},
 			Timing: &results.Timing{
-				TotalTokens: ptr(110), DurationMS: ptr(23332), TotalDurationSeconds: ptr(23.3),
+				TotalTokens: ptr(1030), DurationMS: ptr(23332), TotalDurationSeconds: ptr(23.3),
 				ExecutorStart: "2026-06-12T11:00:00Z", ExecutorEnd: "2026-06-12T11:02:45Z",
 				ExecutorDurationSeconds: ptr(165.0),
 				GraderStart:             "2026-06-12T11:02:46Z", GraderEnd: "2026-06-12T11:03:12Z",

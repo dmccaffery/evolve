@@ -33,10 +33,12 @@
       "additionalProperties": true
     },
     "measured": {
-      "description": "Harness-reported usage of a live session; input includes cache writes and reads.",
+      "description": "Harness-reported usage of a live session. input_tokens is fresh (uncached) input only; cache reads and writes are reported separately. Total consumption is their sum plus output.",
       "type": "object",
       "properties": {
         "input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_read_input_tokens": { "type": "integer", "minimum": 0 },
+        "cache_creation_input_tokens": { "type": "integer", "minimum": 0 },
         "output_tokens": { "type": "integer", "minimum": 0 },
         "cost_usd": { "type": "number", "minimum": 0 }
       },

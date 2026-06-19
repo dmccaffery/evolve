@@ -67,14 +67,16 @@ type ItemResult struct {
 // optional: triggers fill hits/runs and the input-side estimate; evals fill the
 // duration, measured input/output tokens, cost, and assertion tally.
 type ItemMetrics struct {
-	Hits          *int
-	Runs          *int
-	AvgRunSeconds *float64 // triggers: avg per run; evals: executor duration
-	InputTokens   *int
-	OutputTokens  *int // evals only
-	CostUSD       *float64
-	AssertPassed  *int
-	AssertTotal   *int
+	Hits                *int
+	Runs                *int
+	AvgRunSeconds       *float64 // triggers: avg per run; evals: executor duration
+	InputTokens         *int     // fresh (uncached) input
+	CacheReadTokens     *int     // evals only
+	CacheCreationTokens *int     // evals only
+	OutputTokens        *int     // evals only
+	CostUSD             *float64
+	AssertPassed        *int
+	AssertTotal         *int
 }
 
 // UnitSummary is the rollup the engine reports when a unit finishes.

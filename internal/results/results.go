@@ -16,12 +16,17 @@ import (
 // result a superset of skill-creator's grading.json (expectations with
 // text/passed/evidence, summary, timing) and renamed the cases section.
 //
+// v3 unlumped measured input: InputTokens is now fresh (uncached) input only,
+// with cache reads and writes on their own fields. The number's meaning
+// changed, so old files are discarded on load rather than silently
+// reinterpreted (LoadDir returns reset=true on a version mismatch).
+//
 // The runtime-error fields (EvalResult.RuntimeError, EvalSummary.Errored) are
 // additive and omitempty, so they do not change the schema number: old files
 // load unchanged, and an older binary simply ignores them. They do shift the
 // meaning of the failed count — an eval whose agent never produced usable
 // output is now reported as errored rather than failed.
-const Schema = 2
+const Schema = 3
 
 // File is one evals/<skill>/results.<ext>.
 type File struct {
@@ -58,12 +63,33 @@ type Estimate struct {
 	InputCostUSD *float64 `json:"input_cost_usd,omitempty"`
 }
 
-// Measured is the harness-reported usage of a live case session. Input
-// includes cache writes and reads.
+// Measured is the harness-reported usage of a live case session. InputTokens
+// is fresh (uncached) input only; cache reads and writes are reported
+// separately so a multi-turn session's cheap cache traffic does not inflate
+// the headline input figure. Total consumption is the sum of all three.
 type Measured struct {
-	InputTokens  *int     `json:"input_tokens,omitempty"`
-	OutputTokens *int     `json:"output_tokens,omitempty"`
-	CostUSD      *float64 `json:"cost_usd,omitempty"`
+	InputTokens         *int     `json:"input_tokens,omitempty"`
+	CacheReadTokens     *int     `json:"cache_read_input_tokens,omitempty"`
+	CacheCreationTokens *int     `json:"cache_creation_input_tokens,omitempty"`
+	OutputTokens        *int     `json:"output_tokens,omitempty"`
+	CostUSD             *float64 `json:"cost_usd,omitempty"`
+}
+
+// TotalTokens is everything the session consumed: fresh input, cache reads,
+// cache writes, and output. It returns nil when no token field is reported.
+func (m *Measured) TotalTokens() *int {
+	var total int
+	var reported bool
+	for _, t := range []*int{m.InputTokens, m.CacheReadTokens, m.CacheCreationTokens, m.OutputTokens} {
+		if t != nil {
+			total += *t
+			reported = true
+		}
+	}
+	if !reported {
+		return nil
+	}
+	return &total
 }
 
 // TriggerEntry is one model's trigger sweep over a skill.

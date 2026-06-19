@@ -32,17 +32,27 @@ type CommandSpec struct {
 }
 
 // Usage is the harness-reported consumption of one live agent session.
-// Fields are nil where the CLI does not report them.
+// Fields are nil where the CLI does not report them. InputTokens is the
+// fresh (uncached) input only; cache reads and writes are reported
+// separately so a multi-turn session's cheap cache traffic does not inflate
+// the headline input figure.
 type Usage struct {
-	InputTokens  *int
-	OutputTokens *int
-	CostUSD      *float64
+	InputTokens         *int // fresh (uncached) input only
+	CacheReadTokens     *int
+	CacheCreationTokens *int
+	OutputTokens        *int
+	CostUSD             *float64
 }
+
+// DefaultMaxTurns is the agent-turn ceiling for a behavioral eval when neither
+// the case nor the run overrides it. Kept here (the lowest-level package) so
+// the runner, the CLI flag, and the config docs share one source of truth.
+const DefaultMaxTurns = 10
 
 // EvalInput is the runner-relevant subset of a behavioral case.
 type EvalInput struct {
 	Prompt       string
-	MaxTurns     int    // 0 = the provider default (25)
+	MaxTurns     int    // 0 = the provider default (DefaultMaxTurns)
 	AllowedTools string // "" = the provider default tool set
 }
 
@@ -138,14 +148,19 @@ func InputCostUSD(m Model, tokens *int) *float64 {
 }
 
 // UsageCostUSD prices a measured usage at the model's rates, or nil when
-// pricing is unavailable.
+// pricing is unavailable. This is only the fallback for a runner that reports
+// no total_cost_usd; it prices every input-side field (fresh input, cache
+// reads, and cache writes) at the input rate so the figure still reflects the
+// whole session — the same total the lumped input figure used to carry.
 func UsageCostUSD(m Model, u Usage) *float64 {
 	if m.InputUSD == nil || m.OutputUSD == nil {
 		return nil
 	}
 	var cost float64
-	if u.InputTokens != nil {
-		cost += float64(*u.InputTokens) / 1e6 * *m.InputUSD
+	for _, in := range []*int{u.InputTokens, u.CacheReadTokens, u.CacheCreationTokens} {
+		if in != nil {
+			cost += float64(*in) / 1e6 * *m.InputUSD
+		}
 	}
 	if u.OutputTokens != nil {
 		cost += float64(*u.OutputTokens) / 1e6 * *m.OutputUSD

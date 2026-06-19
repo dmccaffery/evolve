@@ -10,13 +10,16 @@ import (
 	"sort"
 )
 
-// New creates a temp workspace. dirs are workspace-relative skills locations
-// (e.g. ".claude/skills") — pass the union across the selected providers so
-// one workspace serves a whole model sweep. copies maps workspace-relative
+// New creates a temp workspace. skills are absolute skill-directory paths to
+// symlink in; the caller chooses which (triggers pass every skill via
+// SkillDirs so the model must pick the right one; evals pass only the skill
+// under test). dirs are workspace-relative skills locations (e.g.
+// ".claude/skills") — pass the union across the selected providers so one
+// workspace serves a whole model sweep. copies maps workspace-relative
 // destinations to absolute fixture paths, copied in byte-for-byte. The
 // returned cleanup removes the workspace; pass keep=true to leave it behind
 // for debugging.
-func New(prefix string, skillsDir string, dirs []string, copies map[string]string,
+func New(prefix string, skills []string, dirs []string, copies map[string]string,
 	keep bool) (string, func(), error) {
 	ws, err := os.MkdirTemp("", prefix)
 	if err != nil {
@@ -28,11 +31,6 @@ func New(prefix string, skillsDir string, dirs []string, copies map[string]strin
 		}
 	}
 
-	skills, err := skillDirs(skillsDir)
-	if err != nil {
-		cleanup()
-		return "", nil, err
-	}
 	for _, dir := range dirs {
 		target := filepath.Join(ws, dir)
 		if err := os.MkdirAll(target, 0o755); err != nil {
@@ -70,9 +68,9 @@ func New(prefix string, skillsDir string, dirs []string, copies map[string]strin
 	return ws, cleanup, nil
 }
 
-// skillDirs lists the absolute paths of every skill directory (one containing
+// SkillDirs lists the absolute paths of every skill directory (one containing
 // a SKILL.md) under skillsDir, sorted by name.
-func skillDirs(skillsDir string) ([]string, error) {
+func SkillDirs(skillsDir string) ([]string, error) {
 	entries, err := os.ReadDir(skillsDir)
 	if err != nil {
 		return nil, err

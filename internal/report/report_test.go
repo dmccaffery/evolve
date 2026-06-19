@@ -98,7 +98,7 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 			ID: "basic", Passed: ptr(false),
 			Timing:   &results.Timing{ExecutorDurationSeconds: ptr(84.2)},
 			Estimate: &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured: &results.Measured{InputTokens: ptr(233680), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)},
+			Measured: &results.Measured{InputTokens: ptr(8200), CacheReadTokens: ptr(220000), CacheCreationTokens: ptr(5480), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)},
 			Expectations: []results.GradedAssertion{
 				{Text: "file x exists", Passed: ptr(false), Evidence: "x missing", Source: "assertion"},
 			},
@@ -107,7 +107,7 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 		Summary: results.EvalSummary{Passed: ptr(0), Failed: ptr(1), Total: 1, PassRate: ptr(0.0),
 			AvgRunSeconds: ptr(84.2),
 			Estimate:      &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured:      &results.Measured{InputTokens: ptr(233680), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)}},
+			Measured:      &results.Measured{InputTokens: ptr(8200), CacheReadTokens: ptr(220000), CacheCreationTokens: ptr(5480), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)}},
 	})
 	if _, err := f.SaveDir(filepath.Join(root, "evals", "solo-skill"), "json"); err != nil {
 		t.Fatal(err)
@@ -158,6 +158,43 @@ func TestGenerateGolden(t *testing.T) {
 	// Single layout: no per-plugin page.
 	if _, err := os.Stat(filepath.Join(repo.Root, "plugins")); err == nil {
 		t.Error("single layout must not create a plugins dir")
+	}
+}
+
+// TestGenerateFiltersToActive checks that a configured default_models filters
+// the report to the active models and lists the rest in the excluded note.
+func TestGenerateFiltersToActive(t *testing.T) {
+	repo := fixtureRepo(t)
+	active := map[string]bool{
+		"anthropic/claude-fable-5": true,
+		"cursor/composer-2.5":      true,
+	}
+	if _, err := Generate(Options{
+		Repo: repo, ToolVersion: "test", Providers: provider.All(nil), ActiveModels: active,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(repo.Root, "EVALUATION.md"))
+	text := string(data)
+
+	if !strings.Contains(text, "## Excluded models") {
+		t.Fatalf("missing excluded-models note:\n%s", text)
+	}
+	// Google has no active model: listed as all excluded, and its result row is
+	// dropped from the tables entirely.
+	if !strings.Contains(text, "| Google | all models |") {
+		t.Errorf("excluded note missing Google all-models row:\n%s", text)
+	}
+	if strings.Contains(text, "gemini-3.5-flash") {
+		t.Error("filtered google model still present in report")
+	}
+	// Anthropic is partially excluded: its non-active models are listed by id.
+	if !strings.Contains(text, "claude-haiku-4-5") {
+		t.Errorf("excluded note missing partial anthropic ids:\n%s", text)
+	}
+	// Active models survive in the tables.
+	if !strings.Contains(text, "composer-2.5") || !strings.Contains(text, "claude-fable-5") {
+		t.Error("active models missing from filtered report")
 	}
 }
 

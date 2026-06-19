@@ -15,9 +15,36 @@ import (
 	"github.com/bitwise-media-group/evolve/internal/results"
 )
 
-func renderRoot(opts Options, loaded []pluginFiles, summary *Summary, caps capabilityMap) string {
+// renderExcluded renders the note listing models default_models excludes, or ""
+// when nothing is excluded (no filtering, or every catalog model is active).
+func renderExcluded(excluded []excludedProvider) string {
+	if len(excluded) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## Excluded models\n\n")
+	b.WriteString("Only models in `default_models` appear below; these are excluded from this report:\n\n")
+	b.WriteString("| Provider | Excluded models |\n")
+	b.WriteString("| --- | --- |\n")
+	for _, e := range excluded {
+		models := "all models"
+		if !e.all {
+			ids := make([]string, len(e.models))
+			for i, id := range e.models {
+				ids[i] = "`" + id + "`"
+			}
+			models = strings.Join(ids, ", ")
+		}
+		fmt.Fprintf(&b, "| %s | %s |\n", e.display, models)
+	}
+	return b.String()
+}
+
+func renderRoot(opts Options, loaded []pluginFiles, summary *Summary, caps capabilityMap,
+	excluded []excludedProvider) string {
 	var b strings.Builder
 	b.WriteString(generatedMarker + "\n\n# Skill evaluations\n\n" + methodology + "\n")
+	b.WriteString(renderExcluded(excluded))
 
 	for _, pf := range loaded {
 		ps := summary.Plugins[pf.plugin.Name]
@@ -40,15 +67,15 @@ func renderRoot(opts Options, loaded []pluginFiles, summary *Summary, caps capab
 		if len(ps.Evals) > 0 {
 			b.WriteString("\n### Evals\n\n")
 			b.WriteString("| Provider | Model | Passed | Avg run | Input tokens" +
-				" | Est. input cost | Measured in/out | Measured cost |\n")
-			b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+				" | Est. input cost | Measured in/out | Cache rd/wr | Measured cost |\n")
+			b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 			for _, key := range sortedKeys(ps.Evals) {
 				m := ps.Evals[key]
-				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s |\n",
+				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s | %s |\n",
 					caps.providerDisplay(m.Provider), m.Display, strings.TrimPrefix(key, m.Provider+"/"),
 					fmtPassed(m), fmtSecs(m.AvgRunSeconds),
 					fmtTokensCell(m, caps), fmtEstCostCell(m, caps),
-					fmtMeasuredTokens(m, caps), fmtMeasuredCost(m, caps))
+					fmtMeasuredTokens(m, caps), fmtMeasuredCacheRollup(m, caps), fmtMeasuredCost(m, caps))
 			}
 		}
 	}
@@ -100,13 +127,15 @@ func renderDetail(pf pluginFiles, caps capabilityMap) string {
 			if entry, ok := f.Evals[key]; ok {
 				fmt.Fprintf(&b, "\n### Evals — %s\n\n", f.Skill)
 				fmt.Fprintf(&b, "%s\n\n", lastRunNote(entry.Header, 0))
-				b.WriteString("| Eval | Result | Run | Input tokens | Est. cost | Measured in/out | Measured cost |\n")
-				b.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
+				b.WriteString("| Eval | Result | Run | Input tokens | Est. cost" +
+					" | Measured in/out | Cache rd/wr | Measured cost |\n")
+				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 				for _, r := range entry.Results {
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
+					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
 						cell(r.ID, 60), evalVerdict(r), fmtSecs(runSeconds(r.Timing)),
 						fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps),
-						fmtMeasuredInOut(r.Measured, provName, caps), fmtMeasuredCostDetail(r.Measured, entry.Pricing, provName, caps))
+						fmtMeasuredInOut(r.Measured, provName, caps), fmtMeasuredCache(r.Measured, provName, caps),
+						fmtMeasuredCostDetail(r.Measured, entry.Pricing, provName, caps))
 				}
 				// Runtime errors and failed expectations get surfaced under the table.
 				for _, r := range entry.Results {
@@ -292,6 +321,40 @@ func inOut(m *results.Measured) string {
 		out = groupThousands(*m.OutputTokens)
 	}
 	return in + "/" + out
+}
+
+// fmtMeasuredCache renders a detail row's cache reads/writes, mirroring
+// fmtMeasuredInOut's n/a (provider never reports usage) vs — (not yet run).
+func fmtMeasuredCache(m *results.Measured, provName string, caps capabilityMap) string {
+	if m != nil && (m.CacheReadTokens != nil || m.CacheCreationTokens != nil) {
+		return cacheRdWr(m)
+	}
+	if !caps.usage[provName] {
+		return "n/a"
+	}
+	return "—"
+}
+
+// fmtMeasuredCacheRollup is fmtMeasuredCache for a rollup row.
+func fmtMeasuredCacheRollup(m *ModelRollup, caps capabilityMap) string {
+	if m.Measured != nil && (m.Measured.CacheReadTokens != nil || m.Measured.CacheCreationTokens != nil) {
+		return cacheRdWr(m.Measured)
+	}
+	if !caps.usage[m.Provider] {
+		return "n/a"
+	}
+	return "—"
+}
+
+func cacheRdWr(m *results.Measured) string {
+	rd, wr := "—", "—"
+	if m.CacheReadTokens != nil {
+		rd = groupThousands(*m.CacheReadTokens)
+	}
+	if m.CacheCreationTokens != nil {
+		wr = groupThousands(*m.CacheCreationTokens)
+	}
+	return rd + "/" + wr
 }
 
 func fmtUSD(v float64) string {

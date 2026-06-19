@@ -35,11 +35,19 @@ var reportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if err := reconcileStaleResults(cmd, !opts.JSON && isTerminal(cmd)); err != nil {
+			return err
+		}
+		active, _, err := opts.ActiveModelKeys()
+		if err != nil {
+			return err
+		}
 		summary, err := report.Generate(report.Options{
-			Repo:        repo,
-			ToolVersion: version.Version,
-			Providers:   providers,
-			Format:      opts.ResultsFormat,
+			Repo:         repo,
+			ToolVersion:  version.Version,
+			Providers:    providers,
+			Format:       opts.ResultsFormat,
+			ActiveModels: active,
 		})
 		if err != nil {
 			return err
@@ -81,5 +89,7 @@ func init() {
 		"minimum trigger pass rate (0..1) for --check")
 	reportCmd.Flags().Float64Var(&reportFlags.MinEvalsPassRate, "min-evals-pass-rate", 0,
 		"minimum eval pass rate (0..1) for --check")
+	reportCmd.Flags().String("stale-results", "",
+		"keep|drop stored results for models outside default_models (default: prompt on a terminal, else keep)")
 	rootCmd.AddCommand(reportCmd)
 }

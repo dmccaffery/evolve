@@ -33,6 +33,7 @@ type Options struct {
 	SkillFilter    string
 	Timeout        time.Duration
 	Jobs           int
+	MaxTurns       int // agent-turn ceiling per eval; 0 = provider.DefaultMaxTurns. A per-eval max_turns overrides it.
 	CountOnly      bool
 	New            bool
 	KeepWorkspaces bool

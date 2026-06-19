@@ -30,6 +30,12 @@ type Options struct {
 	ToolVersion string
 	Providers   []provider.Provider // effective registry: display names + capabilities
 	Format      string              // rollup format: json, jsonc, or yaml ("" = json)
+
+	// ActiveModels, when non-nil, restricts the report to these "provider/model-id"
+	// keys (a configured default_models). Entries for any other model are dropped
+	// from the tables and listed in the "Excluded models" note. Nil means no
+	// filtering — every model with stored results is reported.
+	ActiveModels map[string]bool
 }
 
 // Summary is the machine-readable rollup written to EVALUATION.<format>.
@@ -78,6 +84,14 @@ func Generate(opts Options) (*Summary, error) {
 	}
 	caps := capabilities(opts.Providers)
 
+	// When default_models is configured, drop non-active models from the tables
+	// and surface the excluded set in a note at the top of the report.
+	var excluded []excludedProvider
+	if opts.ActiveModels != nil {
+		filterActive(loaded, opts.ActiveModels)
+		excluded = excludedModels(opts.Providers, opts.ActiveModels)
+	}
+
 	summary := &Summary{Schema: 2, ToolVersion: opts.ToolVersion, Plugins: map[string]*PluginSummary{}}
 	for _, pf := range loaded {
 		ps := &PluginSummary{
@@ -96,7 +110,7 @@ func Generate(opts Options) (*Summary, error) {
 		}
 	}
 
-	root := renderRoot(opts, loaded, summary, caps)
+	root := renderRoot(opts, loaded, summary, caps, excluded)
 	if err := writeFile(filepath.Join(opts.Repo.Root, "EVALUATION.md"), root); err != nil {
 		return nil, err
 	}
@@ -202,6 +216,56 @@ func load(repo *layout.Repo) ([]pluginFiles, error) {
 		out = append(out, *byPlugin[name])
 	}
 	return out, nil
+}
+
+// filterActive drops every trigger/eval entry whose model key is not in active.
+// The loaded files are freshly read and unshared, so mutating them in place is
+// safe and filters the rollups and the detail tables in one move.
+func filterActive(loaded []pluginFiles, active map[string]bool) {
+	for _, pf := range loaded {
+		for _, f := range pf.files {
+			for key := range f.Triggers {
+				if !active[key] {
+					delete(f.Triggers, key)
+				}
+			}
+			for key := range f.Evals {
+				if !active[key] {
+					delete(f.Evals, key)
+				}
+			}
+		}
+	}
+}
+
+// excludedProvider is one provider's models that default_models excludes.
+type excludedProvider struct {
+	display string
+	all     bool     // every one of the provider's models is excluded
+	models  []string // excluded model ids (sorted), when not all
+}
+
+// excludedModels lists, per provider, the catalog models absent from active.
+// It is catalog-driven (not results-driven) so the note stays stable whether or
+// not stale results were dropped.
+func excludedModels(providers []provider.Provider, active map[string]bool) []excludedProvider {
+	var out []excludedProvider
+	for _, p := range providers {
+		var excl []string
+		total := 0
+		for _, m := range p.Models() {
+			total++
+			if !active[p.Name()+"/"+m.ID] {
+				excl = append(excl, m.ID)
+			}
+		}
+		if len(excl) == 0 {
+			continue
+		}
+		sort.Strings(excl)
+		out = append(out, excludedProvider{display: p.Display(), all: len(excl) == total, models: excl})
+	}
+	return out
 }
 
 type capabilityMap struct {
@@ -331,6 +395,8 @@ func mergeMeasured(a, b *results.Measured) *results.Measured {
 	}
 	out := &results.Measured{}
 	out.InputTokens = addInts(a.InputTokens, b.InputTokens)
+	out.CacheReadTokens = addInts(a.CacheReadTokens, b.CacheReadTokens)
+	out.CacheCreationTokens = addInts(a.CacheCreationTokens, b.CacheCreationTokens)
 	out.OutputTokens = addInts(a.OutputTokens, b.OutputTokens)
 	if a.CostUSD != nil || b.CostUSD != nil {
 		var sum float64

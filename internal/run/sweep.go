@@ -102,7 +102,13 @@ func runSweepSet(ctx context.Context, opts SweepOptions, set layout.EvalSet) (fa
 	// evals stage their own per-eval workspaces.
 	var ws string
 	if runTriggers {
-		w, cleanup, err := workspace.New("triggers.", set.Plugin.SkillsDir,
+		// Triggers need every sibling skill present (the model must pick the
+		// right one); evals isolate the skill under test in runEval.
+		skills, err := workspace.SkillDirs(set.Plugin.SkillsDir)
+		if err != nil {
+			return false, err
+		}
+		w, cleanup, err := workspace.New("triggers.", skills,
 			unionSkillDirs(opts.Selected), nil, opts.KeepWorkspaces)
 		if err != nil {
 			return false, err

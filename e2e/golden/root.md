@@ -22,9 +22,9 @@ reporting, or no published pricing).
 
 ### Evals
 
-| Provider | Model | Passed | Avg run | Input tokens | Est. input cost | Measured in/out | Measured cost |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Anthropic | Claude Fable 5 (`claude-fable-5`) | 0/1 | 84.2s | 1,827 | $0.0183 | 233,680/3,142 | $0.7824 |
+| Provider | Model | Passed | Avg run | Input tokens | Est. input cost | Measured in/out | Cache rd/wr | Measured cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | 0/1 | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
 ## Anthropic — `claude-fable-5`
 
@@ -41,9 +41,9 @@ Last run 2026-06-11T10:00:00Z (evolve test, timeout 120s), 3 runs per query.
 
 Last run 2026-06-11T12:00:00Z (evolve test, timeout 600s).
 
-| Eval | Result | Run | Input tokens | Est. cost | Measured in/out | Measured cost |
-| --- | --- | --- | --- | --- | --- | --- |
-| basic | FAIL | 84.2s | 1,827 | $0.0183 | 233,680/3,142 | $0.7824 |
+| Eval | Result | Run | Input tokens | Est. cost | Measured in/out | Cache rd/wr | Measured cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| basic | FAIL | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
 - `basic` failed `file x exists`: x missing
 
