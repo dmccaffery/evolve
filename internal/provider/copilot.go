@@ -51,7 +51,8 @@ func NewCopilot() *Copilot {
 // without interactive approval and --no-ask-user keeps the run from pausing;
 // -s is deliberately omitted so the CLI's tool/file activity stays visible to
 // ScanLine (Copilot has no structured event stream to inspect otherwise).
-func (c *Copilot) TriggerSpec(ws, query, model string) CommandSpec {
+// Copilot applies no OS sandbox of its own, so hostSandboxed is irrelevant.
+func (c *Copilot) TriggerSpec(ws, query, model string, _ bool) CommandSpec {
 	return CommandSpec{
 		Argv: []string{
 			"copilot", "-p", query,

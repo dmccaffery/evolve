@@ -37,11 +37,16 @@ type Options struct {
 	CountOnly      bool
 	New            bool
 	KeepWorkspaces bool
-	ResultsFormat  string // emitted results format: json, jsonc, or yaml ("" = json)
-	ToolVersion    string
-	Now            func() time.Time
-	Stdout         io.Writer
-	Stderr         io.Writer
+	// HostSandboxed reports that Runner wraps each agent in evolve's own OS
+	// sandbox, so providers must disable the agent CLI's own sandbox to avoid
+	// illegal nesting (threaded into TriggerSpec/EvalSpec). It mirrors the
+	// runner's Sandbox.Enabled; the CLI sets both together.
+	HostSandboxed bool
+	ResultsFormat string // emitted results format: json, jsonc, or yaml ("" = json)
+	ToolVersion   string
+	Now           func() time.Time
+	Stdout        io.Writer
+	Stderr        io.Writer
 
 	// Filter narrows the sweep to specific skills and individual
 	// triggers/evals on top of SkillFilter/EvalFilter and SkipProviders. Nil

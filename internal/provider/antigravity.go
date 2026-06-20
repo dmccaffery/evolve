@@ -70,8 +70,10 @@ func NewAntigravity() *Antigravity {
 // plain-text stdout (see ScanLine).
 //
 // The probe showed agy resolves the process cwd as its workspaceDir, so
-// CommandSpec.Dir should suffice (no --add-dir needed).
-func (a *Antigravity) TriggerSpec(ws, query, model string) CommandSpec {
+// CommandSpec.Dir should suffice (no --add-dir needed). agy applies no OS
+// sandbox of its own (--dangerously-skip-permissions already disables its
+// gating), so hostSandboxed is irrelevant.
+func (a *Antigravity) TriggerSpec(ws, query, model string, _ bool) CommandSpec {
 	return CommandSpec{
 		Argv: []string{
 			"agy", "-p", query,

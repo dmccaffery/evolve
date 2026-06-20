@@ -232,9 +232,10 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		maxTurns = opts.MaxTurns
 	}
 	spec := evalRunner.EvalSpec(ws, provider.EvalInput{
-		Prompt:       c.Prompt,
-		MaxTurns:     maxTurns,
-		AllowedTools: c.AllowedTools,
+		Prompt:        c.Prompt,
+		MaxTurns:      maxTurns,
+		AllowedTools:  c.AllowedTools,
+		HostSandboxed: opts.HostSandboxed,
 	}, sel.Model.ID)
 	spec.Argv[0] = cli
 

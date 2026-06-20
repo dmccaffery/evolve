@@ -54,6 +54,13 @@ type EvalInput struct {
 	Prompt       string
 	MaxTurns     int    // 0 = the provider default (DefaultMaxTurns)
 	AllowedTools string // "" = the provider default tool set
+	// HostSandboxed reports that evolve already confines this run in its own OS
+	// sandbox. Providers whose agent CLI applies its own OS sandbox must then
+	// disable it: macOS Seatbelt (and the Linux equivalents) cannot nest, so a
+	// second sandbox layer aborts every shell command the agent runs. When
+	// false, evolve runs unconfined and the agent's own sandbox is the sole
+	// protection, so it is left enabled.
+	HostSandboxed bool
 }
 
 // Provider is the required surface every provider implements.
@@ -65,7 +72,10 @@ type Provider interface {
 	EnvKeys() []string // credential env vars, in preference order
 	SkillDirs() []string
 	// TriggerSpec builds the headless command for one trigger query.
-	TriggerSpec(ws, query, model string) CommandSpec
+	// hostSandboxed carries the same meaning as EvalInput.HostSandboxed: when
+	// set, the provider must disable the agent CLI's own OS sandbox so it does
+	// not nest illegally inside evolve's.
+	TriggerSpec(ws, query, model string, hostSandboxed bool) CommandSpec
 	// ScanLine inspects one stdout line for activation of skill. A non-empty
 	// note surfaces a provider-reported run error as a warning.
 	ScanLine(line []byte, skill string) (hit bool, note string)

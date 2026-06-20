@@ -55,18 +55,28 @@ func NewAnthropic() *Anthropic {
 	}
 }
 
-func (a *Anthropic) TriggerSpec(ws, query, model string) CommandSpec {
-	return CommandSpec{
-		Argv: []string{
-			"claude", "-p", query,
-			"--model", model,
-			"--output-format", "stream-json",
-			"--verbose",
-			"--max-turns", "2",
-			"--allowedTools", "Skill Read",
-		},
-		Dir: ws,
+// claudeSandboxOff disables Claude Code's own Bash-tool OS sandbox via an inline
+// settings override. evolve confines the whole `claude` process in its own
+// sandbox, and Claude's Bash sandbox uses macOS Seatbelt, which cannot nest — so
+// without this every Bash command in the agent dies with "Operation not
+// permitted". It is passed only when evolve's sandbox is active (HostSandboxed);
+// with evolve unconfined, Claude keeps its own sandbox. A managed-settings.json
+// that forces the sandbox on still wins, so those hosts must use --no-sandbox.
+const claudeSandboxOff = `{"sandbox":{"enabled":false}}`
+
+func (a *Anthropic) TriggerSpec(ws, query, model string, hostSandboxed bool) CommandSpec {
+	argv := []string{
+		"claude", "-p", query,
+		"--model", model,
+		"--output-format", "stream-json",
+		"--verbose",
+		"--max-turns", "2",
+		"--allowedTools", "Skill Read",
 	}
+	if hostSandboxed {
+		argv = append(argv, "--settings", claudeSandboxOff)
+	}
+	return CommandSpec{Argv: argv, Dir: ws}
 }
 
 // ScanLine reports a hit when a Skill or Read tool_use in the stream-json
@@ -108,16 +118,17 @@ func (a *Anthropic) EvalSpec(ws string, c EvalInput, model string) CommandSpec {
 	if tools == "" {
 		tools = DefaultAllowedTools
 	}
-	return CommandSpec{
-		Argv: []string{
-			"claude", "-p", c.Prompt,
-			"--model", model,
-			"--output-format", "json",
-			"--max-turns", strconv.Itoa(maxTurns),
-			"--allowedTools", tools,
-		},
-		Dir: ws,
+	argv := []string{
+		"claude", "-p", c.Prompt,
+		"--model", model,
+		"--output-format", "json",
+		"--max-turns", strconv.Itoa(maxTurns),
+		"--allowedTools", tools,
 	}
+	if c.HostSandboxed {
+		argv = append(argv, "--settings", claudeSandboxOff)
+	}
+	return CommandSpec{Argv: argv, Dir: ws}
 }
 
 // ParseEvalOutput reads the claude JSON payload. Cache writes and reads are

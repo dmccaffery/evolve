@@ -46,11 +46,18 @@ func NewGoogle() *Google {
 // TriggerSpec builds the gemini invocation. Only --output-format stream-json
 // emits tool_use events; --skip-trust keeps headless runs alive when the
 // folder-trust feature is enabled (temp workspaces are never trusted).
-func (g *Google) TriggerSpec(ws, query, model string) CommandSpec {
-	return CommandSpec{
+func (g *Google) TriggerSpec(ws, query, model string, hostSandboxed bool) CommandSpec {
+	spec := CommandSpec{
 		Argv: []string{"gemini", "-p", query, "-m", model, "--output-format", "stream-json", "--skip-trust"},
 		Dir:  ws,
 	}
+	if hostSandboxed {
+		// gemini's own sandbox (GEMINI_SANDBOX=docker|podman|sandbox-exec) cannot
+		// nest inside evolve's; force it off so evolve's sandbox is the only layer
+		// even when the surrounding environment enabled it.
+		spec.Env = append(spec.Env, "GEMINI_SANDBOX=false")
+	}
+	return spec
 }
 
 // ScanLine reports a hit when an activate_skill tool_use names the skill (a

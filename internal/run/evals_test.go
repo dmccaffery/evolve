@@ -58,7 +58,7 @@ func (f *fakeEvalProvider) Models() []provider.Model {
 func (f *fakeEvalProvider) CLI() []string       { return []string{"sh"} }
 func (f *fakeEvalProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
 func (f *fakeEvalProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
-func (f *fakeEvalProvider) TriggerSpec(ws, query, model string) provider.CommandSpec {
+func (f *fakeEvalProvider) TriggerSpec(ws, query, model string, _ bool) provider.CommandSpec {
 	return provider.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
 }
 func (f *fakeEvalProvider) ScanLine([]byte, string) (bool, string) { return false, "" }

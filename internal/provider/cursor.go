@@ -41,8 +41,9 @@ func NewCursor() *Cursor {
 
 // TriggerSpec builds the headless invocation. --force allows tool calls
 // without interactive approval; stream-json emits tool_call events that make
-// skill activation observable.
-func (c *Cursor) TriggerSpec(ws, query, model string) CommandSpec {
+// skill activation observable. Cursor applies no OS sandbox of its own (its
+// confinement is the throwaway workspace), so hostSandboxed is irrelevant.
+func (c *Cursor) TriggerSpec(ws, query, model string, _ bool) CommandSpec {
 	return CommandSpec{
 		Argv: []string{
 			"agent", "-p", query,

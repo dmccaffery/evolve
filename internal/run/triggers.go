@@ -242,7 +242,7 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 		rep.ItemStarted(ref, ItemStart{Index: i, Label: t.Query, Runs: opts.Runs})
 		for range opts.Runs {
 			g.Go(func() error {
-				spec := sel.Provider.TriggerSpec(ws, t.Query, sel.Model.ID)
+				spec := sel.Provider.TriggerSpec(ws, t.Query, sel.Model.ID, opts.HostSandboxed)
 				spec.Argv[0] = cli
 				onLine := func(line []byte) bool {
 					hit, note := sel.Provider.ScanLine(line, skill)

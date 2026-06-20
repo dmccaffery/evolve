@@ -40,7 +40,7 @@ func (f *fakeTriggerProvider) Models() []provider.Model {
 func (f *fakeTriggerProvider) CLI() []string       { return []string{"sh"} } // always on PATH
 func (f *fakeTriggerProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
 func (f *fakeTriggerProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
-func (f *fakeTriggerProvider) TriggerSpec(ws, query, model string) provider.CommandSpec {
+func (f *fakeTriggerProvider) TriggerSpec(ws, query, model string, _ bool) provider.CommandSpec {
 	return provider.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
 }
 func (f *fakeTriggerProvider) ScanLine(line []byte, skill string) (bool, string) {

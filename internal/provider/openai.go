@@ -43,11 +43,14 @@ func NewOpenAI() *OpenAI {
 	}
 }
 
-func (o *OpenAI) TriggerSpec(ws, query, model string) CommandSpec {
-	return CommandSpec{
-		Argv: []string{"codex", "exec", query, "--json", "--skip-git-repo-check", "-m", model},
-		Dir:  ws,
+func (o *OpenAI) TriggerSpec(ws, query, model string, hostSandboxed bool) CommandSpec {
+	argv := []string{"codex", "exec", query, "--json", "--skip-git-repo-check", "-m", model}
+	if hostSandboxed {
+		// codex defaults to a read-only Seatbelt sandbox even for exec; that
+		// nests illegally inside evolve's, so disable it and let evolve confine.
+		argv = append(argv, "--sandbox", "danger-full-access")
 	}
+	return CommandSpec{Argv: argv, Dir: ws}
 }
 
 // ScanLine is best-effort: any event-stream line mentioning the skill's
@@ -57,11 +60,19 @@ func (o *OpenAI) ScanLine(line []byte, skill string) (bool, string) {
 }
 
 func (o *OpenAI) EvalSpec(ws string, c EvalInput, model string) CommandSpec {
+	// codex applies its own macOS Seatbelt sandbox for read-only/workspace-write,
+	// which cannot nest inside evolve's. When evolve already confines the run,
+	// switch codex to danger-full-access so evolve's sandbox is the sole layer;
+	// otherwise keep workspace-write as codex's own confinement.
+	sandboxMode := "workspace-write"
+	if c.HostSandboxed {
+		sandboxMode = "danger-full-access"
+	}
 	return CommandSpec{
 		Argv: []string{
 			"codex", "exec", c.Prompt,
 			"--json", "--skip-git-repo-check",
-			"--sandbox", "workspace-write",
+			"--sandbox", sandboxMode,
 			"-m", model,
 		},
 		Dir: ws,

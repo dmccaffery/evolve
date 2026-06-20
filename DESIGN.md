@@ -71,6 +71,16 @@ and unknown future tools) keeps working — the sandbox only protects source rep
 sandbox with no available helper errors rather than running unconfined); `--no-sandbox` / `sandbox.enabled=false` opts
 out.
 
+Several agent CLIs sandbox their own shell commands the same way (Claude Code and codex both use macOS Seatbelt), and
+Seatbelt cannot nest — a second `sandbox-exec` inside evolve's aborts every shell command with
+`Operation not permitted`, silently degrading a run rather than failing it. So when evolve's sandbox is active the
+providers disable the agent's own (`run.Options.HostSandboxed`, threaded into `TriggerSpec`/`EvalSpec`): Claude via
+`--settings` with `{"sandbox":{"enabled":false}}`, codex via `--sandbox danger-full-access`, gemini via
+`GEMINI_SANDBOX=false`. evolve's outer sandbox is then the sole layer and still covers everything (file tools included,
+not just shell). The fallback is symmetric: with evolve unconfined (`--no-sandbox`) the agent keeps its own sandbox as
+the only protection. A `managed-settings.json` that forces Claude's sandbox on still wins, so those hosts must use
+`--no-sandbox`.
+
 The CLI reference in `docs/cli` and the man pages in `docs/man` are generated from the cobra command tree, and the
 configuration reference plus annotated example config files in `docs/config` from `internal/configdoc`'s schema (all via
 `make docs`) and committed, so reviewing a flag or config change shows the documentation diff alongside the code.
