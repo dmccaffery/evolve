@@ -47,7 +47,7 @@ type Usage struct {
 // DefaultMaxTurns is the agent-turn ceiling for a behavioral eval when neither
 // the case nor the run overrides it. Kept here (the lowest-level package) so
 // the runner, the CLI flag, and the config docs share one source of truth.
-const DefaultMaxTurns = 10
+const DefaultMaxTurns = 20
 
 // EvalInput is the runner-relevant subset of a behavioral case.
 type EvalInput struct {
