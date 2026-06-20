@@ -10,18 +10,18 @@ import (
 	"sort"
 )
 
-// New creates a temp workspace. skills are absolute skill-directory paths to
-// symlink in; the caller chooses which (triggers pass every skill via
-// SkillDirs so the model must pick the right one; evals pass only the skill
-// under test). dirs are workspace-relative skills locations (e.g.
-// ".claude/skills") — pass the union across the selected providers so one
-// workspace serves a whole model sweep. copies maps workspace-relative
-// destinations to absolute fixture paths, copied in byte-for-byte. The
-// returned cleanup removes the workspace; pass keep=true to leave it behind
-// for debugging.
-func New(prefix string, skills []string, dirs []string, copies map[string]string,
+// New creates a temp workspace under parent (an empty parent uses the system
+// temp dir, $TMPDIR). skills are absolute skill-directory paths to symlink in;
+// the caller chooses which (triggers pass every skill via SkillDirs so the model
+// must pick the right one; evals pass only the skill under test). dirs are
+// workspace-relative skills locations (e.g. ".claude/skills") — pass the union
+// across the selected providers so one workspace serves a whole model sweep.
+// copies maps workspace-relative destinations to absolute fixture paths, copied
+// in byte-for-byte. The returned cleanup removes the workspace; pass keep=true to
+// leave it behind for debugging (or so a run-scoped parent owns its removal).
+func New(parent, prefix string, skills []string, dirs []string, copies map[string]string,
 	keep bool) (string, func(), error) {
-	ws, err := os.MkdirTemp("", prefix)
+	ws, err := os.MkdirTemp(parent, prefix)
 	if err != nil {
 		return "", nil, err
 	}

@@ -108,8 +108,9 @@ func runSweepSet(ctx context.Context, opts SweepOptions, set layout.EvalSet) (fa
 		if err != nil {
 			return false, err
 		}
-		w, cleanup, err := workspace.New("triggers.", skills,
-			unionSkillDirs(opts.Selected), nil, opts.KeepWorkspaces)
+		parent, keep := opts.retain()
+		w, cleanup, err := workspace.New(parent, "triggers.", skills,
+			unionSkillDirs(opts.Selected), nil, keep)
 		if err != nil {
 			return false, err
 		}

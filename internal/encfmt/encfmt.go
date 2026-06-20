@@ -97,7 +97,9 @@ func Marshal(v any, ext, comment string) ([]byte, error) {
 		}
 		var buf bytes.Buffer
 		if comment != "" {
-			buf.WriteString("# " + comment + "\n")
+			buf.WriteString("# ")
+			buf.WriteString(comment)
+			buf.WriteString("\n")
 		}
 		enc := yaml.NewEncoder(&buf)
 		enc.SetIndent(2)

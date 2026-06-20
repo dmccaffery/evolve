@@ -52,6 +52,30 @@ type Options struct {
 	// Reporter receives progress events. When nil the engine uses a
 	// PlainReporter over Stdout/Stderr, preserving the historical line output.
 	Reporter Reporter
+
+	// RetainRoot, when non-empty, is a directory every workspace is created
+	// under and kept (rather than removed at its per-unit cleanup), plus where
+	// each eval's full output log is written. The caller owns the root and
+	// removes it when finished — the live TUI sets it so the user can open a
+	// finished execution's workspace and log. Empty keeps the historical
+	// remove-as-you-go behavior and surfaces no paths.
+	RetainRoot string
+}
+
+// retain reports the parent directory new workspaces are created under and
+// whether they must outlive their per-unit cleanup. Retention is on whenever a
+// RetainRoot is set (the TUI) or the user passed --keep-workspaces.
+func (o Options) retain() (parent string, keep bool) {
+	return o.RetainRoot, o.KeepWorkspaces || o.RetainRoot != ""
+}
+
+// retainedDir is the workspace path to surface to the TUI: ws while it is being
+// retained, "" when it is about to be removed (so the TUI shows no open hint).
+func retainedDir(root, ws string) string {
+	if root == "" {
+		return ""
+	}
+	return ws
 }
 
 // reporter returns the configured reporter, defaulting to a PlainReporter that

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,24 @@ import (
 	"github.com/bitwise-media-group/evolve/internal/runner"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
 )
+
+// captureReporter records the ItemResults the engine streams so tests can assert
+// on the per-item output, verdict, and retained paths.
+type captureReporter struct {
+	mu    sync.Mutex
+	items []ItemResult
+}
+
+func (r *captureReporter) UnitStarted(UnitRef, int, int, Mode) {}
+func (r *captureReporter) UnitSkipped(UnitRef, string)         {}
+func (r *captureReporter) ItemStarted(UnitRef, ItemStart)      {}
+func (r *captureReporter) ItemDone(_ UnitRef, item ItemResult) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.items = append(r.items, item)
+}
+func (r *captureReporter) UnitFinished(UnitRef, UnitSummary, string) {}
+func (r *captureReporter) Warn(string, ...any)                       {}
 
 // fakeEvalProvider implements Provider + EvalRunner (+ TokenCounter when
 // counting). reportsUsage=false models a cursor-like provider.
@@ -203,6 +222,75 @@ func TestEvalsGradesEval(t *testing.T) {
 	}
 	if entry.Summary.Measured == nil || *entry.Summary.Passed != 1 {
 		t.Errorf("summary = %+v", entry.Summary)
+	}
+}
+
+func TestEvalsRetainsWorkspaceAndLog(t *testing.T) {
+	repo := evalRepoFixture(t)
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	root := t.TempDir()
+	opts.RetainRoot = root
+	rep := &captureReporter{}
+	opts.Reporter = rep
+
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.items) != 1 {
+		t.Fatalf("ItemDone calls = %d, want 1", len(rep.items))
+	}
+	it := rep.items[0]
+	const want = "TASK COMPLETE: created the file"
+	if it.Output != want {
+		t.Errorf("Output = %q, want the parsed agent text", it.Output)
+	}
+	// The workspace is retained under the run-scoped root, not removed per-eval.
+	if !strings.HasPrefix(it.WorkspacePath, root) {
+		t.Errorf("WorkspacePath = %q, want a path under retain root %q", it.WorkspacePath, root)
+	}
+	if fi, err := os.Stat(it.WorkspacePath); err != nil || !fi.IsDir() {
+		t.Errorf("workspace dir not retained: %v", err)
+	}
+	// The full raw stdout is written to the output log the TUI opens.
+	if it.LogPath == "" {
+		t.Fatal("LogPath empty, want the output log")
+	}
+	logBytes, err := os.ReadFile(it.LogPath)
+	if err != nil {
+		t.Fatalf("reading log: %v", err)
+	}
+	if string(logBytes) != want {
+		t.Errorf("log content = %q, want the raw stdout", string(logBytes))
+	}
+}
+
+// Without a retain root (the plain path) no workspace or log is surfaced.
+func TestEvalsNoRetentionByDefault(t *testing.T) {
+	repo := evalRepoFixture(t)
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	rep := &captureReporter{}
+	opts.Reporter = rep
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.items) != 1 {
+		t.Fatalf("ItemDone calls = %d, want 1", len(rep.items))
+	}
+	if it := rep.items[0]; it.WorkspacePath != "" || it.LogPath != "" {
+		t.Errorf("paths surfaced without retention: %+v", it)
+	}
+}
+
+func TestHeadLines(t *testing.T) {
+	if got := headLines("a\nb\nc", 5); got != "a\nb\nc" {
+		t.Errorf("short text = %q, want unchanged", got)
+	}
+	got := headLines(strings.Repeat("x\n", 30), 20)
+	if n := strings.Count(got, "\n"); n != 20 {
+		t.Errorf("capped newlines = %d, want 20 (incl. ellipsis line)", n)
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("capped output should end with an ellipsis: %q", got)
 	}
 }
 

@@ -54,13 +54,22 @@ type ItemStart struct {
 // human-readable body: for triggers a single line (rate/avg/expect/query) the
 // plain reporter prefixes with the status marker; for evals the pre-rendered
 // block of per-assertion lines (or the runtime-error line), printed verbatim.
+// Output is the agent's final assistant text for evals (empty for triggers and
+// runtime errors); the live TUI shows it, the plain reporter ignores it.
 // Metrics carries the structured figures the dashboard renders into the tree.
 type ItemResult struct {
 	Index   int
 	Label   string // trigger query or eval id
 	Status  Status
 	Detail  string
+	Output  string
 	Metrics ItemMetrics
+
+	// WorkspacePath is the retained throwaway workspace the agent ran in, and
+	// LogPath the file holding its full output; the live TUI opens them on a
+	// keypress. Both are empty unless the run retains workspaces (TUI runs do).
+	WorkspacePath string
+	LogPath       string
 }
 
 // ItemMetrics is the per-case figures the live dashboard shows. All fields are

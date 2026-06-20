@@ -83,8 +83,8 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 // per-provider skips and the selection filter are applied here. A unit with no
 // applicable evals reports nothing and returns cleanly.
 func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection,
-	file *results.File, skillMD []byte, allEvals []evalspec.Eval) (failed bool, err error) {
-
+	file *results.File, skillMD []byte, allEvals []evalspec.Eval,
+) (failed bool, err error) {
 	rep := opts.reporter()
 	evalRunner, isEvalRunner := sel.Provider.(provider.EvalRunner)
 	cli, cliFound := provider.ResolveCLI(sel.Provider)
@@ -167,8 +167,8 @@ const (
 )
 
 func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection, ref UnitRef,
-	evalRunner provider.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult) (bool, error) {
-
+	evalRunner provider.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult,
+) (bool, error) {
 	var failedAny bool
 	g, runCtx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.Jobs)
@@ -200,8 +200,8 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel pro
 }
 
 func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection, ref UnitRef,
-	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int) (evalOutcome, results.EvalResult, error) {
-
+	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int,
+) (evalOutcome, results.EvalResult, error) {
 	rep := opts.reporter()
 	rep.ItemStarted(ref, ItemStart{Index: index, Label: c.ID, Runs: 1})
 	copies := make(map[string]string, len(c.Files))
@@ -210,8 +210,9 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	}
 	// Evals isolate the skill under test: only it is symlinked in, keeping the
 	// agent's per-turn context lean (no sibling-skill descriptions to re-read).
-	ws, cleanup, err := workspace.New("evals.", []string{set.SkillDir},
-		unionSkillDirs(opts.Selected), copies, opts.KeepWorkspaces)
+	parent, keep := opts.retain()
+	ws, cleanup, err := workspace.New(parent, "evals.", []string{set.SkillDir},
+		unionSkillDirs(opts.Selected), copies, keep)
 	if err != nil {
 		return outcomeError, results.EvalResult{}, err
 	}
@@ -245,6 +246,10 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		rep.Warn("  warn: %s timed out after %s; grading partial output\n", cli, timeout)
 	}
 
+	// When the run retains workspaces, keep this one and write its full output
+	// log so the live TUI can open both; empty otherwise (ws is about to go).
+	workdir, logPath := retainArtifacts(parent, ws, res.Stdout)
+
 	// A run that produced no usable output (auth blocked, crash) is a runtime
 	// failure, not an eval failure — surface it loudly instead of grading empty
 	// output into a silent FAIL.
@@ -256,7 +261,9 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 			Status: StatusError,
 			Detail: fmt.Sprintf("  [ERROR] %s: %s runtime failure (exit %d): %s\n",
 				c.ID, cli, res.ExitCode, tailStderr(res.StderrTail)),
-			Metrics: ItemMetrics{AvgRunSeconds: &runSeconds},
+			Metrics:       ItemMetrics{AvgRunSeconds: &runSeconds},
+			WorkspacePath: workdir,
+			LogPath:       logPath,
 		})
 		return outcomeError, results.EvalResult{
 			ID:           c.ID,
@@ -271,7 +278,7 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	// Grade assertions; buffer the verdict lines so concurrent evals don't
 	// interleave their output.
 	graded := make([]results.GradedAssertion, len(c.Assertions))
-	lines := ""
+	var lines strings.Builder
 	evalPassed := true
 	for i, a := range c.Assertions {
 		passed, evidence := grade.Assertion(ctx, a, grade.Options{
@@ -303,7 +310,7 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 				mark = "PASS"
 			}
 		}
-		lines += fmt.Sprintf("  [%s] %s: %s\n", mark, c.ID, graded[i].Text)
+		fmt.Fprintf(&lines, "  [%s] %s: %s\n", mark, c.ID, graded[i].Text)
 	}
 	status := StatusFail
 	if evalPassed {
@@ -323,8 +330,11 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		result.Timing.TotalTokens = result.Measured.TotalTokens()
 	}
 	rep.ItemDone(ref, ItemResult{
-		Index: index, Label: c.ID, Status: status, Detail: lines,
-		Metrics: evalItemMetrics(&runSeconds, result.Measured, result.Summary),
+		Index: index, Label: c.ID, Status: status, Detail: lines.String(),
+		Output:        headLines(output, evalOutputLines),
+		Metrics:       evalItemMetrics(&runSeconds, result.Measured, result.Summary),
+		WorkspacePath: workdir,
+		LogPath:       logPath,
 	})
 	outcome := outcomeFail
 	if evalPassed {
@@ -350,6 +360,36 @@ func evalItemMetrics(dur *float64, m *results.Measured, s *results.GradeSummary)
 		im.AssertTotal = &tot
 	}
 	return im
+}
+
+// evalOutputLines bounds the agent text the live TUI keeps in memory (one copy
+// per eval for the whole run); the full output is written to the run log file,
+// which the dashboard opens on demand.
+const evalOutputLines = 20
+
+// headLines keeps the first n lines of s, marking truncation with an ellipsis
+// line so the pane shows there is more in the full log.
+func headLines(s string, n int) string {
+	parts := strings.SplitN(s, "\n", n+1)
+	if len(parts) > n {
+		return strings.Join(parts[:n], "\n") + "\n…"
+	}
+	return s
+}
+
+// retainArtifacts records a finished run's workspace and writes its full output
+// log when the run retains workspaces (parent set); both are empty otherwise, so
+// the TUI shows no open hint for a workspace that is about to be removed. The log
+// sits beside the workspace under the run-scoped root, removed with it.
+func retainArtifacts(parent, ws string, stdout []byte) (workdir, logPath string) {
+	if parent == "" {
+		return "", ""
+	}
+	logPath = ws + ".log"
+	if err := os.WriteFile(logPath, stdout, 0o644); err != nil {
+		logPath = ""
+	}
+	return ws, logPath
 }
 
 // tailStderr renders a stderr tail as a single short diagnostic line. The
@@ -391,7 +431,8 @@ func measured(model provider.Model, usage *provider.Usage) *results.Measured {
 }
 
 func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
-	entryResults []results.EvalResult) *results.EvalEntry {
+	entryResults []results.EvalResult,
+) *results.EvalEntry {
 	entry := &results.EvalEntry{
 		Header:  opts.header(sel, executed),
 		Results: entryResults,
@@ -498,8 +539,8 @@ func sumMeasured(entryResults []results.EvalResult) *results.Measured {
 // count-only, measured usage for providers that never report it (cursor),
 // and token counts the counting API cannot produce.
 func evalSkipReason(entry *results.EvalEntry, evals []evalspec.Eval, model provider.Model,
-	execute, reportsUsage, countCapable bool, probe func(evalspec.Eval) bool) string {
-
+	execute, reportsUsage, countCapable bool, probe func(evalspec.Eval) bool,
+) string {
 	stored := map[string]results.EvalResult{}
 	if entry != nil {
 		for _, r := range entry.Results {

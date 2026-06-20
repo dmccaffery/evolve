@@ -154,7 +154,7 @@ type EvalsFile struct {
 func (t Trigger) SkipsProvider(name string) bool { return slices.Contains(t.SkipProviders, name) }
 
 // SkipsProvider reports whether the eval opts out of a provider.
-func (c Eval) SkipsProvider(name string) bool { return slices.Contains(c.SkipProviders, name) }
+func (e Eval) SkipsProvider(name string) bool { return slices.Contains(e.SkipProviders, name) }
 
 // LoadTriggers parses an authored triggers file in any supported format.
 func LoadTriggers(path string) (*TriggersFile, error) {

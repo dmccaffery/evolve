@@ -75,7 +75,7 @@ func TestNewLinksOnlyGivenSkills(t *testing.T) {
 	all := mkSkills(t, root, "one", "two", "three")
 	const dir = ".claude/skills"
 
-	ws, cleanup, err := New("evals.", []string{filepath.Join(root, "two")}, []string{dir}, nil, false)
+	ws, cleanup, err := New("", "evals.", []string{filepath.Join(root, "two")}, []string{dir}, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestNewLinksOnlyGivenSkills(t *testing.T) {
 		t.Fatalf("eval workspace linked %v, want only [two]", got)
 	}
 
-	wsAll, cleanupAll, err := New("triggers.", all, []string{dir}, nil, false)
+	wsAll, cleanupAll, err := New("", "triggers.", all, []string{dir}, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

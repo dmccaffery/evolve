@@ -1,12 +1,22 @@
 // Copyright 2026 BitWise Media Group Ltd
 // SPDX-License-Identifier: MIT
 
-// Package version exposes build metadata stamped in via -ldflags.
 package version
 
-// Injected at build time via -ldflags (see Makefile and .goreleaser.yaml).
-var (
-	Version   = "dev"
-	Commit    = "none"
-	BuildDate = "unknown"
-)
+// Version is injected at build time via -ldflags (see Makefile and
+// .goreleaser.yaml).
+//
+// Version defaults to dev when no release metadata is supplied.
+var Version = "dev"
+
+// Commit is injected at build time via -ldflags (see Makefile and
+// .goreleaser.yaml).
+//
+// Commit defaults to none when no release metadata is supplied.
+var Commit = "none"
+
+// BuildDate is injected at build time via -ldflags (see Makefile and
+// .goreleaser.yaml).
+//
+// BuildDate defaults to unknown when no release metadata is supplied.
+var BuildDate = "unknown"

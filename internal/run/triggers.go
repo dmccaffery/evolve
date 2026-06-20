@@ -68,8 +68,9 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 	if err != nil {
 		return false, err
 	}
-	ws, cleanup, err := workspace.New("triggers.", skills,
-		unionSkillDirs(opts.Selected), nil, opts.KeepWorkspaces)
+	parent, keep := opts.retain()
+	ws, cleanup, err := workspace.New(parent, "triggers.", skills,
+		unionSkillDirs(opts.Selected), nil, keep)
 	if err != nil {
 		return false, err
 	}
@@ -227,6 +228,9 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 					InputTokens: estTokens(entryResults[i].Estimate),
 					CostUSD:     estCost(entryResults[i].Estimate),
 				},
+				// Triggers share one read-only skill workspace and capture no
+				// per-query output, so surface the dir (o) but no log (l).
+				WorkspacePath: retainedDir(opts.RetainRoot, ws),
 			})
 		}
 		collectorDone <- failed
