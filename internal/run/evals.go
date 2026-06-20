@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
@@ -274,7 +275,13 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		}, nil
 	}
 
+	// Providers that decode the agent's answer out of a JSON envelope
+	// re-materialize any ANSI a tool printed (carried backslash-u escaped in
+	// the JSON, so untouched by the runner's capture-time strip) back into raw
+	// escape bytes; strip the decoded text so graded evidence and the TUI
+	// output stay plain.
 	output, usage := evalRunner.ParseEvalOutput(res.Stdout)
+	output = ansi.Strip(output)
 
 	// Grade assertions; buffer the verdict lines so concurrent evals don't
 	// interleave their output.

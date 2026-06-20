@@ -95,6 +95,24 @@ func TestRunStderrTailOnTimeout(t *testing.T) {
 	}
 }
 
+func TestRunStripsANSIEscapes(t *testing.T) {
+	// Agents and the tools they invoke (terraform, linters, ...) print ANSI
+	// color codes; the runner strips them at capture so the bytes that reach
+	// graded evidence and committed reports stay plain text. The printf octal
+	// \033 emits a real escape byte on both stdout and stderr.
+	spec := sh(`printf '\033[31mred\033[0m plain\n'; printf '\033[1mbold\033[0m err\n' >&2`)
+	res, err := (&Exec{}).Run(context.Background(), spec, 5*time.Second, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(res.Stdout); got != "red plain\n" {
+		t.Errorf("stdout = %q, want ANSI stripped", got)
+	}
+	if got := res.StderrTail; got != "bold err" {
+		t.Errorf("stderrTail = %q, want ANSI stripped", got)
+	}
+}
+
 func TestRunParentCancelPropagates(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

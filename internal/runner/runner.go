@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
@@ -99,10 +101,17 @@ func (e *Exec) Run(ctx context.Context, spec provider.CommandSpec, timeout time.
 	}
 	waitErr := cmd.Wait()
 
+	// Agents and the tools they invoke (terraform, linters, ...) emit ANSI
+	// color codes; strip them here, at the one point all execution output is
+	// captured, so the bytes that flow into graded evidence, retained logs,
+	// and committed reports stay plain text. Stripping is a no-op on the
+	// stream-json runners emit (there a tool's ANSI sits backslash-u
+	// escaped inside a JSON string, not as a raw escape byte), so parsing
+	// is unaffected.
 	res := Result{
 		Hit:        hit,
-		Stdout:     collected.Bytes(),
-		StderrTail: stderr.String(),
+		Stdout:     []byte(ansi.Strip(collected.String())),
+		StderrTail: ansi.Strip(stderr.String()),
 		Elapsed:    time.Since(start),
 	}
 	if cmd.ProcessState != nil {
