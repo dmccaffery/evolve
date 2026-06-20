@@ -53,16 +53,7 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 		return false, err
 	}
 	warnSkillName(&opts.Options, set, set.EvalsPath, spec.SkillName)
-	allEvals := spec.Evals
-	if opts.EvalFilter != "" {
-		var filtered []evalspec.Eval
-		for _, c := range allEvals {
-			if c.ID == opts.EvalFilter {
-				filtered = append(filtered, c)
-			}
-		}
-		allEvals = filtered
-	}
+	allEvals := filterEvals(spec.Evals, opts.EvalFilter)
 	if len(allEvals) == 0 {
 		return false, nil
 	}
@@ -78,73 +69,89 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 	}
 
 	for _, sel := range opts.Selected {
-		evalRunner, isEvalRunner := sel.Provider.(provider.EvalRunner)
-		cli, cliFound := provider.ResolveCLI(sel.Provider)
-		execute := isEvalRunner && cliFound && !opts.CountOnly
-
-		evals := applicableEvals(allEvals, sel.Provider.Name(), set.Skill, opts.Filter)
-		if len(evals) == 0 {
-			continue
-		}
-		ref := UnitRef{Skill: set.Skill, Key: sel.Key(), Kind: KindEvals}
-
-		probe := func(c evalspec.Eval) bool {
-			return opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, c.Prompt)) != nil
-		}
-		_, countCapable := sel.Provider.(provider.TokenCounter)
-		if opts.New {
-			reportsUsage := isEvalRunner && evalRunner.ReportsUsage()
-			if reason := evalSkipReason(
-				file.Evals[sel.Key()], evals, sel.Model, execute, reportsUsage, countCapable, probe,
-			); reason != "" {
-				rep.UnitSkipped(ref, reason)
-				continue
-			}
-		}
-		if !execute && !opts.CountOnly {
-			rep.Warn("  warn: no behavioral runner for %s; token counts only\n", sel.Key())
-		}
-
-		mode := ModeCountOnly
-		if execute {
-			mode = ModeRun
-		}
-		rep.UnitStarted(ref, len(evals), 0, mode)
-
-		// Token counting stays on this goroutine; only eval runs go parallel,
-		// each in its own workspace.
-		entryResults := make([]results.EvalResult, len(evals))
-		for i, c := range evals {
-			tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, c.Prompt))
-			entryResults[i] = results.EvalResult{
-				ID:       c.ID,
-				Estimate: results.NewEstimate(tokens, sel.Model.InputUSD),
-			}
-		}
-		if execute {
-			batchFailed, err := runEvals(ctx, opts, set, sel, ref, evalRunner, cli, evals, entryResults)
-			failed = failed || batchFailed
-			if err != nil {
-				return failed, err
-			}
-		}
-
-		entry := buildEvalEntry(opts, sel, execute, entryResults)
-		file.SetEval(sel.Key(), entry)
-		saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
+		unitFailed, err := runEvalUnit(ctx, opts, set, sel, file, skillMD, allEvals)
+		failed = failed || unitFailed
 		if err != nil {
 			return failed, err
 		}
-		sum := UnitSummary{Executed: entry.Executed, Total: entry.Summary.Total}
-		if entry.Executed {
-			sum.Passed = *entry.Summary.Passed
-			sum.AvgRunSeconds = entry.Summary.AvgRunSeconds
-			if entry.Summary.Errored != nil {
-				sum.Errored = *entry.Summary.Errored
-			}
-		}
-		rep.UnitFinished(ref, sum, opts.Repo.Rel(saved))
 	}
+	return failed, nil
+}
+
+// runEvalUnit runs one (skill, model) eval unit against the shared results file
+// and skill payload. allEvals is the skill's eval list after any --eval narrowing;
+// per-provider skips and the selection filter are applied here. A unit with no
+// applicable evals reports nothing and returns cleanly.
+func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection,
+	file *results.File, skillMD []byte, allEvals []evalspec.Eval) (failed bool, err error) {
+
+	rep := opts.reporter()
+	evalRunner, isEvalRunner := sel.Provider.(provider.EvalRunner)
+	cli, cliFound := provider.ResolveCLI(sel.Provider)
+	execute := isEvalRunner && cliFound && !opts.CountOnly
+
+	evals := applicableEvals(allEvals, sel.Provider.Name(), set.Skill, opts.Filter)
+	if len(evals) == 0 {
+		return false, nil
+	}
+	ref := UnitRef{Skill: set.Skill, Key: sel.Key(), Kind: KindEvals}
+
+	probe := func(c evalspec.Eval) bool {
+		return opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, c.Prompt)) != nil
+	}
+	_, countCapable := sel.Provider.(provider.TokenCounter)
+	if opts.New {
+		reportsUsage := isEvalRunner && evalRunner.ReportsUsage()
+		if reason := evalSkipReason(
+			file.Evals[sel.Key()], evals, sel.Model, execute, reportsUsage, countCapable, probe,
+		); reason != "" {
+			rep.UnitSkipped(ref, reason)
+			return false, nil
+		}
+	}
+	if !execute && !opts.CountOnly {
+		rep.Warn("  warn: no behavioral runner for %s; token counts only\n", sel.Key())
+	}
+
+	mode := ModeCountOnly
+	if execute {
+		mode = ModeRun
+	}
+	rep.UnitStarted(ref, len(evals), 0, mode)
+
+	// Token counting stays on this goroutine; only eval runs go parallel,
+	// each in its own workspace.
+	entryResults := make([]results.EvalResult, len(evals))
+	for i, c := range evals {
+		tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, c.Prompt))
+		entryResults[i] = results.EvalResult{
+			ID:       c.ID,
+			Estimate: results.NewEstimate(tokens, sel.Model.InputUSD),
+		}
+	}
+	if execute {
+		batchFailed, err := runEvals(ctx, opts, set, sel, ref, evalRunner, cli, evals, entryResults)
+		failed = failed || batchFailed
+		if err != nil {
+			return failed, err
+		}
+	}
+
+	entry := buildEvalEntry(opts, sel, execute, entryResults)
+	file.SetEval(sel.Key(), entry)
+	saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
+	if err != nil {
+		return failed, err
+	}
+	sum := UnitSummary{Executed: entry.Executed, Total: entry.Summary.Total}
+	if entry.Executed {
+		sum.Passed = *entry.Summary.Passed
+		sum.AvgRunSeconds = entry.Summary.AvgRunSeconds
+		if entry.Summary.Errored != nil {
+			sum.Errored = *entry.Summary.Errored
+		}
+	}
+	rep.UnitFinished(ref, sum, opts.Repo.Rel(saved))
 	return failed, nil
 }
 
@@ -196,6 +203,7 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int) (evalOutcome, results.EvalResult, error) {
 
 	rep := opts.reporter()
+	rep.ItemStarted(ref, ItemStart{Index: index, Label: c.ID, Runs: 1})
 	copies := make(map[string]string, len(c.Files))
 	for _, f := range c.Files {
 		copies[f.Dest] = f.Source
@@ -240,6 +248,7 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 			Status: StatusError,
 			Detail: fmt.Sprintf("  [ERROR] %s: %s runtime failure (exit %d): %s\n",
 				c.ID, cli, res.ExitCode, tailStderr(res.StderrTail)),
+			Metrics: ItemMetrics{AvgRunSeconds: &runSeconds},
 		})
 		return outcomeError, results.EvalResult{
 			ID:           c.ID,
@@ -292,7 +301,6 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	if evalPassed {
 		status = StatusPass
 	}
-	rep.ItemDone(ref, ItemResult{Index: index, Label: c.ID, Status: status, Detail: lines})
 
 	result := results.EvalResult{
 		ID:           c.ID,
@@ -307,11 +315,32 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 		total := *m.InputTokens + *m.OutputTokens
 		result.Timing.TotalTokens = &total
 	}
+	rep.ItemDone(ref, ItemResult{
+		Index: index, Label: c.ID, Status: status, Detail: lines,
+		Metrics: evalItemMetrics(&runSeconds, result.Measured, result.Summary),
+	})
 	outcome := outcomeFail
 	if evalPassed {
 		outcome = outcomePass
 	}
 	return outcome, result, nil
+}
+
+// evalItemMetrics lifts a finished eval's measured usage and assertion tally
+// into the per-case metric pointers the dashboard renders.
+func evalItemMetrics(dur *float64, m *results.Measured, s *results.GradeSummary) ItemMetrics {
+	im := ItemMetrics{AvgRunSeconds: dur}
+	if m != nil {
+		im.InputTokens = m.InputTokens
+		im.OutputTokens = m.OutputTokens
+		im.CostUSD = m.CostUSD
+	}
+	if s != nil {
+		p, tot := s.Passed, s.Total
+		im.AssertPassed = &p
+		im.AssertTotal = &tot
+	}
+	return im
 }
 
 // tailStderr renders a stderr tail as a single short diagnostic line. The

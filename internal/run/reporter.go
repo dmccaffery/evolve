@@ -41,15 +41,40 @@ type UnitRef struct {
 	Kind  Kind
 }
 
+// ItemStart announces that work on one item within a unit has begun. The TUI
+// uses it to mark the case running and to look up its authored spec (prompt,
+// assertions, files) from the catalog; the plain reporter ignores it.
+type ItemStart struct {
+	Index int
+	Label string // trigger query or eval id
+	Runs  int    // triggers: runs scheduled for this query; evals: 1
+}
+
 // ItemResult is one finished item within a unit. Detail carries the
 // human-readable body: for triggers a single line (rate/avg/expect/query) the
 // plain reporter prefixes with the status marker; for evals the pre-rendered
 // block of per-assertion lines (or the runtime-error line), printed verbatim.
+// Metrics carries the structured figures the dashboard renders into the tree.
 type ItemResult struct {
-	Index  int
-	Label  string // trigger query or eval id
-	Status Status
-	Detail string
+	Index   int
+	Label   string // trigger query or eval id
+	Status  Status
+	Detail  string
+	Metrics ItemMetrics
+}
+
+// ItemMetrics is the per-case figures the live dashboard shows. All fields are
+// optional: triggers fill hits/runs and the input-side estimate; evals fill the
+// duration, measured input/output tokens, cost, and assertion tally.
+type ItemMetrics struct {
+	Hits          *int
+	Runs          *int
+	AvgRunSeconds *float64 // triggers: avg per run; evals: executor duration
+	InputTokens   *int
+	OutputTokens  *int // evals only
+	CostUSD       *float64
+	AssertPassed  *int
+	AssertTotal   *int
 }
 
 // UnitSummary is the rollup the engine reports when a unit finishes.
@@ -69,6 +94,7 @@ type UnitSummary struct {
 type Reporter interface {
 	UnitStarted(u UnitRef, total, runs int, mode Mode)
 	UnitSkipped(u UnitRef, reason string)
+	ItemStarted(u UnitRef, item ItemStart)
 	ItemDone(u UnitRef, item ItemResult)
 	UnitFinished(u UnitRef, sum UnitSummary, savedRel string)
 	Warn(format string, a ...any)
@@ -97,6 +123,10 @@ func (r PlainReporter) UnitStarted(u UnitRef, total, runs int, mode Mode) {
 func (r PlainReporter) UnitSkipped(u UnitRef, reason string) {
 	fmt.Fprintf(r.Stdout, "\n=== %s / %s (skip: %s) ===\n", u.Skill, u.Key, reason)
 }
+
+// ItemStarted is a no-op for plain output: the historical line format reports
+// items only on completion.
+func (r PlainReporter) ItemStarted(UnitRef, ItemStart) {}
 
 func (r PlainReporter) ItemDone(u UnitRef, item ItemResult) {
 	if u.Kind == KindEvals {

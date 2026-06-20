@@ -73,69 +73,85 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 	}
 
 	for _, sel := range opts.Selected {
-		applicable := applicableTriggers(triggers, sel.Provider.Name(), set.Skill, opts.Filter)
-		if len(applicable) == 0 {
-			continue
-		}
-		ref := UnitRef{Skill: set.Skill, Key: sel.Key(), Kind: KindTriggers}
-		cli, cliFound := provider.ResolveCLI(sel.Provider)
-		execute := !opts.CountOnly && cliFound
-
-		probe := func(t evalspec.Trigger) bool {
-			return opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, t.Query)) != nil
-		}
-		_, countCapable := sel.Provider.(provider.TokenCounter)
-		if opts.New {
-			if reason := triggerSkipReason(
-				file.Triggers[sel.Key()], applicable, sel.Model, execute, countCapable, probe,
-			); reason != "" {
-				rep.UnitSkipped(ref, reason)
-				continue
-			}
-		}
-		if !execute && !opts.CountOnly {
-			rep.Warn("  warn: `%s` CLI not found; %s gets token counts only\n",
-				sel.Provider.CLI()[0], sel.Key())
-		}
-
-		mode := ModeCountOnly
-		if execute {
-			mode = ModeRun
-		}
-		rep.UnitStarted(ref, len(applicable), opts.Runs, mode)
-
-		// Token counting stays on this goroutine (cache-cheap); only agent
-		// runs go parallel.
-		entryResults := make([]results.TriggerResult, len(applicable))
-		for i, t := range applicable {
-			tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, t.Query))
-			entryResults[i] = results.TriggerResult{
-				Query:         t.Query,
-				ShouldTrigger: t.ShouldTrigger,
-				Estimate:      results.NewEstimate(tokens, sel.Model.InputUSD),
-			}
-		}
-		if execute {
-			batchFailed, err := runQueries(ctx, opts, sel, cli, ws, ref, applicable, entryResults)
-			failed = failed || batchFailed
-			if err != nil {
-				return failed, err
-			}
-		}
-
-		entry := buildTriggerEntry(opts, sel, execute, entryResults)
-		file.SetTrigger(sel.Key(), entry)
-		saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
+		unitFailed, err := runTriggerUnit(ctx, opts, set, sel, file, skillMD, triggers, ws)
+		failed = failed || unitFailed
 		if err != nil {
 			return failed, err
 		}
-		sum := UnitSummary{Executed: entry.Executed, Total: entry.Summary.Total}
-		if entry.Executed {
-			sum.Passed = *entry.Summary.Passed
-			sum.AvgRunSeconds = entry.Summary.AvgRunSeconds
-		}
-		rep.UnitFinished(ref, sum, opts.Repo.Rel(saved))
 	}
+	return failed, nil
+}
+
+// runTriggerUnit runs one (skill, model) trigger unit against the shared results
+// file, skill payload, and read-only trigger workspace. It token-counts every
+// applicable query, optionally executes the sweep, then persists and reports the
+// unit. A unit with no applicable queries reports nothing and returns cleanly.
+func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet, sel provider.Selection,
+	file *results.File, skillMD []byte, triggers []evalspec.Trigger, ws string) (failed bool, err error) {
+
+	rep := opts.reporter()
+	applicable := applicableTriggers(triggers, sel.Provider.Name(), set.Skill, opts.Filter)
+	if len(applicable) == 0 {
+		return false, nil
+	}
+	ref := UnitRef{Skill: set.Skill, Key: sel.Key(), Kind: KindTriggers}
+	cli, cliFound := provider.ResolveCLI(sel.Provider)
+	execute := !opts.CountOnly && cliFound
+
+	probe := func(t evalspec.Trigger) bool {
+		return opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, t.Query)) != nil
+	}
+	_, countCapable := sel.Provider.(provider.TokenCounter)
+	if opts.New {
+		if reason := triggerSkipReason(
+			file.Triggers[sel.Key()], applicable, sel.Model, execute, countCapable, probe,
+		); reason != "" {
+			rep.UnitSkipped(ref, reason)
+			return false, nil
+		}
+	}
+	if !execute && !opts.CountOnly {
+		rep.Warn("  warn: `%s` CLI not found; %s gets token counts only\n",
+			sel.Provider.CLI()[0], sel.Key())
+	}
+
+	mode := ModeCountOnly
+	if execute {
+		mode = ModeRun
+	}
+	rep.UnitStarted(ref, len(applicable), opts.Runs, mode)
+
+	// Token counting stays on this goroutine (cache-cheap); only agent runs
+	// go parallel.
+	entryResults := make([]results.TriggerResult, len(applicable))
+	for i, t := range applicable {
+		tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, t.Query))
+		entryResults[i] = results.TriggerResult{
+			Query:         t.Query,
+			ShouldTrigger: t.ShouldTrigger,
+			Estimate:      results.NewEstimate(tokens, sel.Model.InputUSD),
+		}
+	}
+	if execute {
+		batchFailed, err := runQueries(ctx, opts, sel, cli, ws, ref, applicable, entryResults)
+		failed = failed || batchFailed
+		if err != nil {
+			return failed, err
+		}
+	}
+
+	entry := buildTriggerEntry(opts, sel, execute, entryResults)
+	file.SetTrigger(sel.Key(), entry)
+	saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
+	if err != nil {
+		return failed, err
+	}
+	sum := UnitSummary{Executed: entry.Executed, Total: entry.Summary.Total}
+	if entry.Executed {
+		sum.Passed = *entry.Summary.Passed
+		sum.AvgRunSeconds = entry.Summary.AvgRunSeconds
+	}
+	rep.UnitFinished(ref, sum, opts.Repo.Rel(saved))
 	return failed, nil
 }
 
@@ -200,6 +216,11 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 				Status: status,
 				Detail: fmt.Sprintf("rate=%.2f avg=%.1fs expect=%s %s",
 					rate, avg, expect, truncate(triggers[i].Query, 70)),
+				Metrics: ItemMetrics{
+					Hits: &h, Runs: &r, AvgRunSeconds: &avg,
+					InputTokens: estTokens(entryResults[i].Estimate),
+					CostUSD:     estCost(entryResults[i].Estimate),
+				},
 			})
 		}
 		collectorDone <- failed
@@ -208,6 +229,7 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 	g, runCtx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.Jobs)
 	for i, t := range triggers {
+		rep.ItemStarted(ref, ItemStart{Index: i, Label: t.Query, Runs: opts.Runs})
 		for range opts.Runs {
 			g.Go(func() error {
 				spec := sel.Provider.TriggerSpec(ws, t.Query, sel.Model.ID)
@@ -339,6 +361,23 @@ func applicableTriggers(triggers []evalspec.Trigger, providerName, skill string,
 		out = append(out, t)
 	}
 	return out
+}
+
+// estTokens and estCost lift an estimate's input figures into the optional
+// per-case metric pointers, tolerating a nil estimate (no counting API).
+func estTokens(e *results.Estimate) *int {
+	if e == nil {
+		return nil
+	}
+	n := e.InputTokens
+	return &n
+}
+
+func estCost(e *results.Estimate) *float64 {
+	if e == nil {
+		return nil
+	}
+	return e.InputCostUSD
 }
 
 func truncate(s string, n int) string {
