@@ -26,6 +26,10 @@ var evalsCmd = &cobra.Command{
 	Short: "Run Tier 2 behavioral evals: agent sessions graded by assertions",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		if err := reconcileStaleResults(cmd, isTerminal(cmd)); err != nil {
+			return err
+		}
+
 		common, err := evalsFlags.sweepOptions(cmd)
 		if err != nil {
 			return err

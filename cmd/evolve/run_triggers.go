@@ -24,6 +24,10 @@ var triggersCmd = &cobra.Command{
 	Short: "Run Tier 1 trigger-accuracy evals through headless agent sessions",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
+		if err := reconcileStaleResults(cmd, isTerminal(cmd)); err != nil {
+			return err
+		}
+
 		common, err := triggersFlags.sweepOptions(cmd)
 		if err != nil {
 			return err
