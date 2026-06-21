@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/bitwise-media-group/evolve/internal/evalspec"
 	"github.com/bitwise-media-group/evolve/internal/manifest"
 )
 
@@ -97,4 +98,36 @@ func specHash(v any) string {
 	data, _ := json.Marshal(v)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// evalFingerprint fingerprints an eval as a unit of work: its authored definition
+// (specHash) plus the content of every fixture file it stages. Folding fixtures
+// in means a changed fixture counts as a changed eval — it reruns the eval under
+// --modified and recomputes its without-skill baseline (which depends only on the
+// eval, never on the skill). Files are hashed in sorted Dest order with NUL
+// framing, like skillContentHash, so neither order nor a path/content boundary
+// can shift the digest without changing content; an unreadable fixture folds its
+// path and the error in, so a vanished fixture still changes the hash.
+//
+// This supersedes specHash for evals: it is what EvalResult.SpecHash now stores.
+// Old results carry a spec-only hash, so the first --modified after upgrade reruns
+// every eval once (a harmless refresh), the same meaning-shift caveat the schema
+// already documents.
+func evalFingerprint(c evalspec.Eval) string {
+	h := sha256.New()
+	h.Write([]byte(specHash(c)))
+	h.Write([]byte{0})
+	files := append([]evalspec.FileRef(nil), c.Files...)
+	sort.Slice(files, func(i, j int) bool { return files[i].Dest < files[j].Dest })
+	for _, f := range files {
+		h.Write([]byte(f.Dest))
+		h.Write([]byte{0})
+		if data, err := os.ReadFile(f.Source); err != nil {
+			h.Write([]byte("\x00evolve:fixture-error:" + err.Error() + "\x00"))
+		} else {
+			h.Write(data)
+		}
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }

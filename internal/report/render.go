@@ -54,26 +54,26 @@ func renderRoot(opts Options, loaded []pluginFiles, summary *Summary, caps capab
 		fmt.Fprintf(&b, "\n## %s\n", pf.plugin.Name)
 		if len(ps.Triggers) > 0 {
 			b.WriteString("\n### Triggers\n\n")
-			b.WriteString("| Provider | Model | Passed | Pass rate | Avg run | Input tokens | Est. input cost |\n")
-			b.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
+			b.WriteString("| Provider | Model | Passed | Pass rate | Δ rate | Avg run | Input tokens | Est. input cost |\n")
+			b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 			for _, key := range sortedKeys(ps.Triggers) {
 				m := ps.Triggers[key]
-				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s |\n",
+				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s |\n",
 					caps.providerDisplay(m.Provider), m.Display, strings.TrimPrefix(key, m.Provider+"/"),
-					fmtPassed(m), fmtRate(m.PassRate), fmtSecs(m.AvgRunSeconds),
+					fmtPassed(m), fmtRate(m.PassRate), rateDelta(m), fmtSecs(m.AvgRunSeconds),
 					fmtTokensCell(m, caps), fmtEstCostCell(m, caps))
 			}
 		}
 		if len(ps.Evals) > 0 {
 			b.WriteString("\n### Evals\n\n")
-			b.WriteString("| Provider | Model | Passed | Avg run | Input tokens" +
+			b.WriteString("| Provider | Model | Passed | Δ rate | Lift vs base | Avg run | Input tokens" +
 				" | Est. input cost | Measured in/out | Cache rd/wr | Measured cost |\n")
-			b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+			b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 			for _, key := range sortedKeys(ps.Evals) {
 				m := ps.Evals[key]
-				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s | %s |\n",
+				fmt.Fprintf(&b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 					caps.providerDisplay(m.Provider), m.Display, strings.TrimPrefix(key, m.Provider+"/"),
-					fmtPassed(m), fmtSecs(m.AvgRunSeconds),
+					fmtPassed(m), rateDelta(m), liftVsBase(m), fmtSecs(m.AvgRunSeconds),
 					fmtTokensCell(m, caps), fmtEstCostCell(m, caps),
 					fmtMeasuredTokens(m, caps), fmtMeasuredCacheRollup(m, caps), fmtMeasuredCost(m, caps))
 			}
@@ -115,24 +115,25 @@ func renderDetail(pf pluginFiles, caps capabilityMap) string {
 			if entry, ok := f.Triggers[key]; ok {
 				fmt.Fprintf(&b, "\n### Triggers — %s\n\n", f.Skill)
 				fmt.Fprintf(&b, "%s\n\n", lastRunNote(entry.Header, entry.RunsPerQuery))
-				b.WriteString("| Query | Expected | Rate | Result | Avg run | Input tokens | Est. cost |\n")
-				b.WriteString("| --- | --- | --- | --- | --- | --- | --- |\n")
+				b.WriteString("| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |\n")
+				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
 				for _, r := range entry.Results {
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s |\n",
+					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
 						cell(r.Query, 60), yesNo(r.ShouldTrigger), fmtHits(r.Hits, r.Runs),
-						fmtVerdict(r.Passed), fmtSecs(r.AvgRunSeconds),
+						triggerCaseRateDelta(r, entry.Previous), fmtVerdict(r.Passed), fmtSecs(r.AvgRunSeconds),
 						fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps))
 				}
 			}
 			if entry, ok := f.Evals[key]; ok {
 				fmt.Fprintf(&b, "\n### Evals — %s\n\n", f.Skill)
 				fmt.Fprintf(&b, "%s\n\n", lastRunNote(entry.Header, 0))
-				b.WriteString("| Eval | Result | Run | Input tokens | Est. cost" +
+				b.WriteString("| Eval | Result | Δ rate | Run | Input tokens | Est. cost" +
 					" | Measured in/out | Cache rd/wr | Measured cost |\n")
-				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
 				for _, r := range entry.Results {
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-						cell(r.ID, 60), evalVerdict(r), fmtSecs(runSeconds(r.Timing)),
+					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+						cell(r.ID, 60), evalVerdict(r), evalCaseRateDelta(r, entry.Previous, entry.Baseline),
+						fmtSecs(runSeconds(r.Timing)),
 						fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps),
 						fmtMeasuredInOut(r.Measured, provName, caps), fmtMeasuredCache(r.Measured, provName, caps),
 						fmtMeasuredCostDetail(r.Measured, entry.Pricing, provName, caps))
@@ -195,6 +196,65 @@ func fmtRate(rate *float64) string {
 		return "—"
 	}
 	return fmt.Sprintf("%.0f%%", *rate*100)
+}
+
+// fmtSignedRate renders a pass/trigger-rate delta as a signed percentage, or "—"
+// when not comparable. Markdown cannot color, so the sign carries the direction.
+func fmtSignedRate(d *float64) string {
+	if d == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%+.0f%%", *d*100)
+}
+
+// rateDelta renders a rollup's headline rate delta with the basis fallback used
+// across the reports and TUI: previous when present, else the baseline (marked),
+// else "—".
+func rateDelta(m *ModelRollup) string {
+	if m.PreviousDelta != nil && m.PreviousDelta.Rate != nil {
+		return fmtSignedRate(m.PreviousDelta.Rate)
+	}
+	if m.BaselineDelta != nil && m.BaselineDelta.Rate != nil {
+		return fmtSignedRate(m.BaselineDelta.Rate) + " (vs base)"
+	}
+	return "—"
+}
+
+// liftVsBase renders an eval rollup's pass-rate lift over its without-skill
+// baseline — the headline measure of the skill's value.
+func liftVsBase(m *ModelRollup) string {
+	if m.BaselineDelta != nil {
+		return fmtSignedRate(m.BaselineDelta.Rate)
+	}
+	return "—"
+}
+
+// evalCaseRateDelta renders one eval's expectation-rate delta with the basis
+// fallback (previous, else baseline marked).
+func evalCaseRateDelta(r results.EvalResult, prev, base *results.EvalSnapshot) string {
+	cur := results.EvalCaseMetricsOf(r)
+	if prev != nil {
+		if pc, ok := prev.Cases[r.ID]; ok {
+			return fmtSignedRate(results.EvalCaseDelta(cur, pc).Rate)
+		}
+	}
+	if base != nil {
+		if bc, ok := base.Cases[r.ID]; ok {
+			return fmtSignedRate(results.EvalCaseDelta(cur, bc).Rate) + " (vs base)"
+		}
+	}
+	return "—"
+}
+
+// triggerCaseRateDelta renders one query's trigger-rate delta vs the previous run
+// (triggers have no baseline).
+func triggerCaseRateDelta(r results.TriggerResult, prev *results.TriggerSnapshot) string {
+	if prev != nil {
+		if pc, ok := prev.Cases[r.Query]; ok {
+			return fmtSignedRate(results.TriggerCaseDelta(results.TriggerCaseMetricsOf(r), pc, r.ShouldTrigger).Rate)
+		}
+	}
+	return "—"
 }
 
 func fmtSecs(secs *float64) string {

@@ -14,6 +14,10 @@ Run Tier 2 behavioral evals: agent sessions graded by assertions
 
 
 .SH OPTIONS
+\fB--baseline\fP[=true]
+	benchmark each eval without the skill (its lift), recomputed only when the eval or its fixtures change (disable with --baseline=false; config: baseline)
+
+.PP
 \fB--count-only\fP[=false]
 	skip agent runs; only compute token usage per model
 

@@ -74,10 +74,11 @@ func forward(rep run.Reporter) io.Writer {
 // selections/filter and the reporter to attach to its run.Options.
 func runWithUI(cmd *cobra.Command, cat []run.SkillCatalog, sels []provider.Selection,
 	needs map[string]map[run.CaseRef]bool, notes map[run.CaseRef]string, evalFilter string,
+	prior run.PriorMetrics,
 	engine func(ctx context.Context, req tui.RunRequest, rep run.Reporter) (bool, error),
 ) (bool, error) {
 	runReq := make(chan tui.RunRequest, 1)
-	model := tui.New(cat, sels, needs, notes, evalFilter, runReq)
+	model := tui.New(cat, sels, needs, notes, evalFilter, prior, runReq)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	rep := tui.NewReporter(p)
 
@@ -180,6 +181,10 @@ func uiRun(cmd *cobra.Command, sweep *SweepFlags, def run.Tiers,
 		return err
 	}
 
+	// Seed the dashboard with the last committed metrics so it can color deltas as
+	// cases finish — the live run is compared against the run it replaces.
+	prior := run.LoadPriorMetrics(cat)
+
 	// Per-tier timeouts: the triggers/evals defaults (120/600) unless the user
 	// set --timeout explicitly, in which case it applies to both.
 	triggerTO, evalTO := perTierTimeouts(cmd, sweep.Timeout)
@@ -224,7 +229,7 @@ func uiRun(cmd *cobra.Command, sweep *SweepFlags, def run.Tiers,
 		return failed, nil
 	}
 
-	failed, err := runWithUI(cmd, cat, allSels, needs, notes, evalFilter, engine)
+	failed, err := runWithUI(cmd, cat, allSels, needs, notes, evalFilter, prior, engine)
 	if err != nil {
 		return err
 	}

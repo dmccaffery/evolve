@@ -99,7 +99,7 @@ func TestFixtureDefinitionsValidate(t *testing.T) {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		stem := strings.SplitN(d.Name(), ".", 2)[0]
+		stem, _, _ := strings.Cut(d.Name(), ".")
 		if stem != "evals" && stem != "triggers" {
 			return nil
 		}
@@ -129,8 +129,6 @@ func TestFixtureDefinitionsValidate(t *testing.T) {
 	}
 }
 
-func ptr[T any](v T) *T { return &v }
-
 // maximalResults exercises every optional field the schema declares for
 // wave 1, plus explicit nulls (pricing, skipped passed).
 func maximalResults() *results.File {
@@ -140,26 +138,38 @@ func maximalResults() *results.File {
 			Provider: "anthropic", Model: "claude-fable-5", Display: "Claude Fable 5",
 			ToolVersion: "test", RanAt: "2026-06-12T10:00:00Z", Executed: true,
 			RunsPerQuery: 3, TimeoutSeconds: 120,
-			Pricing: &results.Pricing{InputPerMTok: ptr(10.0), OutputPerMTok: ptr(50.0)},
+			Pricing: &results.Pricing{InputPerMTok: new(10.0), OutputPerMTok: new(50.0)},
 		},
 		Results: []results.TriggerResult{{
-			Query: "q", ShouldTrigger: true, Hits: ptr(3), Runs: ptr(3),
-			Passed: ptr(true), AvgRunSeconds: ptr(9.1),
-			Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)},
+			Query: "q", ShouldTrigger: true, Hits: new(3), Runs: new(3),
+			Passed: new(true), AvgRunSeconds: new(9.1),
+			Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
 		}},
-		Summary: results.TriggerSummary{Passed: ptr(1), Failed: ptr(0), Total: 1,
-			PassRate: ptr(1.0), AvgRunSeconds: ptr(9.1),
-			Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)}},
+		Summary: results.TriggerSummary{
+			Passed: new(1), Failed: new(0), Total: 1,
+			PassRate: new(1.0), AvgRunSeconds: new(9.1),
+			Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
+		},
+		Previous: &results.TriggerSnapshot{
+			RanAt: "2026-06-11T10:00:00Z",
+			Summary: results.TriggerSummary{
+				Passed: new(0), Failed: new(1), Total: 1,
+				PassRate: new(0.0), AvgRunSeconds: new(8.0),
+			},
+			Cases: map[string]results.TriggerCaseMetrics{
+				"q": {Hits: new(1), Runs: new(3), Passed: new(false), AvgRunSeconds: new(8.0)},
+			},
+		},
 	})
 	graded := []results.GradedAssertion{
 		{
-			Assertion: evalspec.Assertion{Type: "command", Run: "go test ./...", Requires: "go", ExpectExit: ptr(0)},
+			Assertion: evalspec.Assertion{Type: "command", Run: "go test ./...", Requires: "go", ExpectExit: new(0)},
 			Text:      "command `go test ./...` exits 0", Passed: nil,
 			Evidence: "skipped: go not installed", Source: "assertion",
 		},
 		{
 			Assertion: evalspec.Assertion{Type: "llm", Text: "The output includes X"},
-			Text:      "The output includes X", Passed: ptr(true),
+			Text:      "The output includes X", Passed: new(true),
 			Evidence: "found X", Source: "expectation",
 		},
 	}
@@ -170,28 +180,54 @@ func maximalResults() *results.File {
 			TimeoutSeconds: 600, Pricing: nil, // explicit null in the file
 		},
 		Results: []results.EvalResult{{
-			ID: "1", Name: "Ocean", Passed: ptr(true),
-			Estimate:     &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured:     &results.Measured{InputTokens: ptr(100), CacheReadTokens: ptr(880), CacheCreationTokens: ptr(40), OutputTokens: ptr(10), CostUSD: ptr(0.0003)},
+			ID: "1", Name: "Ocean", Passed: new(true),
+			Estimate:     &results.Estimate{InputTokens: 1827, InputCostUSD: new(0.01827)},
+			Measured:     &results.Measured{InputTokens: new(100), CacheReadTokens: new(880), CacheCreationTokens: new(40), OutputTokens: new(10), CostUSD: new(0.0003)},
 			Expectations: graded,
 			Summary:      results.SummarizeExpectations(graded),
 			ExecutionMetrics: &results.ExecutionMetrics{
-				ToolCalls: map[string]int{"Read": 5}, TotalToolCalls: ptr(5),
-				TotalSteps: ptr(2), FilesCreated: []string{"out.txt"},
-				ErrorsEncountered: ptr(0), OutputChars: ptr(120), TranscriptChars: ptr(3200),
+				ToolCalls: map[string]int{"Read": 5}, TotalToolCalls: new(5),
+				TotalSteps: new(2), FilesCreated: []string{"out.txt"},
+				ErrorsEncountered: new(0), OutputChars: new(120), TranscriptChars: new(3200),
 			},
 			Timing: &results.Timing{
-				TotalTokens: ptr(1030), DurationMS: ptr(23332), TotalDurationSeconds: ptr(23.3),
+				TotalTokens: new(1030), DurationMS: new(23332), TotalDurationSeconds: new(23.3),
 				ExecutorStart: "2026-06-12T11:00:00Z", ExecutorEnd: "2026-06-12T11:02:45Z",
-				ExecutorDurationSeconds: ptr(165.0),
+				ExecutorDurationSeconds: new(165.0),
 				GraderStart:             "2026-06-12T11:02:46Z", GraderEnd: "2026-06-12T11:03:12Z",
-				GraderDurationSeconds: ptr(26.0),
+				GraderDurationSeconds: new(26.0),
 			},
 		}},
-		Summary: results.EvalSummary{Passed: ptr(1), Failed: ptr(0), Total: 1, PassRate: ptr(1.0),
-			AvgRunSeconds: ptr(165.0),
-			Estimate:      &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured:      &results.Measured{InputTokens: ptr(100), OutputTokens: ptr(10), CostUSD: ptr(0.0003)}},
+		Summary: results.EvalSummary{
+			Passed: new(1), Failed: new(0), Total: 1, PassRate: new(1.0),
+			AvgRunSeconds: new(165.0),
+			Estimate:      &results.Estimate{InputTokens: 1827, InputCostUSD: new(0.01827)},
+			Measured:      &results.Measured{InputTokens: new(100), OutputTokens: new(10), CostUSD: new(0.0003)},
+		},
+		Baseline: &results.EvalSnapshot{
+			RanAt: "2026-06-12T11:00:00Z",
+			Summary: results.EvalSummary{
+				Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
+				AvgRunSeconds: new(40.0),
+			},
+			Cases: map[string]results.EvalCaseMetrics{
+				"1": {Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(40.0), Fingerprint: "fp-1"},
+			},
+		},
+		Previous: &results.EvalSnapshot{
+			RanAt: "2026-06-11T11:00:00Z",
+			Summary: results.EvalSummary{
+				Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
+				AvgRunSeconds: new(170.0),
+				Measured:      &results.Measured{InputTokens: new(90), OutputTokens: new(8), CostUSD: new(0.0002)},
+			},
+			Cases: map[string]results.EvalCaseMetrics{
+				"1": {
+					Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(170.0),
+					Measured: &results.Measured{InputTokens: new(90), OutputTokens: new(8), CostUSD: new(0.0002)},
+				},
+			},
+		},
 	})
 	return f
 }
@@ -229,16 +265,27 @@ func TestEmittedArtifactsValidate(t *testing.T) {
 		}
 	}
 
-	summary := &report.Summary{Schema: 2, ToolVersion: "test", LatestRun: "2026-06-12T10:00:00Z",
+	rollup := func() *report.ModelRollup {
+		return &report.ModelRollup{
+			Provider: "anthropic", Display: "Claude Fable 5",
+			Passed: new(1), Failed: new(0), Total: 1, PassRate: new(1.0),
+			AvgRunSeconds: new(9.1),
+			Estimate:      &results.Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
+			Measured:      &results.Measured{InputTokens: new(100), OutputTokens: new(10)},
+			Baseline:      &report.RollupStats{Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0)},
+			PreviousDelta: &results.Delta{Rate: new(0.5), InputTokens: new(10)},
+			BaselineDelta: &results.Delta{Rate: new(1.0)},
+		}
+	}
+	summary := &report.Summary{
+		Schema: 3, ToolVersion: "test", LatestRun: "2026-06-12T10:00:00Z",
 		Plugins: map[string]*report.PluginSummary{
-			"solo": {Evals: map[string]*report.ModelRollup{
-				"anthropic/claude-fable-5": {Provider: "anthropic", Display: "Claude Fable 5",
-					Passed: ptr(1), Failed: ptr(0), Total: 1, PassRate: ptr(1.0),
-					AvgRunSeconds: ptr(9.1),
-					Estimate:      &results.Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)},
-					Measured:      &results.Measured{InputTokens: ptr(100), OutputTokens: ptr(10)}},
-			}},
-		}}
+			"solo": {
+				Evals:  map[string]*report.ModelRollup{"anthropic/claude-fable-5": rollup()},
+				Skills: map[string]*report.SkillSummary{"s": {Evals: map[string]*report.ModelRollup{"anthropic/claude-fable-5": rollup()}}},
+			},
+		},
+	}
 	data, err := json.Marshal(summary)
 	if err != nil {
 		t.Fatal(err)
@@ -263,26 +310,46 @@ func TestNegativeFixtures(t *testing.T) {
 		doc    string
 		why    string
 	}{
-		{"evals.schema.json", `{"evals": [{"id": true, "prompt": "p", "expectations": ["x"]}]}`,
-			"boolean id"},
-		{"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p", "files": {"a.txt": "content"}, "expectations": ["y"]}]}`,
-			"inline files map"},
-		{"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p", "assertions": [{"type": "regex"}]}]}`,
-			"regex without pattern"},
-		{"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p"}]}`,
-			"no expectations or assertions"},
-		{"evals.schema.json", `{"evals": [{"id": "x", "expectations": ["y"]}]}`,
-			"missing prompt"},
-		{"triggers.schema.json", `{"triggers": [{"query": "q"}]}`,
-			"missing should_trigger"},
-		{"results.schema.json", `{"schema": 1, "plugin": "p", "skill": "s"}`,
-			"old schema number"},
-		{"grading.schema.json", `{"expectations": [{"text": "t", "passed": true}], "summary": {"passed": 1, "failed": 0, "total": 1}}`,
-			"expectation missing evidence"},
-		{"benchmark.schema.json", `{"metadata": {"skill_name": "s", "skill_path": "p", "executor_model": "m", "analyzer_model": "a", "timestamp": "2026-01-15T10:30:00Z", "evals_run": [1], "runs_per_configuration": 1}, "runs": [{"eval_id": 1, "configuration": "no_skill", "run_number": 1, "result": {"pass_rate": 1, "passed": 1, "total": 1}}], "run_summary": {"with_skill": {}, "without_skill": {}}}`,
-			"unknown configuration"},
-		{"history.schema.json", `{"started_at": "2026-01-15T10:30:00Z", "skill_name": "s", "current_best": "v1", "iterations": [{"version": "v0", "parent": null, "expectation_pass_rate": 0.5, "grading_result": "drew", "is_current_best": true}]}`,
-			"unknown grading_result"},
+		{
+			"evals.schema.json", `{"evals": [{"id": true, "prompt": "p", "expectations": ["x"]}]}`,
+			"boolean id",
+		},
+		{
+			"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p", "files": {"a.txt": "content"}, "expectations": ["y"]}]}`,
+			"inline files map",
+		},
+		{
+			"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p", "assertions": [{"type": "regex"}]}]}`,
+			"regex without pattern",
+		},
+		{
+			"evals.schema.json", `{"evals": [{"id": "x", "prompt": "p"}]}`,
+			"no expectations or assertions",
+		},
+		{
+			"evals.schema.json", `{"evals": [{"id": "x", "expectations": ["y"]}]}`,
+			"missing prompt",
+		},
+		{
+			"triggers.schema.json", `{"triggers": [{"query": "q"}]}`,
+			"missing should_trigger",
+		},
+		{
+			"results.schema.json", `{"schema": 1, "plugin": "p", "skill": "s"}`,
+			"old schema number",
+		},
+		{
+			"grading.schema.json", `{"expectations": [{"text": "t", "passed": true}], "summary": {"passed": 1, "failed": 0, "total": 1}}`,
+			"expectation missing evidence",
+		},
+		{
+			"benchmark.schema.json", `{"metadata": {"skill_name": "s", "skill_path": "p", "executor_model": "m", "analyzer_model": "a", "timestamp": "2026-01-15T10:30:00Z", "evals_run": [1], "runs_per_configuration": 1}, "runs": [{"eval_id": 1, "configuration": "no_skill", "run_number": 1, "result": {"pass_rate": 1, "passed": 1, "total": 1}}], "run_summary": {"with_skill": {}, "without_skill": {}}}`,
+			"unknown configuration",
+		},
+		{
+			"history.schema.json", `{"started_at": "2026-01-15T10:30:00Z", "skill_name": "s", "current_best": "v1", "iterations": [{"version": "v0", "parent": null, "expectation_pass_rate": 0.5, "grading_result": "drew", "is_current_best": true}]}`,
+			"unknown grading_result",
+		},
 	}
 	for _, tc := range bad {
 		if err := validate(compiled[tc.schema], []byte(tc.doc)); err == nil {

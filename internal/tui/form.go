@@ -185,8 +185,8 @@ func tierCases(sc run.SkillCatalog, kind run.Kind) []caseRow {
 // in its per-case tri-state and annotated with the reason it is preselected.
 // --eval forces non-matching evals off.
 func buildTierTree(cat []run.SkillCatalog, kind run.Kind, st formStates,
-	notes map[run.CaseRef]string, evalFilter string) tree {
-
+	notes map[run.CaseRef]string, evalFilter string,
+) tree {
 	var t tree
 	pluginNode := map[string]int{}
 	for _, sc := range cat {
@@ -345,18 +345,9 @@ func (f formModel) collectInto(ff *run.Filter, mState nodeState, sel provider.Se
 // a button/hint footer.
 func (f formModel) view() string {
 	const footerH = 4
-	paneH := f.h - footerH
-	if paneH < 6 {
-		paneH = 6
-	}
-	leftW := f.w / 3
-	if leftW < 16 {
-		leftW = 16
-	}
-	rightW := f.w - leftW
-	if rightW < 16 {
-		rightW = 16
-	}
+	paneH := max(f.h-footerH, 6)
+	leftW := max(f.w/3, 16)
+	rightW := max(f.w-leftW, 16)
 	topH := paneH / 2
 	botH := paneH - topH
 
@@ -402,18 +393,12 @@ func renderTree(t *tree, focused bool, w, h int) string {
 	if t.cursor < 0 {
 		t.cursor = 0
 	}
-	rows := h
-	if rows < 1 {
-		rows = 1
-	}
+	rows := max(h, 1)
 	start := 0
 	if t.cursor >= rows {
 		start = t.cursor - rows + 1
 	}
-	end := start + rows
-	if end > len(vis) {
-		end = len(vis)
-	}
+	end := min(start+rows, len(vis))
 
 	var b strings.Builder
 	for pos := start; pos < end; pos++ {

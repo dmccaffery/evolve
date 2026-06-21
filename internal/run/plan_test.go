@@ -236,6 +236,46 @@ func TestNeedsNewSkipsComplete(t *testing.T) {
 	}
 }
 
+// TestNeedsBaselineAdditiveWithNew is the form-side counterpart to the engine's
+// additive-baseline behavior: a complete eval that --new would skip is still
+// preselected under --new --baseline because its baseline is missing.
+func TestNeedsBaselineAdditiveWithNew(t *testing.T) {
+	repo := evalRepoFixture(t)
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	opts.Baseline = false
+	opts.Stdout, opts.Stderr = io.Discard, io.Discard
+
+	// Establish a complete with-skill result but no baseline.
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	cat, err := Catalog(opts.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sels := opts.Selected
+	key := sels[0].Key()
+	ec := CaseRef{Skill: "solo-skill", Kind: KindEvals, Case: "basic"}
+
+	// --new alone leaves the complete eval unselected.
+	withNew := opts.Options
+	withNew.New = true
+	if n, _ := Needs(withNew, cat, sels, Tiers{Evals: true}, ""); n[key][ec] {
+		t.Fatalf("--new should not select a complete eval: %+v", n[key])
+	}
+
+	// Adding --baseline reselects it (baseline missing), noted "needs baseline".
+	withBoth := withNew
+	withBoth.Baseline = true
+	n, notes := Needs(withBoth, cat, sels, Tiers{Evals: true}, "")
+	if !n[key][ec] {
+		t.Errorf("--new --baseline should select the eval whose baseline is missing: %+v", n[key])
+	}
+	if notes[ec] != ReasonBaselineMissing.String() {
+		t.Errorf("note = %q, want %q", notes[ec], ReasonBaselineMissing.String())
+	}
+}
+
 func TestNeedsModifiedSelectsChangedContent(t *testing.T) {
 	repo := planRepoFixture(t)
 	p := &countingTriggerProvider{fakeTriggerProvider{priced: true}}

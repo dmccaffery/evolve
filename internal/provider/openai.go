@@ -114,10 +114,7 @@ func (o *OpenAI) ParseEvalOutput(stdout []byte) (string, *Usage) {
 			if in := event.Usage.InputTokens; in != nil {
 				fresh := *in
 				if cached := event.Usage.CachedInputTokens; cached != nil {
-					read := *cached
-					if read > fresh {
-						read = fresh
-					}
+					read := min(*cached, fresh)
 					fresh -= read
 					u.CacheReadTokens = &read
 				}

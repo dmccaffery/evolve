@@ -9,15 +9,11 @@ import (
 	"github.com/bitwise-media-group/evolve/internal/results"
 )
 
-func bptr(b bool) *bool         { return &b }
-func iptr(n int) *int           { return &n }
-func f64ptr(f float64) *float64 { return &f }
-
 // completeTrigger is a fully populated, passing trigger result.
 func completeTrigger(shouldTrigger bool) results.TriggerResult {
 	return results.TriggerResult{
 		Query: "q", ShouldTrigger: shouldTrigger,
-		Hits: iptr(3), Runs: iptr(3), Passed: bptr(true), AvgRunSeconds: f64ptr(1.0),
+		Hits: new(3), Runs: new(3), Passed: new(true), AvgRunSeconds: new(1.0),
 	}
 }
 
@@ -56,7 +52,7 @@ func TestTriggerCaseReason(t *testing.T) {
 
 func completeFailingTrigger() results.TriggerResult {
 	r := completeTrigger(true)
-	r.Passed = bptr(false)
+	r.Passed = new(false)
 	return r
 }
 
@@ -70,9 +66,9 @@ func triggerWithSpec(specHash string) results.TriggerResult {
 
 func completeEval(passed bool) results.EvalResult {
 	return results.EvalResult{
-		ID: "e", Passed: bptr(passed),
-		Timing:   &results.Timing{ExecutorDurationSeconds: f64ptr(2.0)},
-		Measured: &results.Measured{InputTokens: iptr(100), OutputTokens: iptr(10), CostUSD: f64ptr(0.1)},
+		ID: "e", Passed: new(passed),
+		Timing:   &results.Timing{ExecutorDurationSeconds: new(2.0)},
+		Measured: &results.Measured{InputTokens: new(100), OutputTokens: new(10), CostUSD: new(0.1)},
 	}
 }
 
@@ -90,10 +86,10 @@ func TestEvalCaseReason(t *testing.T) {
 		{"missing under failed-only", results.EvalResult{}, false, true, true, false, true, false, fingerprints{}, ReasonNone},
 		{"runtime error under failed", results.EvalResult{ID: "e", RuntimeError: "boom"}, true, true, true, false, true, false, fingerprints{}, ReasonErrored},
 		{"failed assertions under failed", completeEval(false), true, true, true, false, true, false, fingerprints{}, ReasonNotPassing},
-		{"incomplete (no timing) under new", results.EvalResult{ID: "e", Passed: bptr(true)}, true, true, true, true, false, false, fingerprints{}, ReasonIncompleteRun},
+		{"incomplete (no timing) under new", results.EvalResult{ID: "e", Passed: new(true)}, true, true, true, true, false, false, fingerprints{}, ReasonIncompleteRun},
 		{"missing input tokens", evalMissingMeasured(nil), true, true, true, true, false, false, fingerprints{}, ReasonMissingInputTokens},
-		{"missing output tokens", evalMissingMeasured(&results.Measured{InputTokens: iptr(100)}), true, true, true, true, false, false, fingerprints{}, ReasonMissingOutputTokens},
-		{"missing measured cost", evalMissingMeasured(&results.Measured{InputTokens: iptr(100), OutputTokens: iptr(10)}), true, true, true, true, false, false, fingerprints{}, ReasonMissingMeasuredCost},
+		{"missing output tokens", evalMissingMeasured(&results.Measured{InputTokens: new(100)}), true, true, true, true, false, false, fingerprints{}, ReasonMissingOutputTokens},
+		{"missing measured cost", evalMissingMeasured(&results.Measured{InputTokens: new(100), OutputTokens: new(10)}), true, true, true, true, false, false, fingerprints{}, ReasonMissingMeasuredCost},
 		{"usage ignored when provider does not report", evalMissingMeasured(nil), true, false, false, true, false, false, fingerprints{}, ReasonNone},
 		{"spec changed under modified", evalWithSpec("old"), true, true, true, false, false, true, fingerprints{freshSpec: "new"}, ReasonModified},
 		{"content changed under modified", evalWithSpec("s"), true, true, true, false, false, true, fingerprints{storedContent: "old", freshContent: "new", freshSpec: "s"}, ReasonModified},
@@ -122,8 +118,8 @@ func evalWithSpec(specHash string) results.EvalResult {
 // nil) measured usage — used to exercise the per-field missing-usage reasons.
 func evalMissingMeasured(m *results.Measured) results.EvalResult {
 	return results.EvalResult{
-		ID: "e", Passed: bptr(true),
-		Timing:   &results.Timing{ExecutorDurationSeconds: f64ptr(2.0)},
+		ID: "e", Passed: new(true),
+		Timing:   &results.Timing{ExecutorDurationSeconds: new(2.0)},
 		Measured: m,
 	}
 }

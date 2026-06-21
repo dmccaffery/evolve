@@ -9,8 +9,29 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
+
+// TestCaseMetricCellsGatedOnCompletion proves the execution pane resolves a delta
+// basis (and so colors the metrics) only once a case is complete — never while it
+// is still running, so the row does not flicker as work finishes underneath.
+func TestCaseMetricCellsGatedOnCompletion(t *testing.T) {
+	ev := run.UnitRef{Skill: "s", Key: "fake/m1", Kind: run.KindEvals}
+	d := dashboardModel{prior: run.PriorMetrics{}, liveBaseline: map[caseKey]results.EvalCaseMetrics{
+		{ev, "e1"}: {PassRate: new(0.0)},
+	}}
+	metrics := run.ItemMetrics{AssertPassed: new(1), AssertTotal: new(1)}
+
+	running := &caseState{kind: run.KindEvals, label: "e1", status: stRunning, metrics: metrics}
+	if _, basis := d.caseMetricCells(ev, running); basis != basisNone {
+		t.Errorf("running case basis = %v, want none (no delta until complete)", basis)
+	}
+	done := &caseState{kind: run.KindEvals, label: "e1", status: stPass, metrics: metrics}
+	if _, basis := d.caseMetricCells(ev, done); basis != basisBaseline {
+		t.Errorf("completed case basis = %v, want baseline", basis)
+	}
+}
 
 // TestExecutingPaneAndRuler covers the redesign: a ruler splits the active
 // model's trigger and eval rows in the left pane, and the Executing pane is a
@@ -28,7 +49,7 @@ func TestExecutingPaneAndRuler(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, plan, filter)
+	d := newDashboard(cat, plan, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Triggers running, evals still pending: the active model expands and exactly
@@ -122,7 +143,7 @@ func TestExecutionRenderIndependentOfFocus(t *testing.T) {
 		ref(0, run.KindTriggers), ref(0, run.KindEvals),
 		ref(1, run.KindTriggers), ref(1, run.KindEvals),
 	}
-	d := newDashboard(cat, plan, nil)
+	d := newDashboard(cat, plan, nil, run.PriorMetrics{})
 	d.w, d.h = 80, 40
 
 	nodes := d.buildNodeRefsWith(func(nodeKey) bool { return true }) // every group open
@@ -183,7 +204,7 @@ func TestExecutionBrowseKeepsCursorOnScreen(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// A live path (so the model is expanded), then focus the Execution pane.
@@ -221,7 +242,7 @@ func TestExecutionBrowseMode(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Drive triggers to completion, finish e1, and leave e2 in flight — a live

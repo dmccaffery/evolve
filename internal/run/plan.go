@@ -241,7 +241,7 @@ func needEvals(opts Options, sc SkillCatalog, sels []provider.Selection, flags b
 		cr := CaseRef{Skill: sc.Skill, Kind: KindEvals, Case: c.ID}
 		var freshSpec string
 		if opts.Modified {
-			freshSpec = specHash(c)
+			freshSpec = evalFingerprint(c)
 		}
 		var perModel []SelectReason
 		for _, sel := range sels {
@@ -254,6 +254,12 @@ func needEvals(opts Options, sc SkillCatalog, sels []provider.Selection, flags b
 				execute, reportsUsage, priced := evalCapabilities(opts, sel)
 				fp := fingerprints{storedContent: storedContent, freshContent: content, freshSpec: freshSpec}
 				reason = evalCaseReason(r, ok, execute, reportsUsage, priced, opts.New, opts.Failed, opts.Modified, fp)
+				// A missing/stale baseline is an additive gap (--baseline): it selects
+				// the eval even when --new/--failed/--modified would not, matching the
+				// engine's run-set.
+				if reason == ReasonNone && evalBaselineNeeded(file, sel.Key(), c, execute, opts.Baseline) {
+					reason = ReasonBaselineMissing
+				}
 			}
 			perModel = append(perModel, reason)
 			need[sel.Key()][cr] = !flags || reason != ReasonNone

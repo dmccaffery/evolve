@@ -29,11 +29,11 @@ func sample() *File {
 		Results: []TriggerResult{{
 			Query: "Write tests", ShouldTrigger: true,
 			Hits: &hits, Runs: &runs, Passed: &passed, AvgRunSeconds: &avg,
-			Estimate: &Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)},
+			Estimate: &Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
 			SpecHash: "triggerspechash",
 		}},
 		Summary: TriggerSummary{Passed: &npassed, Total: 1, AvgRunSeconds: &avg,
-			Estimate: &Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)}},
+			Estimate: &Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)}},
 	})
 	// A cursor-style entry: no pricing, no estimates.
 	chits, cruns, cpassed := 2, 3, true
@@ -51,8 +51,6 @@ func sample() *File {
 	})
 	return f
 }
-
-func ptr[T any](v T) *T { return &v }
 
 // saveDir writes the sample in format and returns the emitted path.
 func saveDir(t *testing.T, f *File, dir, format string) string {
@@ -174,7 +172,7 @@ func TestGradedAssertionFlattens(t *testing.T) {
 	f.SetEval("anthropic/claude-fable-5", &EvalEntry{
 		Header: Header{Provider: "anthropic", Model: "claude-fable-5", TimeoutSeconds: 600},
 		Results: []EvalResult{{
-			ID: "c1", Passed: ptr(true),
+			ID: "c1", Passed: new(true),
 			Expectations: graded,
 			Summary:      SummarizeExpectations(graded),
 		}},
@@ -248,7 +246,7 @@ func mustRead(t *testing.T, path string) []byte {
 
 func TestSummarizeExpectations(t *testing.T) {
 	s := SummarizeExpectations([]GradedAssertion{
-		{Passed: ptr(true)}, {Passed: ptr(true)}, {Passed: ptr(false)}, {Passed: nil},
+		{Passed: new(true)}, {Passed: new(true)}, {Passed: new(false)}, {Passed: nil},
 	})
 	if s.Passed != 2 || s.Failed != 1 || s.Skipped != 1 || s.Total != 4 {
 		t.Errorf("summary = %+v", s)

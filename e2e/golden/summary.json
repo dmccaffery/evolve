@@ -1,5 +1,5 @@
 {
-  "schema": 2,
+  "schema": 3,
   "tool_version": "test",
   "latest_run": "2026-06-11T12:00:00Z",
   "plugins": {
@@ -16,6 +16,12 @@
           "estimate": {
             "input_tokens": 2770,
             "input_cost_usd": 0.0277
+          },
+          "previous_delta": {
+            "rate": -0.5,
+            "avg_run_seconds": -0.9,
+            "input_tokens": 70,
+            "cost_usd": 0.0007
           }
         },
         "cursor/composer-2.5": {
@@ -56,6 +62,107 @@
             "cache_creation_input_tokens": 5480,
             "output_tokens": 3142,
             "cost_usd": 0.782363
+          },
+          "baseline": {
+            "passed": 0,
+            "failed": 1,
+            "total": 1,
+            "pass_rate": 0,
+            "avg_run_seconds": 40
+          },
+          "previous_delta": {
+            "rate": -1,
+            "avg_run_seconds": 4.2,
+            "input_tokens": 200,
+            "output_tokens": 142,
+            "cost_usd": 0.032363
+          },
+          "baseline_delta": {
+            "rate": 0,
+            "avg_run_seconds": 44.2
+          }
+        }
+      },
+      "skills": {
+        "solo-skill": {
+          "triggers": {
+            "anthropic/claude-fable-5": {
+              "provider": "anthropic",
+              "display": "Claude Fable 5",
+              "passed": 1,
+              "failed": 1,
+              "total": 2,
+              "pass_rate": 0.5,
+              "avg_run_seconds": 7.1,
+              "estimate": {
+                "input_tokens": 2770,
+                "input_cost_usd": 0.0277
+              },
+              "previous_delta": {
+                "rate": -0.5,
+                "avg_run_seconds": -0.9,
+                "input_tokens": 70,
+                "cost_usd": 0.0007
+              }
+            },
+            "cursor/composer-2.5": {
+              "provider": "cursor",
+              "display": "Cursor Composer 2.5",
+              "passed": 2,
+              "failed": 0,
+              "total": 2,
+              "pass_rate": 1,
+              "avg_run_seconds": 12.7
+            },
+            "google/gemini-3.5-flash": {
+              "provider": "google",
+              "display": "Gemini 3.5 Flash",
+              "total": 2,
+              "estimate": {
+                "input_tokens": 2580,
+                "input_cost_usd": 0.00387
+              }
+            }
+          },
+          "evals": {
+            "anthropic/claude-fable-5": {
+              "provider": "anthropic",
+              "display": "Claude Fable 5",
+              "passed": 0,
+              "failed": 1,
+              "total": 1,
+              "pass_rate": 0,
+              "avg_run_seconds": 84.2,
+              "estimate": {
+                "input_tokens": 1827,
+                "input_cost_usd": 0.01827
+              },
+              "measured": {
+                "input_tokens": 8200,
+                "cache_read_input_tokens": 220000,
+                "cache_creation_input_tokens": 5480,
+                "output_tokens": 3142,
+                "cost_usd": 0.782363
+              },
+              "baseline": {
+                "passed": 0,
+                "failed": 1,
+                "total": 1,
+                "pass_rate": 0,
+                "avg_run_seconds": 40
+              },
+              "previous_delta": {
+                "rate": -1,
+                "avg_run_seconds": 4.2,
+                "input_tokens": 200,
+                "output_tokens": 142,
+                "cost_usd": 0.032363
+              },
+              "baseline_delta": {
+                "rate": 0,
+                "avg_run_seconds": 44.2
+              }
+            }
           }
         }
       }

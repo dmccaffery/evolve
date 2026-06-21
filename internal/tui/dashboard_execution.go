@@ -5,10 +5,12 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -99,10 +101,8 @@ func (d dashboardModel) locOfUnit(ui int) (loc, bool) {
 	for pi := range d.tree {
 		for si := range d.tree[pi].skills {
 			for mi, mg := range d.tree[pi].skills[si].models {
-				for _, u := range mg.units {
-					if u == ui {
-						return loc{pi, si, mi}, true
-					}
+				if slices.Contains(mg.units, ui) {
+					return loc{pi, si, mi}, true
 				}
 			}
 		}
@@ -266,13 +266,18 @@ func (d dashboardModel) renderLeftBody(nodes []nodeRef, hl, w, h int) string {
 func (d dashboardModel) nodeLine(n nodeRef, w int, hot bool) string {
 	switch n.kind {
 	case nkPlugin:
-		return d.headerRow(d.aggGlyph(d.pluginUnits(n.pi)), 0, d.tree[n.pi].name, d.groupMetric(d.pluginUnits(n.pi)), w, hot)
+		units := d.pluginUnits(n.pi)
+		metric, basis := d.groupMetric(units)
+		return d.headerRow(d.aggGlyph(units), 0, d.tree[n.pi].name, metric, basis, w, hot)
 	case nkSkill:
 		sg := d.tree[n.pi].skills[n.si]
-		return d.headerRow(d.aggGlyph(d.skillUnits(n.pi, n.si)), 1, sg.title, d.groupMetric(d.skillUnits(n.pi, n.si)), w, hot)
+		units := d.skillUnits(n.pi, n.si)
+		metric, basis := d.groupMetric(units)
+		return d.headerRow(d.aggGlyph(units), 1, sg.title, metric, basis, w, hot)
 	case nkModel:
 		mg := d.tree[n.pi].skills[n.si].models[n.mi]
-		return d.headerRow(d.aggGlyph(mg.units), 2, shortKey(mg.key), d.groupMetric(mg.units), w, hot)
+		metric, basis := d.groupMetric(mg.units)
+		return d.headerRow(d.aggGlyph(mg.units), 2, shortKey(mg.key), metric, basis, w, hot)
 	case nkRule:
 		return ruleLine(w)
 	default:
@@ -288,44 +293,100 @@ func ruleLine(w int) string {
 }
 
 // headerRow renders a plugin, skill, or model row: marker, label, and a right-aligned
-// rollup metric block in the same columns as the case rows below it.
-func (d dashboardModel) headerRow(glyph string, depth int, label, metric string, w int, hot bool) string {
+// rollup metric block in the same columns as the case rows below it. A completed
+// group's metric carries delta colors and a baseline marker via basis.
+func (d dashboardModel) headerRow(glyph string, depth int, label, metric string,
+	basis deltaBasis, w int, hot bool,
+) string {
 	gutter := " "
 	if hot {
 		gutter = selectedStyle.Render("›")
 	}
 	prefix := gutter + strings.Repeat("  ", depth) + glyph + " "
+	if basis == basisBaseline {
+		label += " " + baselineMark
+	}
 	avail := max(w-ansi.StringWidth(prefix)-ansi.StringWidth(metric)-2, 6)
 	label = truncate(label, avail)
 	pad := max(avail-ansi.StringWidth(label), 0)
-	body := label + strings.Repeat(" ", pad) + " " + metric
-	if !hot {
-		body = mutedStyle.Render(body)
-	}
-	return clip(prefix+body, w)
+	return clip(prefix+joinRow(label, pad, metric, basis, hot), w)
 }
 
-// caseLine renders one trigger/eval row with its live metric columns.
+// caseLine renders one trigger/eval row with its live metric columns, tinting the
+// metrics by their delta once the case is complete.
 func (d dashboardModel) caseLine(n nodeRef, w int, hot bool) string {
-	c := d.units[n.unitIdx].cases[n.caseIdx]
+	u := d.units[n.unitIdx]
+	c := u.cases[n.caseIdx]
 	gutter := " "
 	if hot {
 		gutter = selectedStyle.Render("›")
 	}
-	prefix := gutter + "      " + d.glyph(c.status) + " "
-	metric := caseMetric(c)
+	prefix := gutter + "      " + d.caseGlyph(c) + " "
 	label := c.label
 	if c.kind == run.KindEvals {
 		label = "eval: " + label
 	}
+	// During the baseline phase there are no metrics yet; render just the label in
+	// yellow so the whole row reads as "running its baseline first".
+	if c.baselineRunning {
+		avail := max(w-ansi.StringWidth(prefix)-2, 6)
+		return clip(prefix+baselineStyle.Render(truncate(label, avail)), w)
+	}
+	metric, basis := d.caseMetricCells(u.ref, c)
+	if basis == basisBaseline {
+		label += " " + baselineMark
+	}
 	avail := max(w-ansi.StringWidth(prefix)-ansi.StringWidth(metric)-2, 6)
 	label = truncate(label, avail)
 	pad := max(avail-ansi.StringWidth(label), 0)
+	return clip(prefix+joinRow(label, pad, metric, basis, hot), w)
+}
+
+// joinRow assembles a tree row's label and metric block. A row carrying delta
+// colors keeps its metric out of the unfocused-row muting so completed deltas stay
+// visible; a plain row mutes as a whole when not selected.
+func joinRow(label string, pad int, metric string, basis deltaBasis, hot bool) string {
+	if basis != basisNone {
+		labelPart := label + strings.Repeat(" ", pad)
+		if !hot {
+			labelPart = mutedStyle.Render(labelPart)
+		}
+		return labelPart + " " + metric
+	}
 	body := label + strings.Repeat(" ", pad) + " " + metric
 	if !hot {
 		body = mutedStyle.Render(body)
 	}
-	return clip(prefix+body, w)
+	return body
+}
+
+// caseMetricCells renders a case's metric block, tinting each cell by its delta
+// once the case is complete and a comparison basis exists. It returns the basis so
+// the row can flag a baseline-based delta.
+func (d dashboardModel) caseMetricCells(ref run.UnitRef, c *caseState) (string, deltaBasis) {
+	rate := caseRate(c)
+	avg := fmtDurPtr(c.metrics.AvgRunSeconds)
+	in := fmtTokPtr(c.metrics.InputTokens)
+	out := fmtTokPtr(c.metrics.OutputTokens)
+	cost := fmtCostPtr(c.metrics.CostUSD)
+	if !c.status.terminal() {
+		return metricCols(rate, avg, in, out, cost), basisNone
+	}
+	delta, basis := d.caseDelta(ref, c)
+	if basis == basisNone {
+		return metricCols(rate, avg, in, out, cost), basisNone
+	}
+	return colorMetricCells(rate, avg, in, out, cost, delta), basis
+}
+
+// colorMetricCells tints the five metric cells by their deltas (rate up = good;
+// time/tokens/cost down = good) while preserving the metricCols layout.
+func colorMetricCells(rate, avg, in, out, cost string, d results.Delta) string {
+	return colorCell(fmt.Sprintf("%8s", rate), upGood(d.Rate)) + " " +
+		colorCell(fmt.Sprintf("%6s", avg), downGood(d.AvgRunSeconds)) + " " +
+		colorCell(fmt.Sprintf("%6s", in), downGoodInt(d.InputTokens)) + " " +
+		colorCell(fmt.Sprintf("%6s", out), downGoodInt(d.OutputTokens)) + " " +
+		colorCell(fmt.Sprintf("%7s", cost), downGood(d.CostUSD))
 }
 
 // metricColsFmt is the shared right-aligned metric block — Pass/Tot, Avg time,
@@ -341,25 +402,14 @@ func metricCols(passTot, avg, in, out, cost string) string {
 	return fmt.Sprintf(metricColsFmt, passTot, avg, in, out, cost)
 }
 
-// caseMetric formats one case's metric block. Triggers carry no output tokens,
-// so the Out column renders the emptyMetric dash; the layout is identical to
-// evals so the columns stay aligned across both kinds.
-func caseMetric(c *caseState) string {
-	return metricCols(
-		caseRate(c),
-		fmtDurPtr(c.metrics.AvgRunSeconds),
-		fmtTokPtr(c.metrics.InputTokens),
-		fmtTokPtr(c.metrics.OutputTokens),
-		fmtCostPtr(c.metrics.CostUSD),
-	)
-}
-
 // groupMetric is the rolled-up metric block for a skill's or model's units,
-// aligned to the same columns as the case rows. A not-yet-started group renders
-// a right-aligned "pending".
-func (d dashboardModel) groupMetric(units []int) string {
-	if started, _ := d.groupState(units); !started {
-		return fmt.Sprintf("%*s", metricColsWidth, "pending")
+// aligned to the same columns as the case rows. A not-yet-started group renders a
+// right-aligned "pending"; a completed group tints its cells by the group delta
+// and returns the basis so the header can flag a baseline comparison.
+func (d dashboardModel) groupMetric(units []int) (string, deltaBasis) {
+	started, done := d.groupState(units)
+	if !started {
+		return fmt.Sprintf("%*s", metricColsWidth, "pending"), basisNone
 	}
 	r := d.aggUnits(units)
 	avg := emptyMetric
@@ -370,19 +420,29 @@ func (d dashboardModel) groupMetric(units []int) string {
 	if r.hasCost {
 		cost = fmtCost(r.cost)
 	}
-	return metricCols(
-		fmt.Sprintf("%d/%d", r.passed, r.total),
-		avg,
-		fmtTok(r.in),
-		fmtTok(r.out),
-		cost,
-	)
+	passTot := fmt.Sprintf("%d/%d", r.passed, r.total)
+	inTok, outTok := fmtTok(r.in), fmtTok(r.out)
+	if !done {
+		return metricCols(passTot, avg, inTok, outTok, cost), basisNone
+	}
+	delta, basis := d.aggregateGroup(units).delta()
+	if basis == basisNone {
+		return metricCols(passTot, avg, inTok, outTok, cost), basisNone
+	}
+	return colorMetricCells(passTot, avg, inTok, outTok, cost, delta), basis
 }
 
 func caseRate(c *caseState) string {
 	if c.kind == run.KindTriggers {
 		if c.metrics.Hits != nil && c.metrics.Runs != nil {
-			return fmt.Sprintf("%d/%d", *c.metrics.Hits, *c.metrics.Runs)
+			// Pass count is correct runs: hits for a should-trigger query, the
+			// non-firing runs for a should-not-trigger one — so a correct negative
+			// reads 3/3, not 0/3.
+			correct := *c.metrics.Hits
+			if !c.shouldTrigger {
+				correct = *c.metrics.Runs - *c.metrics.Hits
+			}
+			return fmt.Sprintf("%d/%d", correct, *c.metrics.Runs)
 		}
 		return emptyMetric
 	}
@@ -466,7 +526,7 @@ func (d dashboardModel) aggGlyph(unitIdxs []int) string { return d.glyph(d.aggSt
 // overallProgress tallies every case across the whole run into the segments of
 // the top-right progress bar — settled-ok (pass, skipped, count-only), failed
 // (fail/error), and running — plus the percent complete (all settled / total).
-func (d dashboardModel) overallProgress() (ok, bad, run, total, pct int) {
+func (d dashboardModel) overallProgress() (ok, bad, running, total, pct int) {
 	for _, u := range d.units {
 		for _, c := range u.cases {
 			total++
@@ -476,24 +536,24 @@ func (d dashboardModel) overallProgress() (ok, bad, run, total, pct int) {
 			case stFail, stError:
 				bad++
 			case stRunning:
-				run++
+				running++
 			}
 		}
 	}
 	if total > 0 {
 		pct = (ok + bad) * 100 / total
 	}
-	return ok, bad, run, total, pct
+	return ok, bad, running, total, pct
 }
 
 // overallProgressLine renders the run-wide progress bar shown above the Rollup
 // pane: a full-width coloured bar with the percent-complete right-aligned. w is
 // the rollup panel's outer width, so the bar lines up with the panels beneath it.
 func (d dashboardModel) overallProgressLine(w int) string {
-	ok, bad, run, total, pct := d.overallProgress()
+	ok, bad, running, total, pct := d.overallProgress()
 	pctStr := fmt.Sprintf("%3d%%", pct)
 	barW := max(w-ansi.StringWidth(pctStr)-1, 1)
-	return progressBar(ok, bad, run, total, barW) + " " + mutedStyle.Render(pctStr)
+	return progressBar(ok, bad, running, total, barW) + " " + mutedStyle.Render(pctStr)
 }
 
 // progressBar renders a width-char bar: green pass, red fail, yellow running,

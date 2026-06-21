@@ -5,18 +5,22 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
-// The top-right "Rollup" pane: the tabbed aggregate table (Summary / Providers
-// / Plugins / Skills) and the aggregation it renders.
+// The top-right "Rollup" pane: per-(skill, model) rows ranked by pass-rate change
+// (Improvements / Regressions) or listed in full (Skills). Each row's headline is
+// the eval pass rate and its delta vs the prior run; trigger rate (% triggered) is
+// a secondary column. The execution pane shares aggRow/addUnit/aggUnits for its
+// live group metrics.
 
 type aggRow struct {
-	title                    string
 	passed, total            int
 	durSum                   float64
 	durN                     int
@@ -26,18 +30,8 @@ type aggRow struct {
 	hasCost                  bool
 }
 
-func (d dashboardModel) agg(title string, include func(*unitState) bool) aggRow {
-	r := aggRow{title: title}
-	for _, u := range d.units {
-		if include(u) {
-			r.addUnit(u)
-		}
-	}
-	return r
-}
-
 // aggUnits rolls up a specific set of units identified by index — the skill and
-// model rows in the Execution pane share this folding with the Rollup tabs.
+// model rows in the Execution pane fold their live metrics with this.
 func (d dashboardModel) aggUnits(idxs []int) aggRow {
 	var r aggRow
 	for _, i := range idxs {
@@ -77,58 +71,145 @@ func (r *aggRow) addUnit(u *unitState) {
 	}
 }
 
-func (d dashboardModel) aggGroup(key func(*unitState) string) []aggRow {
-	var order []string
-	seen := map[string]bool{}
-	for _, u := range d.units {
-		if k := key(u); !seen[k] {
-			seen[k] = true
-			order = append(order, k)
+// ── per-(skill, model) rollup rows ──────────────────────────────────────────
+
+// skillRow is one (skill, model) pair's headline: eval pass rate and its delta,
+// the trigger pass rate, and rolled-up cost.
+type skillRow struct {
+	skill        string
+	key          string
+	display      string
+	evalPassed   int
+	evalTotal    int
+	evalComplete bool
+	evalDelta    results.Delta
+	evalBasis    deltaBasis
+	trigCorrect  int // runs that behaved as should_trigger expects
+	trigRuns     int
+	cost         float64
+	hasCost      bool
+}
+
+func (r skillRow) title() string { return r.skill + " · " + shortKey(r.key) }
+
+// skillRows builds one row per (skill, model) from the static tree.
+func (d dashboardModel) skillRows() []skillRow {
+	var rows []skillRow
+	for pi := range d.tree {
+		for si := range d.tree[pi].skills {
+			sg := d.tree[pi].skills[si]
+			for _, mg := range sg.models {
+				rows = append(rows, d.buildSkillRow(sg, mg))
+			}
 		}
-	}
-	rows := make([]aggRow, 0, len(order))
-	for _, k := range order {
-		kk := k
-		rows = append(rows, d.agg(k, func(u *unitState) bool { return key(u) == kk }))
 	}
 	return rows
 }
 
-func (d dashboardModel) tabRows() []aggRow {
+func (d dashboardModel) buildSkillRow(sg skillGroup, mg modelGroup) skillRow {
+	row := skillRow{skill: sg.title, key: mg.key, display: mg.display}
+	for _, ui := range mg.units {
+		u := d.units[ui]
+		switch u.ref.Kind {
+		case run.KindEvals:
+			d.fillEvalRow(&row, u)
+		case run.KindTriggers:
+			d.fillTrigRow(&row, u)
+		}
+	}
+	return row
+}
+
+// fillEvalRow folds the eval unit's live pass tally, cost, and pass-rate delta.
+func (d dashboardModel) fillEvalRow(row *skillRow, u *unitState) {
+	idx := []int{d.index[u.ref]}
+	_, done := d.groupState(idx)
+	row.evalComplete = done
+	g := d.aggregateGroup(idx)
+	row.evalPassed = g.livePassed
+	row.evalTotal = g.liveTotal
+	if g.liveHasCost {
+		row.cost += g.liveCost
+		row.hasCost = true
+	}
+	if done {
+		row.evalDelta, row.evalBasis = g.delta()
+	}
+}
+
+// fillTrigRow folds the trigger unit's correctness rate (runs that behaved as
+// should_trigger expects, summed across queries) and cost. This is the same notion
+// the execution pane shows per query, aggregated — so a correct negative counts its
+// non-firing runs rather than dragging the rate down, and genuine flakiness still
+// shows below 100%.
+func (d dashboardModel) fillTrigRow(row *skillRow, u *unitState) {
+	for _, c := range u.cases {
+		if !c.status.terminal() {
+			continue
+		}
+		if c.metrics.Hits != nil && c.metrics.Runs != nil {
+			correct := *c.metrics.Hits
+			if !c.shouldTrigger {
+				correct = *c.metrics.Runs - *c.metrics.Hits
+			}
+			row.trigCorrect += correct
+			row.trigRuns += *c.metrics.Runs
+		}
+		if c.metrics.CostUSD != nil {
+			row.cost += *c.metrics.CostUSD
+			row.hasCost = true
+		}
+	}
+}
+
+// rollupRows returns the rows for the active tab: improvements (gain desc),
+// regressions (loss desc), or every row (skills, sorted by skill then model).
+func (d dashboardModel) rollupRows() []skillRow {
+	rows := d.skillRows()
 	switch d.tab {
-	case tabProviders:
-		return d.aggGroup(func(u *unitState) string { return providerOf(u.ref.Key) })
-	case tabPlugins:
-		return d.aggGroup(func(u *unitState) string { return u.plugin })
-	case tabSkills:
-		return d.aggGroup(func(u *unitState) string { return u.ref.Skill })
+	case tabImprovements:
+		return filterByDelta(rows, true)
+	case tabRegressions:
+		return filterByDelta(rows, false)
 	default:
-		return []aggRow{
-			d.agg("Overall", func(*unitState) bool { return true }),
-			d.agg("triggers", func(u *unitState) bool { return u.ref.Kind == run.KindTriggers }),
-			d.agg("evals", func(u *unitState) bool { return u.ref.Kind == run.KindEvals }),
-		}
+		sort.SliceStable(rows, func(i, j int) bool {
+			if rows[i].skill != rows[j].skill {
+				return rows[i].skill < rows[j].skill
+			}
+			return rows[i].key < rows[j].key
+		})
+		return rows
 	}
 }
 
-func (d dashboardModel) renderTabs(w, h int) string {
-	var b strings.Builder
-	b.WriteString(aggHeader(w))
-	rows := d.tabRows()
-	for i, r := range rows {
-		if i >= h-1 {
-			break
+// filterByDelta keeps complete rows whose pass-rate delta has the requested sign,
+// sorted by magnitude — most improved (or most regressed) first.
+func filterByDelta(rows []skillRow, improvements bool) []skillRow {
+	var out []skillRow
+	for _, r := range rows {
+		if !r.evalComplete || r.evalDelta.Rate == nil {
+			continue
 		}
-		b.WriteString("\n")
-		b.WriteString(aggLine(r, w))
+		rate := *r.evalDelta.Rate
+		if (improvements && rate > 0) || (!improvements && rate < 0) {
+			out = append(out, r)
+		}
 	}
-	return b.String()
+	sort.SliceStable(out, func(i, j int) bool {
+		if improvements {
+			return *out[i].evalDelta.Rate > *out[j].evalDelta.Rate
+		}
+		return *out[i].evalDelta.Rate < *out[j].evalDelta.Rate
+	})
+	return out
 }
 
-// tabStrip renders the rollup tabs for the panel's top border. The active tab is
-// only recoloured (never widened) so switching tabs does not shift their titles.
+// ── rendering ───────────────────────────────────────────────────────────────
+
+// tabStrip renders the rollup tabs for the panel's top border; only the active
+// tab is recoloured.
 func (d dashboardModel) tabStrip() string {
-	names := []string{"Summary", "Providers", "Plugins", "Skills"}
+	names := []string{"Improvements", "Regressions", "Skills"}
 	parts := make([]string, len(names))
 	for i, n := range names {
 		if tab(i) == d.tab {
@@ -140,36 +221,83 @@ func (d dashboardModel) tabStrip() string {
 	return strings.Join(parts, " ")
 }
 
-// aggColsWidth is the right-aligned metric block of the rollup table.
-const aggColsFmt = "%9s  %6s  %-18s  %9s"
+// rollupColsFmt is the right-aligned metric block: pass rate, Δ rate, trigger
+// rate, cost.
+const rollupColsFmt = "%5s  %8s  %5s  %9s"
+
+// rollupRightWidth is the rendered width of the metric block (the column widths
+// plus the two-space gaps), used for the title-column width math.
+const rollupRightWidth = 5 + 2 + 8 + 2 + 5 + 2 + 9
 
 // aggRightGap keeps the rightmost column off the panel margin so the table's
 // right padding matches the left pane's.
 const aggRightGap = 1
 
-func aggHeader(w int) string {
-	right := fmt.Sprintf(aggColsFmt, "Pass/Tot", "Avg", "In/Out/Total", "Cost")
+func rollupHeader(w int) string {
+	right := fmt.Sprintf(rollupColsFmt, "Pass", "Δ rate", "Trig", "Cost")
 	tw := max(w-aggRightGap-ansi.StringWidth(right)-1, 6)
-	title := "Title" + strings.Repeat(" ", max(tw-5, 0))
+	label := "Skill · model"
+	title := label + strings.Repeat(" ", max(tw-ansi.StringWidth(label), 0))
 	return headerStyle.Render(clip(title+" "+right, w))
 }
 
-func aggLine(r aggRow, w int) string {
-	pt := fmt.Sprintf("%d/%d", r.passed, r.total)
-	avg := emptyMetric
-	if r.durN > 0 {
-		avg = fmtDur(r.durSum / float64(r.durN))
+func (d dashboardModel) renderTabs(w, h int) string {
+	var b strings.Builder
+	b.WriteString(rollupHeader(w))
+	rows := d.rollupRows()
+	if len(rows) == 0 {
+		b.WriteString("\n")
+		b.WriteString(mutedStyle.Render(clip("  "+d.emptyTabHint(), w)))
+		return b.String()
 	}
-	// In is fresh input; Total folds in cache reads/writes so the headline
-	// still reflects everything consumed — the In↔Total gap is the cache.
-	tok := fmtTok(r.in) + "/" + fmtTok(r.out) + "/" + fmtTok(r.in+r.cacheRead+r.cacheCreation+r.out)
+	for i, r := range rows {
+		if i >= h-1 {
+			break
+		}
+		b.WriteString("\n")
+		b.WriteString(d.rollupLine(r, w))
+	}
+	return b.String()
+}
+
+func (d dashboardModel) emptyTabHint() string {
+	switch d.tab {
+	case tabImprovements:
+		return "no improvements yet"
+	case tabRegressions:
+		return "no regressions yet"
+	default:
+		return "no skills"
+	}
+}
+
+func (d dashboardModel) rollupLine(r skillRow, w int) string {
+	pass := emptyMetric
+	if r.evalTotal > 0 {
+		pass = fmt.Sprintf("%d%%", r.evalPassed*100/r.evalTotal)
+	}
+	// The Δ rate is shown only when the eval unit is complete and comparable, so it
+	// does not bounce around as cases finish underneath.
+	deltaStr, dir := emptyMetric, 0
+	if r.evalComplete && r.evalDelta.Rate != nil {
+		deltaStr = signedPct(r.evalDelta.Rate)
+		if r.evalBasis == basisBaseline {
+			deltaStr += baselineMark
+		}
+		dir = upGood(r.evalDelta.Rate)
+	}
+	trig := emptyMetric
+	if r.trigRuns > 0 {
+		trig = fmt.Sprintf("%d%%", r.trigCorrect*100/r.trigRuns)
+	}
 	cost := emptyMetric
 	if r.hasCost {
 		cost = fmtCost(r.cost)
 	}
-	right := fmt.Sprintf(aggColsFmt, pt, avg, tok, cost)
-	tw := max(w-aggRightGap-ansi.StringWidth(right)-1, 6)
-	title := truncate(r.title, tw)
+	right := fmt.Sprintf("%5s", pass) + "  " + colorCell(fmt.Sprintf("%8s", deltaStr), dir) +
+		"  " + fmt.Sprintf("%5s", trig) + "  " + fmt.Sprintf("%9s", cost)
+	tw := max(w-aggRightGap-rollupRightWidth-1, 6)
+	title := truncate(r.title(), tw)
 	title += strings.Repeat(" ", max(tw-ansi.StringWidth(title), 0))
 	return clip(title+" "+right, w)
 }

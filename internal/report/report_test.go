@@ -17,8 +17,6 @@ import (
 
 var update = flag.Bool("update", false, "rewrite the golden files")
 
-func ptr[T any](v T) *T { return &v }
-
 // fixtureRepo builds a temp single-plugin repo with one skill's results
 // covering the three provider shapes: full anthropic data, a cursor entry
 // (no usage, null pricing), and a count-only google entry.
@@ -44,18 +42,35 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 			Provider: "anthropic", Model: "claude-fable-5", Display: "Claude Fable 5",
 			ToolVersion: "test", RanAt: "2026-06-11T10:00:00Z", Executed: true,
 			RunsPerQuery: 3, TimeoutSeconds: 120,
-			Pricing: &results.Pricing{InputPerMTok: ptr(10.0), OutputPerMTok: ptr(50.0)},
+			Pricing: &results.Pricing{InputPerMTok: new(10.0), OutputPerMTok: new(50.0)},
 		},
 		Results: []results.TriggerResult{
-			{Query: "Write tests | with pipes", ShouldTrigger: true, Hits: ptr(3), Runs: ptr(3),
-				Passed: ptr(true), AvgRunSeconds: ptr(9.1),
-				Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)}},
-			{Query: "Write pytest tests", ShouldTrigger: false, Hits: ptr(2), Runs: ptr(3),
-				Passed: ptr(false), AvgRunSeconds: ptr(5.0),
-				Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: ptr(0.01385)}},
+			{
+				Query: "Write tests | with pipes", ShouldTrigger: true, Hits: new(3), Runs: new(3),
+				Passed: new(true), AvgRunSeconds: new(9.1),
+				Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
+			},
+			{
+				Query: "Write pytest tests", ShouldTrigger: false, Hits: new(2), Runs: new(3),
+				Passed: new(false), AvgRunSeconds: new(5.0),
+				Estimate: &results.Estimate{InputTokens: 1385, InputCostUSD: new(0.01385)},
+			},
 		},
-		Summary: results.TriggerSummary{Passed: ptr(1), Total: 2, AvgRunSeconds: ptr(7.1),
-			Estimate: &results.Estimate{InputTokens: 2770, InputCostUSD: ptr(0.0277)}},
+		Summary: results.TriggerSummary{
+			Passed: new(1), Total: 2, AvgRunSeconds: new(7.1),
+			Estimate: &results.Estimate{InputTokens: 2770, InputCostUSD: new(0.0277)},
+		},
+		Previous: &results.TriggerSnapshot{
+			RanAt: "2026-06-10T10:00:00Z",
+			Summary: results.TriggerSummary{
+				Passed: new(2), Total: 2, AvgRunSeconds: new(8.0),
+				Estimate: &results.Estimate{InputTokens: 2700, InputCostUSD: new(0.027)},
+			},
+			Cases: map[string]results.TriggerCaseMetrics{
+				"Write tests | with pipes": {Hits: new(3), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
+				"Write pytest tests":       {Hits: new(0), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
+			},
+		},
 	})
 	f.SetTrigger("cursor/composer-2.5", &results.TriggerEntry{
 		Header: results.Header{
@@ -64,50 +79,86 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 			RunsPerQuery: 3, TimeoutSeconds: 120, Pricing: nil,
 		},
 		Results: []results.TriggerResult{
-			{Query: "Write tests | with pipes", ShouldTrigger: true, Hits: ptr(2), Runs: ptr(3),
-				Passed: ptr(true), AvgRunSeconds: ptr(14.3)},
-			{Query: "Write pytest tests", ShouldTrigger: false, Hits: ptr(0), Runs: ptr(3),
-				Passed: ptr(true), AvgRunSeconds: ptr(11.0)},
+			{
+				Query: "Write tests | with pipes", ShouldTrigger: true, Hits: new(2), Runs: new(3),
+				Passed: new(true), AvgRunSeconds: new(14.3),
+			},
+			{
+				Query: "Write pytest tests", ShouldTrigger: false, Hits: new(0), Runs: new(3),
+				Passed: new(true), AvgRunSeconds: new(11.0),
+			},
 		},
-		Summary: results.TriggerSummary{Passed: ptr(2), Total: 2, AvgRunSeconds: ptr(12.7)},
+		Summary: results.TriggerSummary{Passed: new(2), Total: 2, AvgRunSeconds: new(12.7)},
 	})
 	f.SetTrigger("google/gemini-3.5-flash", &results.TriggerEntry{
 		Header: results.Header{
 			Provider: "google", Model: "gemini-3.5-flash", Display: "Gemini 3.5 Flash",
 			ToolVersion: "test", RanAt: "2026-06-11T09:00:00Z", Executed: false,
 			TimeoutSeconds: 120,
-			Pricing:        &results.Pricing{InputPerMTok: ptr(1.5), OutputPerMTok: ptr(9.0)},
+			Pricing:        &results.Pricing{InputPerMTok: new(1.5), OutputPerMTok: new(9.0)},
 		},
 		Results: []results.TriggerResult{
-			{Query: "Write tests | with pipes", ShouldTrigger: true,
-				Estimate: &results.Estimate{InputTokens: 1290, InputCostUSD: ptr(0.001935)}},
-			{Query: "Write pytest tests", ShouldTrigger: false,
-				Estimate: &results.Estimate{InputTokens: 1290, InputCostUSD: ptr(0.001935)}},
+			{
+				Query: "Write tests | with pipes", ShouldTrigger: true,
+				Estimate: &results.Estimate{InputTokens: 1290, InputCostUSD: new(0.001935)},
+			},
+			{
+				Query: "Write pytest tests", ShouldTrigger: false,
+				Estimate: &results.Estimate{InputTokens: 1290, InputCostUSD: new(0.001935)},
+			},
 		},
-		Summary: results.TriggerSummary{Total: 2,
-			Estimate: &results.Estimate{InputTokens: 2580, InputCostUSD: ptr(0.00387)}},
+		Summary: results.TriggerSummary{
+			Total:    2,
+			Estimate: &results.Estimate{InputTokens: 2580, InputCostUSD: new(0.00387)},
+		},
 	})
 	f.SetEval("anthropic/claude-fable-5", &results.EvalEntry{
 		Header: results.Header{
 			Provider: "anthropic", Model: "claude-fable-5", Display: "Claude Fable 5",
 			ToolVersion: "test", RanAt: "2026-06-11T12:00:00Z", Executed: true,
 			TimeoutSeconds: 600,
-			Pricing:        &results.Pricing{InputPerMTok: ptr(10.0), OutputPerMTok: ptr(50.0)},
+			Pricing:        &results.Pricing{InputPerMTok: new(10.0), OutputPerMTok: new(50.0)},
 		},
 		Results: []results.EvalResult{{
-			ID: "basic", Passed: ptr(false),
-			Timing:   &results.Timing{ExecutorDurationSeconds: ptr(84.2)},
-			Estimate: &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured: &results.Measured{InputTokens: ptr(8200), CacheReadTokens: ptr(220000), CacheCreationTokens: ptr(5480), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)},
+			ID: "basic", Passed: new(false),
+			Timing:   &results.Timing{ExecutorDurationSeconds: new(84.2)},
+			Estimate: &results.Estimate{InputTokens: 1827, InputCostUSD: new(0.01827)},
+			Measured: &results.Measured{InputTokens: new(8200), CacheReadTokens: new(220000), CacheCreationTokens: new(5480), OutputTokens: new(3142), CostUSD: new(0.782363)},
 			Expectations: []results.GradedAssertion{
-				{Text: "file x exists", Passed: ptr(false), Evidence: "x missing", Source: "assertion"},
+				{Text: "file x exists", Passed: new(false), Evidence: "x missing", Source: "assertion"},
 			},
-			Summary: &results.GradeSummary{Passed: 0, Failed: 1, Total: 1, PassRate: ptr(0.0)},
+			Summary: &results.GradeSummary{Passed: 0, Failed: 1, Total: 1, PassRate: new(0.0)},
 		}},
-		Summary: results.EvalSummary{Passed: ptr(0), Failed: ptr(1), Total: 1, PassRate: ptr(0.0),
-			AvgRunSeconds: ptr(84.2),
-			Estimate:      &results.Estimate{InputTokens: 1827, InputCostUSD: ptr(0.01827)},
-			Measured:      &results.Measured{InputTokens: ptr(8200), CacheReadTokens: ptr(220000), CacheCreationTokens: ptr(5480), OutputTokens: ptr(3142), CostUSD: ptr(0.782363)}},
+		Summary: results.EvalSummary{
+			Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
+			AvgRunSeconds: new(84.2),
+			Estimate:      &results.Estimate{InputTokens: 1827, InputCostUSD: new(0.01827)},
+			Measured:      &results.Measured{InputTokens: new(8200), CacheReadTokens: new(220000), CacheCreationTokens: new(5480), OutputTokens: new(3142), CostUSD: new(0.782363)},
+		},
+		Previous: &results.EvalSnapshot{
+			RanAt: "2026-06-10T12:00:00Z",
+			Summary: results.EvalSummary{
+				Passed: new(1), Failed: new(0), Total: 1, PassRate: new(1.0),
+				AvgRunSeconds: new(80.0),
+				Measured:      &results.Measured{InputTokens: new(8000), OutputTokens: new(3000), CostUSD: new(0.75)},
+			},
+			Cases: map[string]results.EvalCaseMetrics{
+				"basic": {
+					Passed: new(true), PassRate: new(1.0), AvgRunSeconds: new(80.0),
+					Measured: &results.Measured{InputTokens: new(8000), OutputTokens: new(3000), CostUSD: new(0.75)},
+				},
+			},
+		},
+		Baseline: &results.EvalSnapshot{
+			RanAt: "2026-06-11T12:00:00Z",
+			Summary: results.EvalSummary{
+				Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
+				AvgRunSeconds: new(40.0),
+			},
+			Cases: map[string]results.EvalCaseMetrics{
+				"basic": {Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(40.0), Fingerprint: "fp-basic"},
+			},
+		},
 	})
 	if _, err := f.SaveDir(filepath.Join(root, "evals", "solo-skill"), "json"); err != nil {
 		t.Fatal(err)
@@ -243,25 +294,25 @@ func TestCheckThresholds(t *testing.T) {
 	}
 
 	// anthropic triggers 1/2 = 50%, cursor 2/2 = 100%.
-	breaches := Check(summary, Thresholds{TriggersMinPassRate: ptr(0.8)})
+	breaches := Check(summary, Thresholds{TriggersMinPassRate: new(0.8)})
 	if len(breaches) != 1 || !strings.Contains(breaches[0], "anthropic/claude-fable-5") {
 		t.Errorf("breaches = %v, want one for anthropic", breaches)
 	}
 
 	// A threshold model with no results is a breach.
-	breaches = Check(summary, Thresholds{EvalsMinPassRate: ptr(0.5), Models: []string{"openai/gpt-5.5"}})
+	breaches = Check(summary, Thresholds{EvalsMinPassRate: new(0.5), Models: []string{"openai/gpt-5.5"}})
 	if len(breaches) != 1 || !strings.Contains(breaches[0], "no stored results") {
 		t.Errorf("breaches = %v, want missing-results breach", breaches)
 	}
 
-	if got := Check(summary, Thresholds{TriggersMinPassRate: ptr(0.4)}); len(got) != 0 {
+	if got := Check(summary, Thresholds{TriggersMinPassRate: new(0.4)}); len(got) != 0 {
 		t.Errorf("breaches = %v, want none at 40%%", got)
 	}
 }
 
 func lineContaining(t *testing.T, text, needle string) string {
 	t.Helper()
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		if strings.Contains(line, needle) {
 			return line
 		}

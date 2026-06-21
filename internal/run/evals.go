@@ -6,6 +6,7 @@ package run
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,11 +95,9 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 ) (failed bool, err error) {
 	rep := opts.reporter()
 	provName := sel.Provider.Name()
-	evalRunner, isEvalRunner := sel.Provider.(provider.EvalRunner)
-	cli, cliFound := provider.ResolveCLI(sel.Provider)
-	execute := isEvalRunner && cliFound && !opts.CountOnly
-	reportsUsage := isEvalRunner && evalRunner.ReportsUsage()
-	priced := sel.Model.InputUSD != nil && sel.Model.OutputUSD != nil
+	evalRunner, _ := sel.Provider.(provider.EvalRunner)
+	cli, _ := provider.ResolveCLI(sel.Provider)
+	execute, reportsUsage, priced := evalCapabilities(opts.Options, sel)
 
 	// modelApplicable is every eval valid for this model (skip_providers + skill
 	// only), ignoring the selection filter, so a partial rerun preserves the evals
@@ -112,17 +111,13 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 
 	// Per-case run-set: under --new/--failed/--modified keep only the evals with a
 	// gap — the same predicate the TUI form preselects on, so CLI and TUI run an
-	// identical set.
+	// identical set. A missing/stale baseline (--baseline) is itself a gap, so it
+	// pulls its eval into the run-set additively: --new and --baseline compose
+	// rather than one overriding the other, and a recomputed baseline always gets a
+	// contemporaneous with-skill result to compare against.
 	runSet := evals
 	if opts.New || opts.Failed || opts.Modified {
-		runSet = nil
-		for _, c := range evals {
-			r, storedContent, ok := lookupEval(file, sel.Key(), c.ID)
-			fp := fingerprints{storedContent: storedContent, freshContent: contentHash, freshSpec: specHash(c)}
-			if evalCaseReason(r, ok, execute, reportsUsage, priced, opts.New, opts.Failed, opts.Modified, fp) != ReasonNone {
-				runSet = append(runSet, c)
-			}
-		}
+		runSet = evalRunSet(file, sel, contentHash, evals, execute, reportsUsage, priced, opts)
 		if len(runSet) == 0 {
 			rep.UnitSkipped(ref, "results complete")
 			return false, nil
@@ -138,32 +133,58 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 	}
 	rep.UnitStarted(ref, len(runSet), 0, mode)
 
-	// Token counting stays on this goroutine; only eval runs go parallel,
-	// each in its own workspace.
+	// Token counting fans out over opts.Jobs: on a cache miss each count is a
+	// network round-trip, so a sequential loop stalls the unit before any eval
+	// run starts (see Options.countTokens).
+	texts := make([]string, len(runSet))
+	for i, c := range runSet {
+		texts[i] = payload(skillMD, c.Prompt)
+	}
+	tokens := opts.countTokens(ctx, sel, texts)
 	entryResults := make([]results.EvalResult, len(runSet))
 	for i, c := range runSet {
-		tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, c.Prompt))
 		entryResults[i] = results.EvalResult{
 			ID:       c.ID,
-			Estimate: results.NewEstimate(tokens, sel.Model.InputUSD),
-			SpecHash: specHash(c),
+			Estimate: results.NewEstimate(tokens[i], sel.Model.InputUSD),
+			SpecHash: evalFingerprint(c),
 		}
 	}
+	// The entry being replaced is the run we rotate into Previous and the source of
+	// the baseline we carry forward. Capture it before the run (read-only) so each
+	// eval can tell whether its baseline is stale, and before SetEval overwrites it.
+	old := file.Evals[sel.Key()]
+	var priorBaseline *results.EvalSnapshot
+	if old != nil {
+		priorBaseline = old.Baseline
+	}
+
+	// Each eval runs its without-skill baseline (when missing or stale) interleaved
+	// right before its own run, rather than as a separate post-pass — so a stale
+	// baseline streams as a visible "baseline running" row instead of a silent stall
+	// at the end of the unit. freshBaseline collects the baselines that re-ran.
+	var freshBaseline map[string]results.EvalCaseMetrics
 	if execute {
-		batchFailed, err := runEvals(ctx, opts, set, sel, ref, evalRunner, cli, runSet, entryResults)
+		batchFailed, fresh, err := runEvals(ctx, opts, set, sel, ref, evalRunner, cli, runSet, entryResults, priorBaseline)
 		failed = failed || batchFailed
 		if err != nil {
 			return failed, err
 		}
+		freshBaseline = fresh
 	}
 
-	merged := mergeEvalResults(file.Evals[sel.Key()], entryResults, modelApplicable)
-	entry := buildEvalEntry(opts, sel, execute, contentHash, merged)
+	merged := mergeEvalResults(old, entryResults, modelApplicable)
+	entry := buildEvalEntry(opts, sel, execute, contentHash, merged, old, freshBaseline)
 	file.SetEval(sel.Key(), entry)
 	saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
 	if err != nil {
 		return failed, err
 	}
+	rep.UnitFinished(ref, evalUnitSummary(entry), opts.Repo.Rel(saved))
+	return failed, nil
+}
+
+// evalUnitSummary lifts a finished entry's rollup into the reporter's UnitSummary.
+func evalUnitSummary(entry *results.EvalEntry) UnitSummary {
 	sum := UnitSummary{Executed: entry.Executed, Total: entry.Summary.Total}
 	if entry.Executed {
 		sum.Passed = *entry.Summary.Passed
@@ -172,8 +193,7 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 			sum.Errored = *entry.Summary.Errored
 		}
 	}
-	rep.UnitFinished(ref, sum, opts.Repo.Rel(saved))
-	return failed, nil
+	return sum
 }
 
 // evalOutcome is the tri-state result of one eval run: it passed, it ran and
@@ -187,16 +207,39 @@ const (
 	outcomeError
 )
 
+// runEvals runs every run-set eval concurrently (Jobs at a time). Within each
+// eval's slot the without-skill baseline runs first — when --baseline is on and
+// the stored baseline is missing or stale — immediately followed by the with-skill
+// run, so a recomputed baseline streams as a visible "baseline running" row right
+// before its own run rather than as a silent post-pass at the end of the unit.
+// priorBaseline is the entry's stored baseline (the staleness reference); the
+// returned map holds the baselines that re-ran this round, keyed by eval id.
 func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection, ref UnitRef,
 	evalRunner provider.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult,
-) (bool, error) {
+	priorBaseline *results.EvalSnapshot,
+) (bool, map[string]results.EvalCaseMetrics, error) {
 	var failedAny bool
 	g, runCtx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.Jobs)
 	outcomes := make([]evalOutcome, len(evals))
+	baselines := make([]*results.EvalCaseMetrics, len(evals)) // nil unless a baseline re-ran
 	for i, c := range evals {
 		g.Go(func() error {
-			outcome, result, err := runEval(runCtx, opts, set, sel, ref, evalRunner, cli, c, i)
+			// Baseline first (interleaved), when on and stale, so the row shows its
+			// without-skill run before its with-skill run.
+			if opts.Baseline {
+				fp := evalFingerprint(c)
+				if baselineStale(priorBaseline, c.ID, fp) {
+					_, base, err := runEval(runCtx, opts, sel, ref, evalRunner, cli, c, i, nil, true)
+					if err != nil {
+						return err
+					}
+					m := results.EvalCaseMetricsOf(base)
+					m.Fingerprint = fp
+					baselines[i] = &m
+				}
+			}
+			outcome, result, err := runEval(runCtx, opts, sel, ref, evalRunner, cli, c, i, []string{set.SkillDir}, false)
 			if err != nil {
 				return err
 			}
@@ -208,7 +251,7 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel pro
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return false, err
+		return false, nil, err
 	}
 	// A runtime error and an assertion failure both fail the sweep, but a
 	// runtime error is not an abort: it is recorded per eval so a blocked
@@ -218,22 +261,128 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel pro
 			failedAny = true
 		}
 	}
-	return failedAny, nil
+	var fresh map[string]results.EvalCaseMetrics
+	for i, m := range baselines {
+		if m == nil {
+			continue
+		}
+		if fresh == nil {
+			fresh = map[string]results.EvalCaseMetrics{}
+		}
+		fresh[evals[i].ID] = *m
+	}
+	return failedAny, fresh, nil
 }
 
-func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection, ref UnitRef,
-	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int,
+// evalRunSet narrows the applicable evals to those a --new/--failed/--modified
+// sweep should rerun with the skill present: the same per-case predicate the TUI
+// form preselects on, so CLI and TUI run an identical set. A missing/stale
+// baseline is its own gap, so --baseline adds the eval here too — composing with
+// --new rather than being overridden by it.
+func evalRunSet(file *results.File, sel provider.Selection, contentHash string, evals []evalspec.Eval,
+	execute, reportsUsage, priced bool, opts EvalOptions,
+) []evalspec.Eval {
+	var runSet []evalspec.Eval
+	for _, c := range evals {
+		r, storedContent, ok := lookupEval(file, sel.Key(), c.ID)
+		fp := fingerprints{storedContent: storedContent, freshContent: contentHash, freshSpec: evalFingerprint(c)}
+		reason := evalCaseReason(r, ok, execute, reportsUsage, priced, opts.New, opts.Failed, opts.Modified, fp)
+		if reason != ReasonNone || evalBaselineNeeded(file, sel.Key(), c, execute, opts.Baseline) {
+			runSet = append(runSet, c)
+		}
+	}
+	return runSet
+}
+
+// evalBaselineNeeded reports whether eval c needs a baseline run for this model:
+// --baseline is on, the model executes, and the stored baseline is missing or
+// stale. It is the shared gap the engine run-set and the TUI form both OR into
+// their selection, so the two stay in parity.
+func evalBaselineNeeded(file *results.File, key string, c evalspec.Eval, execute, wantBaseline bool) bool {
+	if !wantBaseline || !execute {
+		return false
+	}
+	var prior *results.EvalSnapshot
+	if e := file.Evals[key]; e != nil {
+		prior = e.Baseline
+	}
+	return baselineStale(prior, c.ID, evalFingerprint(c))
+}
+
+// baselineStale reports whether eval id needs its baseline (re)computed: missing
+// from the prior snapshot, or recorded against a different eval fingerprint.
+func baselineStale(prior *results.EvalSnapshot, id, fp string) bool {
+	if prior == nil {
+		return true
+	}
+	m, ok := prior.Cases[id]
+	if !ok {
+		return true
+	}
+	return m.Fingerprint != fp
+}
+
+// mergeBaseline assembles the new entry's baseline snapshot: carry the prior
+// baseline forward, overlay the cases that re-ran this round, drop cases no longer
+// in the spec, and re-summarize. RanAt advances only when a case actually re-ran.
+// Returns nil when no baseline data remains.
+func mergeBaseline(old *results.EvalSnapshot, fresh map[string]results.EvalCaseMetrics,
+	current []results.EvalResult, now string,
+) *results.EvalSnapshot {
+	cases := map[string]results.EvalCaseMetrics{}
+	if old != nil {
+		maps.Copy(cases, old.Cases)
+	}
+	maps.Copy(cases, fresh)
+	keep := make(map[string]bool, len(current))
+	for _, r := range current {
+		keep[r.ID] = true
+	}
+	for id := range cases {
+		if !keep[id] {
+			delete(cases, id)
+		}
+	}
+	if len(cases) == 0 {
+		return nil
+	}
+	snap := &results.EvalSnapshot{Cases: cases, Summary: results.SummarizeEvalCases(cases)}
+	switch {
+	case len(fresh) > 0:
+		snap.RanAt = now
+	case old != nil:
+		snap.RanAt = old.RanAt
+	}
+	return snap
+}
+
+func runEval(ctx context.Context, opts EvalOptions, sel provider.Selection, ref UnitRef,
+	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int, skills []string, baseline bool,
 ) (evalOutcome, results.EvalResult, error) {
 	rep := opts.reporter()
-	rep.ItemStarted(ref, ItemStart{Index: index, Label: c.ID, Runs: 1})
+	// A baseline run is not a tree case (it measures the skill's absence), but it
+	// runs interleaved right before the eval's own run, so it announces a start —
+	// BaselineStarted, distinct from ItemStarted — letting the dashboard flag the
+	// row as running its baseline. Its completion still streams via BaselineDone.
+	if baseline {
+		rep.BaselineStarted(ref, ItemStart{Index: index, Label: c.ID, Runs: 1})
+	} else {
+		rep.ItemStarted(ref, ItemStart{Index: index, Label: c.ID, Runs: 1})
+	}
 	copies := make(map[string]string, len(c.Files))
 	for _, f := range c.Files {
 		copies[f.Dest] = f.Source
 	}
-	// Evals isolate the skill under test: only it is symlinked in, keeping the
-	// agent's per-turn context lean (no sibling-skill descriptions to re-read).
+	// Evals isolate the skill under test: only it is symlinked in (skills), keeping
+	// the agent's per-turn context lean (no sibling-skill descriptions to re-read).
+	// The baseline run passes no skills, so the agent faces the same task — same
+	// prompt, fixtures, and grading — with the skill absent.
+	prefix := "evals."
+	if baseline {
+		prefix = "baseline."
+	}
 	parent, keep := opts.retain()
-	ws, cleanup, err := workspace.New(parent, "evals.", []string{set.SkillDir},
+	ws, cleanup, err := workspace.New(parent, prefix, skills,
 		unionSkillDirs(opts.Selected), copies, keep)
 	if err != nil {
 		return outcomeError, results.EvalResult{}, err
@@ -278,16 +427,22 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	// output into a silent FAIL.
 	runSeconds := results.Round1(res.Elapsed.Seconds()) // agent run only; grading excluded
 	if reason := evalRunner.RuntimeError(res.Stdout, res.ExitCode, res.TimedOut); reason != "" {
-		rep.ItemDone(ref, ItemResult{
-			Index:  index,
-			Label:  c.ID,
-			Status: StatusError,
-			Detail: fmt.Sprintf("  [ERROR] %s: %s runtime failure (exit %d): %s\n",
-				c.ID, cli, res.ExitCode, errorDetail(reason, res.StderrTail)),
+		item := ItemResult{
+			Index:         index,
+			Label:         c.ID,
+			Status:        StatusError,
 			Metrics:       ItemMetrics{AvgRunSeconds: &runSeconds},
 			WorkspacePath: workdir,
 			LogPath:       logPath,
-		})
+		}
+		if baseline {
+			item.Detail = fmt.Sprintf("%s: %s runtime failure (exit %d)", c.ID, cli, res.ExitCode)
+			rep.BaselineDone(ref, item)
+		} else {
+			item.Detail = fmt.Sprintf("  [ERROR] %s: %s runtime failure (exit %d): %s\n",
+				c.ID, cli, res.ExitCode, errorDetail(reason, res.StderrTail))
+			rep.ItemDone(ref, item)
+		}
 		return outcomeError, results.EvalResult{
 			ID:           c.ID,
 			Name:         c.Name,
@@ -358,18 +513,34 @@ func runEval(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel prov
 	if result.Measured != nil {
 		result.Timing.TotalTokens = result.Measured.TotalTokens()
 	}
-	rep.ItemDone(ref, ItemResult{
-		Index: index, Label: c.ID, Status: status, Detail: lines.String(),
-		Output:        headLines(output, evalOutputLines),
+	item := ItemResult{
+		Index: index, Label: c.ID, Status: status,
 		Metrics:       evalItemMetrics(&runSeconds, result.Measured, result.Summary),
 		WorkspacePath: workdir,
 		LogPath:       logPath,
-	})
+	}
+	if baseline {
+		item.Detail = baselineDetail(c.ID, result.Summary)
+		rep.BaselineDone(ref, item)
+	} else {
+		item.Detail = lines.String()
+		item.Output = headLines(output, evalOutputLines)
+		rep.ItemDone(ref, item)
+	}
 	outcome := outcomeFail
 	if evalPassed {
 		outcome = outcomePass
 	}
 	return outcome, result, nil
+}
+
+// baselineDetail is the one-line summary the plain reporter prints for a finished
+// baseline eval (the status marker is added by BaselineDone).
+func baselineDetail(id string, s *results.GradeSummary) string {
+	if s != nil {
+		return fmt.Sprintf("%s: %d/%d expectations", id, s.Passed, s.Total)
+	}
+	return id
 }
 
 // evalItemMetrics lifts a finished eval's measured usage and assertion tally
@@ -470,7 +641,8 @@ func measured(model provider.Model, usage *provider.Usage) *results.Measured {
 }
 
 func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
-	contentHash string, entryResults []results.EvalResult,
+	contentHash string, entryResults []results.EvalResult, old *results.EvalEntry,
+	freshBaseline map[string]results.EvalCaseMetrics,
 ) *results.EvalEntry {
 	header := opts.header(sel, executed)
 	header.ContentHash = contentHash
@@ -478,6 +650,19 @@ func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
 		Header:  header,
 		Results: entryResults,
 		Summary: results.EvalSummary{Total: len(entryResults)},
+	}
+	// A real run rotates the replaced entry into Previous and refreshes/carries the
+	// baseline; a count-only pass preserves the prior snapshots untouched.
+	if executed {
+		entry.Previous = results.SnapshotEval(old)
+		var oldBaseline *results.EvalSnapshot
+		if old != nil {
+			oldBaseline = old.Baseline
+		}
+		entry.Baseline = mergeBaseline(oldBaseline, freshBaseline, entryResults, header.RanAt)
+	} else if old != nil {
+		entry.Previous = old.Previous
+		entry.Baseline = old.Baseline
 	}
 
 	estimates := make([]*results.Estimate, len(entryResults))
@@ -523,55 +708,11 @@ func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
 }
 
 func sumMeasured(entryResults []results.EvalResult) *results.Measured {
-	var in, cacheRead, cacheCreation, out int
-	var cost float64
-	var hasIn, hasCacheRead, hasCacheCreation, hasOut, hasCost bool
-	for _, r := range entryResults {
-		if r.Measured == nil {
-			continue
-		}
-		if r.Measured.InputTokens != nil {
-			in += *r.Measured.InputTokens
-			hasIn = true
-		}
-		if r.Measured.CacheReadTokens != nil {
-			cacheRead += *r.Measured.CacheReadTokens
-			hasCacheRead = true
-		}
-		if r.Measured.CacheCreationTokens != nil {
-			cacheCreation += *r.Measured.CacheCreationTokens
-			hasCacheCreation = true
-		}
-		if r.Measured.OutputTokens != nil {
-			out += *r.Measured.OutputTokens
-			hasOut = true
-		}
-		if r.Measured.CostUSD != nil {
-			cost += *r.Measured.CostUSD
-			hasCost = true
-		}
+	ms := make([]*results.Measured, len(entryResults))
+	for i, r := range entryResults {
+		ms[i] = r.Measured
 	}
-	if !hasIn && !hasCacheRead && !hasCacheCreation && !hasOut && !hasCost {
-		return nil
-	}
-	sum := &results.Measured{}
-	if hasIn {
-		sum.InputTokens = &in
-	}
-	if hasCacheRead {
-		sum.CacheReadTokens = &cacheRead
-	}
-	if hasCacheCreation {
-		sum.CacheCreationTokens = &cacheCreation
-	}
-	if hasOut {
-		sum.OutputTokens = &out
-	}
-	if hasCost {
-		rounded := results.Round6(cost)
-		sum.CostUSD = &rounded
-	}
-	return sum
+	return results.SumMeasured(ms)
 }
 
 // mergeEvalResults builds the saved result list for a (possibly partial) rerun:
@@ -580,8 +721,8 @@ func sumMeasured(entryResults []results.EvalResult) *results.Measured {
 // evals the rerun did not touch, updates the ones it did, and prunes evals
 // removed from the spec (absent from modelApplicable).
 func mergeEvalResults(existing *results.EvalEntry, fresh []results.EvalResult,
-	modelApplicable []evalspec.Eval) []results.EvalResult {
-
+	modelApplicable []evalspec.Eval,
+) []results.EvalResult {
 	freshByID := make(map[string]results.EvalResult, len(fresh))
 	for _, r := range fresh {
 		freshByID[r.ID] = r

@@ -99,11 +99,33 @@ func (m *Measured) TotalTokens() *int {
 	return &total
 }
 
-// TriggerEntry is one model's trigger sweep over a skill.
+// TriggerEntry is one model's trigger sweep over a skill. Previous snapshots the
+// run this entry replaced, so deltas (current vs previous) are computable without
+// re-running. Triggers have no baseline: a query cannot trigger a skill that is
+// not installed, so there is nothing to measure without it.
 type TriggerEntry struct {
 	Header
-	Results []TriggerResult `json:"results"`
-	Summary TriggerSummary  `json:"summary"`
+	Results  []TriggerResult  `json:"results"`
+	Summary  TriggerSummary   `json:"summary"`
+	Previous *TriggerSnapshot `json:"previous,omitempty"`
+}
+
+// TriggerSnapshot is a compact record of one prior trigger run: enough to compute
+// deltas (the summary and per-query scalar metrics), never the full result detail.
+type TriggerSnapshot struct {
+	RanAt   string                        `json:"ran_at,omitempty"`
+	Summary TriggerSummary                `json:"summary"`
+	Cases   map[string]TriggerCaseMetrics `json:"cases,omitempty"` // keyed by query
+}
+
+// TriggerCaseMetrics is one query's deltable scalars (rate is derived from
+// Hits/Runs at compare time).
+type TriggerCaseMetrics struct {
+	Hits          *int      `json:"hits,omitempty"`
+	Runs          *int      `json:"runs,omitempty"`
+	Passed        *bool     `json:"passed,omitempty"`
+	AvgRunSeconds *float64  `json:"avg_run_seconds,omitempty"`
+	Estimate      *Estimate `json:"estimate,omitempty"`
 }
 
 // TriggerResult is one query's outcome. Hits/Runs are exact integers (the
@@ -132,11 +154,38 @@ type TriggerSummary struct {
 	Estimate      *Estimate `json:"estimate,omitempty"`
 }
 
-// EvalEntry is one model's behavioral sweep over a skill.
+// EvalEntry is one model's behavioral sweep over a skill. Baseline records the
+// same evals run with the skill absent (the skill's lift over nothing); Previous
+// snapshots the run this entry replaced (the iteration delta). Both are compact —
+// summaries plus per-case scalars — so committed files stay readable.
 type EvalEntry struct {
 	Header
-	Results []EvalResult `json:"results"`
-	Summary EvalSummary  `json:"summary"`
+	Results  []EvalResult  `json:"results"`
+	Summary  EvalSummary   `json:"summary"`
+	Baseline *EvalSnapshot `json:"baseline,omitempty"`
+	Previous *EvalSnapshot `json:"previous,omitempty"`
+}
+
+// EvalSnapshot is a compact record of one prior eval run (previous or baseline):
+// the summary and per-eval scalar metrics, never the bulky expectations/evidence.
+type EvalSnapshot struct {
+	RanAt   string                     `json:"ran_at,omitempty"`
+	Summary EvalSummary                `json:"summary"`
+	Cases   map[string]EvalCaseMetrics `json:"cases,omitempty"` // keyed by eval id
+}
+
+// EvalCaseMetrics is one eval's deltable scalars. Fingerprint is set only on
+// baseline cases: it records the eval spec+fixtures hash the baseline was run
+// against, so a baseline is recomputed only when the eval itself changes (not
+// when the skill changes).
+type EvalCaseMetrics struct {
+	Passed        *bool     `json:"passed,omitempty"`
+	PassRate      *float64  `json:"pass_rate,omitempty"` // expectation rate (GradeSummary)
+	AvgRunSeconds *float64  `json:"avg_run_seconds,omitempty"`
+	Measured      *Measured `json:"measured,omitempty"`
+	Estimate      *Estimate `json:"estimate,omitempty"`
+	Errored       bool      `json:"errored,omitempty"`
+	Fingerprint   string    `json:"fingerprint,omitempty"` // baseline only
 }
 
 // GradedAssertion is one graded expectation: skill-creator's grading.json
@@ -386,4 +435,167 @@ func SumEstimates(estimates []*Estimate) *Estimate {
 		sum.InputCostUSD = &rounded
 	}
 	return sum
+}
+
+// EvalCaseMetricsOf projects one eval result down to the scalar metrics a
+// snapshot retains (no expectations/evidence). The pass rate is the expectation
+// rate from the grade summary; the run time is the executor duration.
+func EvalCaseMetricsOf(r EvalResult) EvalCaseMetrics {
+	m := EvalCaseMetrics{
+		Passed:   r.Passed,
+		Measured: r.Measured,
+		Estimate: r.Estimate,
+		Errored:  r.RuntimeError != "",
+	}
+	if r.Summary != nil {
+		m.PassRate = r.Summary.PassRate
+	}
+	if r.Timing != nil {
+		m.AvgRunSeconds = r.Timing.ExecutorDurationSeconds
+	}
+	return m
+}
+
+// TriggerCaseMetricsOf projects one trigger result down to its snapshot scalars.
+func TriggerCaseMetricsOf(r TriggerResult) TriggerCaseMetrics {
+	return TriggerCaseMetrics{
+		Hits:          r.Hits,
+		Runs:          r.Runs,
+		Passed:        r.Passed,
+		AvgRunSeconds: r.AvgRunSeconds,
+		Estimate:      r.Estimate,
+	}
+}
+
+// SnapshotEval captures an entry's full current state — its summary and every
+// case's scalar metrics — as the "previous" of the run that replaces it. Because
+// the merge preserves untouched cases, the entry is always a complete prior run,
+// so the snapshot faithfully represents the last committed state. Returns nil for
+// a nil or unexecuted entry (nothing meaningful to compare against).
+func SnapshotEval(e *EvalEntry) *EvalSnapshot {
+	if e == nil || !e.Executed {
+		return nil
+	}
+	snap := &EvalSnapshot{RanAt: e.RanAt, Summary: e.Summary}
+	if len(e.Results) > 0 {
+		snap.Cases = make(map[string]EvalCaseMetrics, len(e.Results))
+		for _, r := range e.Results {
+			snap.Cases[r.ID] = EvalCaseMetricsOf(r)
+		}
+	}
+	return snap
+}
+
+// SnapshotTrigger is SnapshotEval for the trigger tier.
+func SnapshotTrigger(e *TriggerEntry) *TriggerSnapshot {
+	if e == nil || !e.Executed {
+		return nil
+	}
+	snap := &TriggerSnapshot{RanAt: e.RanAt, Summary: e.Summary}
+	if len(e.Results) > 0 {
+		snap.Cases = make(map[string]TriggerCaseMetrics, len(e.Results))
+		for _, r := range e.Results {
+			snap.Cases[r.Query] = TriggerCaseMetricsOf(r)
+		}
+	}
+	return snap
+}
+
+// SumMeasured totals per-case measured usage; nil when nothing was measured. Each
+// field is summed independently and present only when at least one case reported
+// it, so a provider that omits (say) cache figures does not get a spurious zero.
+func SumMeasured(ms []*Measured) *Measured {
+	var in, cacheRead, cacheCreation, out int
+	var cost float64
+	var hasIn, hasCacheRead, hasCacheCreation, hasOut, hasCost bool
+	for _, m := range ms {
+		if m == nil {
+			continue
+		}
+		if m.InputTokens != nil {
+			in += *m.InputTokens
+			hasIn = true
+		}
+		if m.CacheReadTokens != nil {
+			cacheRead += *m.CacheReadTokens
+			hasCacheRead = true
+		}
+		if m.CacheCreationTokens != nil {
+			cacheCreation += *m.CacheCreationTokens
+			hasCacheCreation = true
+		}
+		if m.OutputTokens != nil {
+			out += *m.OutputTokens
+			hasOut = true
+		}
+		if m.CostUSD != nil {
+			cost += *m.CostUSD
+			hasCost = true
+		}
+	}
+	if !hasIn && !hasCacheRead && !hasCacheCreation && !hasOut && !hasCost {
+		return nil
+	}
+	sum := &Measured{}
+	if hasIn {
+		sum.InputTokens = &in
+	}
+	if hasCacheRead {
+		sum.CacheReadTokens = &cacheRead
+	}
+	if hasCacheCreation {
+		sum.CacheCreationTokens = &cacheCreation
+	}
+	if hasOut {
+		sum.OutputTokens = &out
+	}
+	if hasCost {
+		rounded := Round6(cost)
+		sum.CostUSD = &rounded
+	}
+	return sum
+}
+
+// SummarizeEvalCases aggregates per-eval case metrics into an eval summary, the
+// same way a live run is tallied — used to summarize a baseline snapshot assembled
+// from individual without-skill case results.
+func SummarizeEvalCases(cases map[string]EvalCaseMetrics) EvalSummary {
+	s := EvalSummary{Total: len(cases)}
+	passed, failed, errored := 0, 0, 0
+	var runSum float64
+	var runCount int
+	estimates := make([]*Estimate, 0, len(cases))
+	measures := make([]*Measured, 0, len(cases))
+	for _, m := range cases {
+		switch {
+		case m.Errored:
+			errored++
+		case m.Passed != nil && *m.Passed:
+			passed++
+		case m.Passed != nil:
+			failed++
+		}
+		if m.AvgRunSeconds != nil {
+			runSum += *m.AvgRunSeconds
+			runCount++
+		}
+		estimates = append(estimates, m.Estimate)
+		measures = append(measures, m.Measured)
+	}
+	s.Passed = &passed
+	s.Failed = &failed
+	if errored > 0 {
+		s.Errored = &errored
+	}
+	if passed+failed > 0 {
+		rate := Round6(float64(passed) / float64(passed+failed))
+		s.PassRate = &rate
+	}
+	if runCount > 0 {
+		avg := Round1(runSum / float64(runCount))
+		s.AvgRunSeconds = &avg
+	}
+	s.Estimate = SumEstimates(estimates)
+	s.Measured = SumMeasured(measures)
+	return s
 }

@@ -60,6 +60,7 @@ type SweepFlags struct {
 	Jobs           int
 	MaxTurns       int
 	CountOnly      bool
+	Baseline       bool
 	NewOnly        bool
 	FailedOnly     bool
 	ModifiedOnly   bool
@@ -80,6 +81,9 @@ func (f *SweepFlags) register(cmd *cobra.Command, defaultTimeout int) {
 	cmd.Flags().IntVar(&f.MaxTurns, "max-turns", provider.DefaultMaxTurns,
 		"max agent turns per eval (config: max_turns; a per-eval max_turns overrides both)")
 	cmd.Flags().BoolVar(&f.CountOnly, "count-only", false, "skip agent runs; only compute token usage per model")
+	cmd.Flags().BoolVar(&f.Baseline, "baseline", true,
+		"benchmark each eval without the skill (its lift), recomputed only when the eval or its fixtures "+
+			"change (disable with --baseline=false; config: baseline)")
 	cmd.Flags().BoolVar(&f.NewOnly, "new", false,
 		"only run evals whose stored results are missing values a rerun could fill")
 	cmd.Flags().BoolVar(&f.FailedOnly, "failed", false,
@@ -139,6 +143,11 @@ func (f *SweepFlags) sweepOptionsW(cmd *cobra.Command, counterOut io.Writer) (ru
 	if !cmd.Flags().Changed("max-turns") && opts.Viper != nil && opts.Viper.IsSet("max_turns") {
 		maxTurns = opts.Viper.GetInt("max_turns")
 	}
+	// Baseline defaults on; config baseline=false disables it when the flag is unset.
+	baseline := f.Baseline
+	if !cmd.Flags().Changed("baseline") && opts.Viper != nil && opts.Viper.IsSet("baseline") {
+		baseline = opts.Viper.GetBool("baseline")
+	}
 	return run.Options{
 		Repo:           repo,
 		Selected:       selected,
@@ -151,6 +160,7 @@ func (f *SweepFlags) sweepOptionsW(cmd *cobra.Command, counterOut io.Writer) (ru
 		Jobs:           f.Jobs,
 		MaxTurns:       maxTurns,
 		CountOnly:      f.CountOnly,
+		Baseline:       baseline,
 		New:            f.NewOnly,
 		Failed:         f.FailedOnly,
 		Modified:       f.ModifiedOnly,

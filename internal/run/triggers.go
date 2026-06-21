@@ -144,15 +144,20 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 	}
 	rep.UnitStarted(ref, len(runSet), opts.Runs, mode)
 
-	// Token counting stays on this goroutine (cache-cheap); only agent runs
-	// go parallel.
+	// Token counting fans out over opts.Jobs: on a cache miss each count is a
+	// network round-trip, so a sequential loop stalls the unit before any agent
+	// run starts (see Options.countTokens).
+	texts := make([]string, len(runSet))
+	for i, t := range runSet {
+		texts[i] = payload(skillMD, t.Query)
+	}
+	tokens := opts.countTokens(ctx, sel, texts)
 	entryResults := make([]results.TriggerResult, len(runSet))
 	for i, t := range runSet {
-		tokens := opts.Counter.Count(ctx, sel.Provider, sel.Model.ID, payload(skillMD, t.Query))
 		entryResults[i] = results.TriggerResult{
 			Query:         t.Query,
 			ShouldTrigger: t.ShouldTrigger,
-			Estimate:      results.NewEstimate(tokens, sel.Model.InputUSD),
+			Estimate:      results.NewEstimate(tokens[i], sel.Model.InputUSD),
 			SpecHash:      specHash(t),
 		}
 	}
@@ -164,8 +169,9 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 		}
 	}
 
-	merged := mergeTriggerResults(file.Triggers[sel.Key()], entryResults, modelApplicable)
-	entry := buildTriggerEntry(opts, sel, execute, contentHash, merged)
+	old := file.Triggers[sel.Key()]
+	merged := mergeTriggerResults(old, entryResults, modelApplicable)
+	entry := buildTriggerEntry(opts, sel, execute, contentHash, merged, old)
 	file.SetTrigger(sel.Key(), entry)
 	saved, err := file.SaveDir(set.ResultsDir, opts.ResultsFormat)
 	if err != nil {
@@ -292,13 +298,20 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 }
 
 func buildTriggerEntry(opts TriggerOptions, sel provider.Selection, executed bool,
-	contentHash string, entryResults []results.TriggerResult) *results.TriggerEntry {
+	contentHash string, entryResults []results.TriggerResult, old *results.TriggerEntry) *results.TriggerEntry {
 	header := opts.header(sel, executed)
 	header.ContentHash = contentHash
 	entry := &results.TriggerEntry{
 		Header:  header,
 		Results: entryResults,
 		Summary: results.TriggerSummary{Total: len(entryResults)},
+	}
+	// A real run rotates the replaced entry into Previous; a count-only pass keeps
+	// the prior snapshot untouched.
+	if executed {
+		entry.Previous = results.SnapshotTrigger(old)
+	} else if old != nil {
+		entry.Previous = old.Previous
 	}
 	if executed {
 		entry.RunsPerQuery = opts.Runs

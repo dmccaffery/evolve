@@ -107,6 +107,18 @@ type Reporter interface {
 	UnitSkipped(u UnitRef, reason string)
 	ItemStarted(u UnitRef, item ItemStart)
 	ItemDone(u UnitRef, item ItemResult)
+	// BaselineStarted reports that an eval's without-skill baseline run has begun.
+	// A baseline runs interleaved right before the eval's own run, so the dashboard
+	// can flag that row as "running its baseline first" instead of looking stalled
+	// while the (invisible) without-skill agent session executes. The plain reporter
+	// ignores it, like ItemStarted.
+	BaselineStarted(u UnitRef, item ItemStart)
+	// BaselineDone reports one finished without-skill baseline eval. Baselines are
+	// not tree cases (they measure the skill's absence, not the run under test), but
+	// their metrics stream live so the dashboard can show a vs-baseline delta on a
+	// first-ever run instead of waiting for the next one. Detail is a one-liner for
+	// plain output; Metrics carries the figures the dashboard compares against.
+	BaselineDone(u UnitRef, item ItemResult)
 	UnitFinished(u UnitRef, sum UnitSummary, savedRel string)
 	Warn(format string, a ...any)
 }
@@ -139,6 +151,10 @@ func (r PlainReporter) UnitSkipped(u UnitRef, reason string) {
 // items only on completion.
 func (r PlainReporter) ItemStarted(UnitRef, ItemStart) {}
 
+// BaselineStarted is a no-op for plain output: like ItemStarted, the line format
+// reports a baseline only when it finishes (BaselineDone).
+func (r PlainReporter) BaselineStarted(UnitRef, ItemStart) {}
+
 func (r PlainReporter) ItemDone(u UnitRef, item ItemResult) {
 	if u.Kind == KindEvals {
 		// A runtime-error diagnostic (the agent run produced no gradable output)
@@ -152,6 +168,12 @@ func (r PlainReporter) ItemDone(u UnitRef, item ItemResult) {
 		return
 	}
 	fmt.Fprintf(r.Stdout, "  [%s] %s\n", marker(item.Status), item.Detail)
+}
+
+// BaselineDone prints a concise one-line baseline result; the full grading block
+// belongs to the with-skill run, not its baseline.
+func (r PlainReporter) BaselineDone(u UnitRef, item ItemResult) {
+	fmt.Fprintf(r.Stdout, "  [base %s] %s\n", marker(item.Status), item.Detail)
 }
 
 func (r PlainReporter) UnitFinished(u UnitRef, sum UnitSummary, savedRel string) {

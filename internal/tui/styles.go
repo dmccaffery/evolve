@@ -65,6 +65,11 @@ var (
 	errStyle   = lipgloss.NewStyle().Foreground(colYellow)
 	pendStyle  = lipgloss.NewStyle().Foreground(colGrey)
 	footerHint = lipgloss.NewStyle().Foreground(colGrey)
+	// runStyle tints the live spinner for the run under test (blue); baselineStyle
+	// tints the spinner and label of an eval running its without-skill baseline
+	// first (yellow), so the two phases read apart at a glance.
+	runStyle      = lipgloss.NewStyle().Foreground(colBlue)
+	baselineStyle = lipgloss.NewStyle().Foreground(colYellow)
 
 	buttonStyle = lipgloss.NewStyle().Padding(0, 2).Foreground(colGrey).
 			Border(lipgloss.RoundedBorder()).BorderForeground(colFaint)

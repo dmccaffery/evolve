@@ -27,6 +27,7 @@ const (
 	ReasonMissingInputTokens                      // measured input usage absent
 	ReasonMissingOutputTokens                     // measured output usage absent
 	ReasonMissingMeasuredCost                     // measured cost absent
+	ReasonBaselineMissing                         // without-skill baseline missing or stale (--baseline)
 	ReasonNoData                                  // aggregate: no data across every selected model
 )
 
@@ -49,6 +50,8 @@ func (r SelectReason) String() string {
 		return "missing output tokens"
 	case ReasonMissingMeasuredCost:
 		return "missing measured costs"
+	case ReasonBaselineMissing:
+		return "needs baseline"
 	case ReasonNoData:
 		return "no data for selected models"
 	default:

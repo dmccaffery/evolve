@@ -98,7 +98,7 @@ func TestTitleBarAlignment(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 140, 30
 	d.apply(unitStartedMsg{ref: tr, total: 1, mode: run.ModeRun})
 	d.apply(itemStartedMsg{ref: tr, item: run.ItemStart{Label: "q1"}})

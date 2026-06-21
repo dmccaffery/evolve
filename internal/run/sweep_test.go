@@ -36,7 +36,9 @@ func (r *recReporter) note(u UnitRef) {
 func (r *recReporter) UnitStarted(u UnitRef, _, _ int, _ Mode)   { r.note(u) }
 func (r *recReporter) UnitSkipped(UnitRef, string)               {}
 func (r *recReporter) ItemStarted(UnitRef, ItemStart)            {}
+func (r *recReporter) BaselineStarted(UnitRef, ItemStart)        {}
 func (r *recReporter) ItemDone(UnitRef, ItemResult)              {}
+func (r *recReporter) BaselineDone(UnitRef, ItemResult)          {}
 func (r *recReporter) UnitFinished(UnitRef, UnitSummary, string) {}
 func (r *recReporter) Warn(string, ...any)                       {}
 

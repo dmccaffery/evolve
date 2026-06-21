@@ -1,5 +1,8 @@
-# Developer tasks. `make help` lists targets; `make pr` is the full local gate.
+# one -ignore flag per non-empty line in .licenseignore (quoted to avoid shell globbing)
+LICENSE_HOLDER := 'Bitwise Media Group Ltd'
+LICENSE_IGNORE := $(foreach pattern,$(shell cat .licenseignore 2>/dev/null),-ignore '$(pattern)')
 
+# Developer tasks. `make help` lists targets; `make pr` is the full local gate.
 APP_PKG := ./cmd/evolve
 MODULE  := $(shell go list -m)
 
@@ -54,7 +57,7 @@ node_modules: package.json package-lock.json
 
 .PHONY: fmt
 fmt: node_modules ## format the go code, prose, and config (gofmt + prettier)
-	@ go tool -modfile=tools/go.mod addlicense -c 'BitWise Media Group Ltd' -l mit -s=only cmd internal schemas
+	@ go tool -modfile=tools/go.mod addlicense -c $(LICENSE_HOLDER) -l mit -s=only $(LICENSE_IGNORE) .
 	@ go fmt ./...
 	@ go -C e2e fmt ./...
 	@ go tool -modfile=tools/go.mod golangci-lint run --fix
@@ -74,7 +77,7 @@ lint: node_modules ## lint the go code
 	@ go tool -modfile=tools/go.mod govulncheck ./...
 	@ npm run lint
 	@ npm run format:check
-	@ go tool -modfile=tools/go.mod addlicense -c 'BitWise Media Group Ltd' -l mit -s=only -check cmd internal schemas
+	@ go tool -modfile=tools/go.mod addlicense -check -c $(LICENSE_HOLDER) -l mit -s=only $(LICENSE_IGNORE) .
 
 .PHONY: test
 test: ## run the unit tests (+ fuzz seed corpora)

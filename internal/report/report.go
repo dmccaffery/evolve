@@ -46,13 +46,27 @@ type Summary struct {
 	Plugins     map[string]*PluginSummary `json:"plugins"`
 }
 
-// PluginSummary aggregates one plugin's results per model key.
+// PluginSummary aggregates one plugin's results: per model key across the
+// plugin's skills (Triggers/Evals), plus a per-skill breakdown (Skills) so deltas
+// are available at the skill→model level the dashboard ranks on. Model rollups are
+// never aggregated across skills beyond the plugin headline — the unit of interest
+// is a skill evaluated by a particular model.
 type PluginSummary struct {
+	Triggers map[string]*ModelRollup  `json:"triggers,omitempty"`
+	Evals    map[string]*ModelRollup  `json:"evals,omitempty"`
+	Skills   map[string]*SkillSummary `json:"skills,omitempty"`
+}
+
+// SkillSummary aggregates one skill's results per model key (model within skill).
+type SkillSummary struct {
 	Triggers map[string]*ModelRollup `json:"triggers,omitempty"`
 	Evals    map[string]*ModelRollup `json:"evals,omitempty"`
 }
 
-// ModelRollup aggregates one model's results across a plugin's skills.
+// ModelRollup aggregates one model's results across the scope it belongs to (a
+// plugin or a single skill). Baseline is the without-skill aggregate (evals only);
+// the deltas are current minus the prior run (PreviousDelta) and minus the
+// baseline (BaselineDelta), derived here so consumers need not recompute them.
 type ModelRollup struct {
 	Provider      string            `json:"provider"`
 	Display       string            `json:"display"`
@@ -64,10 +78,26 @@ type ModelRollup struct {
 	AvgRunSeconds *float64          `json:"avg_run_seconds,omitempty"`
 	Estimate      *results.Estimate `json:"estimate,omitempty"`
 	Measured      *results.Measured `json:"measured,omitempty"`
+	Baseline      *RollupStats      `json:"baseline,omitempty"`
+	PreviousDelta *results.Delta    `json:"previous_delta,omitempty"`
+	BaselineDelta *results.Delta    `json:"baseline_delta,omitempty"`
 
 	priced    bool // any contributing entry snapshotted pricing
 	executed  int  // total results across executed entries
 	latestRun string
+}
+
+// RollupStats is the bare aggregate figures of a prior run (a baseline), without
+// the model identity and deltas a ModelRollup carries.
+type RollupStats struct {
+	Passed        *int              `json:"passed,omitempty"`
+	Failed        *int              `json:"failed,omitempty"`
+	Errored       *int              `json:"errored,omitempty"`
+	Total         int               `json:"total"`
+	PassRate      *float64          `json:"pass_rate,omitempty"`
+	AvgRunSeconds *float64          `json:"avg_run_seconds,omitempty"`
+	Estimate      *results.Estimate `json:"estimate,omitempty"`
+	Measured      *results.Measured `json:"measured,omitempty"`
 }
 
 // pluginFiles is one plugin's loaded results, ordered by skill.
@@ -92,11 +122,12 @@ func Generate(opts Options) (*Summary, error) {
 		excluded = excludedModels(opts.Providers, opts.ActiveModels)
 	}
 
-	summary := &Summary{Schema: 2, ToolVersion: opts.ToolVersion, Plugins: map[string]*PluginSummary{}}
+	summary := &Summary{Schema: 3, ToolVersion: opts.ToolVersion, Plugins: map[string]*PluginSummary{}}
 	for _, pf := range loaded {
 		ps := &PluginSummary{
 			Triggers: rollupTriggers(pf.files),
 			Evals:    rollupEvals(pf.files),
+			Skills:   rollupSkills(pf.files),
 		}
 		if len(ps.Triggers) == 0 && len(ps.Evals) == 0 {
 			continue
@@ -294,42 +325,139 @@ func (c capabilityMap) providerDisplay(name string) string {
 }
 
 func rollupTriggers(files []*results.File) map[string]*ModelRollup {
-	rollups := map[string]*ModelRollup{}
+	cur := map[string]*ModelRollup{}
+	prev := map[string]*ModelRollup{}
 	for _, f := range files {
 		for key, entry := range f.Triggers {
-			m := ensureRollup(rollups, key, entry.Header)
-			m.Total += entry.Summary.Total
-			if entry.Executed && entry.Summary.Passed != nil {
-				addExecuted(m, *entry.Summary.Passed, entry.Summary.Total, entry.Summary.AvgRunSeconds)
+			addTriggerSummary(ensureRollup(cur, key, entry.Header), entry.Summary, entry.Executed)
+			if entry.Previous != nil {
+				addTriggerSummary(ensureRollup(prev, key, entry.Header), entry.Previous.Summary, true)
 			}
-			m.Estimate = mergeEstimates(m.Estimate, entry.Summary.Estimate)
 		}
 	}
-	finalize(rollups)
-	return rollups
+	finalize(cur)
+	finalize(prev)
+	attachDeltas(cur, nil, prev, false)
+	return cur
 }
 
 func rollupEvals(files []*results.File) map[string]*ModelRollup {
-	rollups := map[string]*ModelRollup{}
+	cur := map[string]*ModelRollup{}
+	base := map[string]*ModelRollup{}
+	prev := map[string]*ModelRollup{}
 	for _, f := range files {
 		for key, entry := range f.Evals {
-			m := ensureRollup(rollups, key, entry.Header)
-			m.Total += entry.Summary.Total
-			if entry.Executed && entry.Summary.Passed != nil {
-				addExecuted(m, *entry.Summary.Passed, entry.Summary.Total, entry.Summary.AvgRunSeconds)
+			addEvalSummary(ensureRollup(cur, key, entry.Header), entry.Summary, entry.Executed)
+			if entry.Baseline != nil {
+				addEvalSummary(ensureRollup(base, key, entry.Header), entry.Baseline.Summary, true)
 			}
-			if entry.Summary.Errored != nil {
-				if m.Errored == nil {
-					m.Errored = new(int)
-				}
-				*m.Errored += *entry.Summary.Errored
+			if entry.Previous != nil {
+				addEvalSummary(ensureRollup(prev, key, entry.Header), entry.Previous.Summary, true)
 			}
-			m.Estimate = mergeEstimates(m.Estimate, entry.Summary.Estimate)
-			m.Measured = mergeMeasured(m.Measured, entry.Summary.Measured)
 		}
 	}
-	finalize(rollups)
-	return rollups
+	finalize(cur)
+	finalize(base)
+	finalize(prev)
+	attachDeltas(cur, base, prev, true)
+	return cur
+}
+
+// rollupSkills produces the per-skill model rollups, reusing the plugin-level
+// machinery over each skill's single file. Skills are unique per file, so each
+// SkillSummary aggregates exactly one skill across its models.
+func rollupSkills(files []*results.File) map[string]*SkillSummary {
+	skills := map[string]*SkillSummary{}
+	for _, f := range files {
+		one := []*results.File{f}
+		ss := &SkillSummary{Triggers: rollupTriggers(one), Evals: rollupEvals(one)}
+		if len(ss.Triggers) == 0 && len(ss.Evals) == 0 {
+			continue
+		}
+		skills[f.Skill] = ss
+	}
+	return skills
+}
+
+// addTriggerSummary folds one trigger summary into an accumulating rollup (used
+// for current, previous, and per-skill aggregation alike).
+func addTriggerSummary(m *ModelRollup, s results.TriggerSummary, executed bool) {
+	m.Total += s.Total
+	if executed && s.Passed != nil {
+		addExecuted(m, *s.Passed, s.Total, s.AvgRunSeconds)
+	}
+	m.Estimate = mergeEstimates(m.Estimate, s.Estimate)
+}
+
+// addEvalSummary is addTriggerSummary for the eval tier (errored count and
+// measured usage in addition to the estimate).
+func addEvalSummary(m *ModelRollup, s results.EvalSummary, executed bool) {
+	m.Total += s.Total
+	if executed && s.Passed != nil {
+		addExecuted(m, *s.Passed, s.Total, s.AvgRunSeconds)
+	}
+	if s.Errored != nil {
+		if m.Errored == nil {
+			m.Errored = new(int)
+		}
+		*m.Errored += *s.Errored
+	}
+	m.Estimate = mergeEstimates(m.Estimate, s.Estimate)
+	m.Measured = mergeMeasured(m.Measured, s.Measured)
+}
+
+// attachDeltas fills each current rollup's baseline figures and its previous /
+// baseline deltas from the parallel (already finalized) rollups. evals selects the
+// metric shape: measured tokens/cost for evals, the estimate for triggers.
+func attachDeltas(cur, base, prev map[string]*ModelRollup, evals bool) {
+	for key, m := range cur {
+		if b := base[key]; b != nil {
+			m.Baseline = statsOf(b)
+			m.BaselineDelta = rollupDelta(m, b, evals)
+		}
+		if p := prev[key]; p != nil {
+			m.PreviousDelta = rollupDelta(m, p, evals)
+		}
+	}
+}
+
+func rollupDelta(cur, prior *ModelRollup, evals bool) *results.Delta {
+	var d results.Delta
+	if evals {
+		d = results.EvalSummaryDelta(evalSummaryOf(cur), evalSummaryOf(prior))
+	} else {
+		d = results.TriggerSummaryDelta(triggerSummaryOf(cur), triggerSummaryOf(prior))
+	}
+	if d.Zero() {
+		return nil
+	}
+	return &d
+}
+
+func statsOf(m *ModelRollup) *RollupStats {
+	if m == nil {
+		return nil
+	}
+	return &RollupStats{
+		Passed: m.Passed, Failed: m.Failed, Errored: m.Errored, Total: m.Total,
+		PassRate: m.PassRate, AvgRunSeconds: m.AvgRunSeconds,
+		Estimate: m.Estimate, Measured: m.Measured,
+	}
+}
+
+func evalSummaryOf(m *ModelRollup) results.EvalSummary {
+	return results.EvalSummary{
+		Passed: m.Passed, Failed: m.Failed, Errored: m.Errored, Total: m.Total,
+		PassRate: m.PassRate, AvgRunSeconds: m.AvgRunSeconds,
+		Estimate: m.Estimate, Measured: m.Measured,
+	}
+}
+
+func triggerSummaryOf(m *ModelRollup) results.TriggerSummary {
+	return results.TriggerSummary{
+		Passed: m.Passed, Failed: m.Failed, Total: m.Total,
+		PassRate: m.PassRate, AvgRunSeconds: m.AvgRunSeconds, Estimate: m.Estimate,
+	}
 }
 
 func ensureRollup(rollups map[string]*ModelRollup, key string, h results.Header) *ModelRollup {

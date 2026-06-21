@@ -23,7 +23,7 @@ func TestExecutingPaneScrolls(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 100, 24 // a short pane so the output overflows the result region
 
 	d.apply(unitStartedMsg{ref: ev, total: 1, mode: run.ModeRun})

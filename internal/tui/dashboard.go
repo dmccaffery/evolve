@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -56,14 +57,19 @@ func statusOf(s run.Status) status {
 // agent's final text (evals only) and verdict the rendered grading block; both
 // are retained so the Executing pane can show what each run produced.
 type caseState struct {
-	kind    run.Kind
-	label   string
-	status  status
-	metrics run.ItemMetrics
-	output  string // capped head of the agent's final text (full text is in logPath)
-	verdict string
-	workdir string // retained workspace dir (o opens it); empty until retained
-	logPath string // full output log file (l opens it); empty for triggers
+	kind          run.Kind
+	label         string
+	shouldTrigger bool // triggers only: expected to fire — so passes = correct runs
+	status        status
+	// baselineRunning marks an eval whose without-skill baseline is running right
+	// now, ahead of its own run. status is stRunning throughout; this flag only
+	// tints the row (yellow spinner + label) so the baseline phase is visible.
+	baselineRunning bool
+	metrics         run.ItemMetrics
+	output          string // capped head of the agent's final text (full text is in logPath)
+	verdict         string
+	workdir         string // retained workspace dir (o opens it); empty until retained
+	logPath         string // full output log file (l opens it); empty for triggers
 }
 
 // unitState is one (skill, model, tier) execution unit.
@@ -100,13 +106,13 @@ type execItem struct {
 	label string
 }
 
-// the four rollup slices in the Rollup panel.
+// the rollup panel's tabs: skills ranked by pass-rate gain, by pass-rate loss,
+// and the full per-(skill,model) table.
 type tab int
 
 const (
-	tabSummary tab = iota
-	tabProviders
-	tabPlugins
+	tabImprovements tab = iota
+	tabRegressions
 	tabSkills
 	tabCount
 )
@@ -150,6 +156,13 @@ type dashboardModel struct {
 	index    map[run.UnitRef]int
 	tree     []pluginGroup
 
+	// prior is the last committed metrics each live case is compared against (the
+	// vs-previous basis, plus the seeded baseline). liveBaseline collects baselines
+	// streamed this run via BaselineDone, so a first-ever run can show a delta
+	// against the baseline before the next run exists.
+	prior        run.PriorMetrics
+	liveBaseline map[caseKey]results.EvalCaseMetrics
+
 	spin     spinner.Model
 	warnings []string
 	done     bool
@@ -188,19 +201,23 @@ type dashboardModel struct {
 	w, h int
 }
 
-func newDashboard(cat []run.SkillCatalog, plan []run.UnitRef, filter *run.Filter) dashboardModel {
+func newDashboard(cat []run.SkillCatalog, plan []run.UnitRef, filter *run.Filter,
+	prior run.PriorMetrics,
+) dashboardModel {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
 
 	d := dashboardModel{
-		cat:       cat,
-		skillCat:  map[string]*run.SkillCatalog{},
-		index:     map[run.UnitRef]int{},
-		spin:      sp,
-		now:       time.Now,
-		focus:     paneRuns,
-		runFollow: true,
-		liveIdx:   -1,
+		cat:          cat,
+		skillCat:     map[string]*run.SkillCatalog{},
+		index:        map[run.UnitRef]int{},
+		spin:         sp,
+		now:          time.Now,
+		focus:        paneRuns,
+		runFollow:    true,
+		liveIdx:      -1,
+		prior:        prior,
+		liveBaseline: map[caseKey]results.EvalCaseMetrics{},
 	}
 	for i := range cat {
 		d.skillCat[cat[i].Skill] = &cat[i]
@@ -258,7 +275,7 @@ func (d *dashboardModel) buildCases(u *unitState, sc *run.SkillCatalog, filter *
 			if t.SkipsProvider(prov) || !selectedCase(filter, run.KindTriggers, sc.Skill, t.Query) {
 				continue
 			}
-			cr := &caseState{kind: run.KindTriggers, label: t.Query, status: stPending}
+			cr := &caseState{kind: run.KindTriggers, label: t.Query, shouldTrigger: t.ShouldTrigger, status: stPending}
 			u.cases = append(u.cases, cr)
 			u.byLabel[t.Query] = cr
 		}
@@ -354,6 +371,31 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 			// as skipped in the Runs pane and tree rather than perpetually pending.
 			u.settlePending(stSkipped)
 		}
+	case baselineStartedMsg:
+		// An eval's without-skill baseline started, ahead of its own run. Mark the
+		// row running (baseline phase) so it streams a yellow indicator instead of
+		// stalling silently while the baseline agent session executes.
+		d.markStarted()
+		if u := d.unit(m.ref); u != nil {
+			cr := u.byLabel[m.item.Label]
+			if cr == nil {
+				cr = &caseState{kind: m.ref.Kind, label: m.item.Label}
+				u.cases = append(u.cases, cr)
+				u.byLabel[m.item.Label] = cr
+			}
+			cr.status = stRunning
+			cr.baselineRunning = true
+			u.status = stRunning
+			d.removeInflight(m.ref, m.item.Label)
+			d.inflight = append(d.inflight, inflight{ref: m.ref, label: m.item.Label, start: d.now()})
+			idx := d.execLogIndex(m.ref, m.item.Label)
+			if idx < 0 {
+				d.execLog = append(d.execLog, execItem{ref: m.ref, label: m.item.Label})
+				idx = len(d.execLog) - 1
+			}
+			d.liveIdx = idx
+			d.followAdvance()
+		}
 	case itemStartedMsg:
 		d.markStarted()
 		if u := d.unit(m.ref); u != nil {
@@ -364,7 +406,11 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 				u.byLabel[m.item.Label] = cr
 			}
 			cr.status = stRunning
+			cr.baselineRunning = false // the baseline phase (if any) is over; this is the run under test
 			u.status = stRunning
+			// A baseline phase may have left an inflight entry and a live timer; reset
+			// it so the run under test times its own duration, not baseline+run.
+			d.removeInflight(m.ref, m.item.Label)
 			d.inflight = append(d.inflight, inflight{ref: m.ref, label: m.item.Label, start: d.now()})
 			// The execution is normally already in the pre-populated log; append only
 			// a case the catalog did not predeclare. Either way it is now the live one.
@@ -389,6 +435,7 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 			}
 			if cr := u.byLabel[m.item.Label]; cr != nil {
 				cr.status = statusOf(m.item.Status)
+				cr.baselineRunning = false
 				cr.metrics = m.item.Metrics
 				cr.output = m.item.Output
 				cr.verdict = m.item.Detail
@@ -397,6 +444,10 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 			}
 			d.removeInflight(m.ref, m.item.Label)
 		}
+	case baselineDoneMsg:
+		// Baselines are not tree cases; record the metrics so a first-run delta can
+		// fall back to the baseline basis until a previous run exists.
+		d.liveBaseline[caseKey{m.ref, m.item.Label}] = evalCaseMetricsOf(statusOf(m.item.Status), m.item.Metrics)
 	case unitFinishedMsg:
 		if u := d.unit(m.ref); u != nil {
 			u.savedRel = m.savedRel

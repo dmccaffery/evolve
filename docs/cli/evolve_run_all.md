@@ -9,6 +9,7 @@ evolve run all [flags]
 ### Options
 
 ```
+      --baseline               benchmark each eval without the skill (its lift), recomputed only when the eval or its fixtures change (disable with --baseline=false; config: baseline) (default true)
       --count-only             skip agent runs; only compute token usage per model
       --failed                 only run evals that did not pass on a previous run (combine with --new to also rerun missing ones)
   -h, --help                   help for all

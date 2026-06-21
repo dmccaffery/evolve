@@ -51,6 +51,11 @@ func Schema() []Option {
 			Doc: "Default maximum agent turns per behavioral eval; --max-turns and a per-eval max_turns override it.",
 		},
 		{
+			Key: "baseline", Type: "bool", Value: true,
+			Doc: "Benchmark each eval without the skill (the skill's lift over no skill), recomputed only " +
+				"when the eval or its fixtures change. --baseline overrides for one run.",
+		},
+		{
 			Key: "stale_results", Type: "string", Example: "keep",
 			Fallback: "prompt on a terminal, otherwise keep",
 			Doc: "How run/report treat stored results for models outside default_models: keep or drop. " +

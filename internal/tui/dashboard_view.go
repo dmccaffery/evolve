@@ -38,7 +38,8 @@ func (d dashboardModel) view() string {
 	}
 
 	left := panel(1, "Execution", d.leftCount(nodes, hl), "",
-		d.renderLeft(nodes, hl, panelContentWidth(leftW), bodyH-2), d.focus == paneExecution, leftW, bodyH, paneBaseColor(paneExecution))
+		d.renderLeft(nodes, hl, panelContentWidth(leftW), bodyH-2),
+		d.focus == paneExecution, leftW, bodyH, paneBaseColor(paneExecution))
 
 	_, rollupH, runsH, detailsH := d.rightDims()
 	rollup := panel(2, "Rollup", "", d.tabStrip(),

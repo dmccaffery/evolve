@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -25,7 +26,7 @@ func TestDashboardLiveFeedback(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, plan, filter)
+	d := newDashboard(cat, plan, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Triggers complete.
@@ -68,31 +69,33 @@ func TestDashboardLiveFeedback(t *testing.T) {
 	}})
 	d.apply(unitFinishedMsg{ref: ev, sum: run.UnitSummary{Executed: true, Failed: 1, Passed: 1, Total: 2}})
 
-	// Summary rollup: 3 of 4 cases passed, cost and tokens summed.
-	d.tab = tabSummary
-	rows := d.tabRows()
-	if len(rows) != 3 || rows[0].title != "Overall" {
-		t.Fatalf("summary rows = %+v", rows)
+	// Skills tab: one (skill, model) row. Eval pass rate is 1/2; the trigger
+	// correctness counts runs that behaved correctly — q1 (should-trigger) fired 3/3
+	// and q2 (should-not-trigger) fired 0/3, so both contribute 3 correct runs (6/6).
+	d.tab = tabSkills
+	rows := d.rollupRows()
+	if len(rows) != 1 || rows[0].skill != "Solo" {
+		t.Fatalf("skills rows = %+v, want one Solo row", rows)
 	}
-	if rows[0].passed != 3 || rows[0].total != 4 {
-		t.Errorf("overall = %d/%d, want 3/4", rows[0].passed, rows[0].total)
+	if rows[0].evalPassed != 1 || rows[0].evalTotal != 2 {
+		t.Errorf("eval tally = %d/%d, want 1/2", rows[0].evalPassed, rows[0].evalTotal)
 	}
-	wantIn := 1400 + 1300 + 136865 + 104569
-	if rows[0].in != wantIn {
-		t.Errorf("overall input tokens = %d, want %d", rows[0].in, wantIn)
+	if rows[0].trigCorrect != 6 || rows[0].trigRuns != 6 {
+		t.Errorf("trigger correctness = %d/%d, want 6/6", rows[0].trigCorrect, rows[0].trigRuns)
 	}
 	if !rows[0].hasCost || rows[0].cost <= 0 {
-		t.Errorf("overall cost not aggregated: %+v", rows[0])
-	}
-	// triggers row: 2/2; evals row: 1/2.
-	if rows[1].passed != 2 || rows[2].passed != 1 || rows[2].total != 2 {
-		t.Errorf("tier rows = triggers %d/%d, evals %d/%d", rows[1].passed, rows[1].total, rows[2].passed, rows[2].total)
+		t.Errorf("row cost not aggregated: %+v", rows[0])
 	}
 
-	// Skills grouping yields one row for solo-skill.
-	d.tab = tabSkills
-	if sr := d.tabRows(); len(sr) != 1 || sr[0].title != "solo-skill" {
-		t.Errorf("skills rows = %+v, want one solo-skill row", sr)
+	// With no prior run seeded there is nothing to compare, so improvements and
+	// regressions are both empty.
+	d.tab = tabImprovements
+	if r := d.rollupRows(); len(r) != 0 {
+		t.Errorf("improvements without a prior run = %+v, want none", r)
+	}
+	d.tab = tabRegressions
+	if r := d.rollupRows(); len(r) != 0 {
+		t.Errorf("regressions without a prior run = %+v, want none", r)
 	}
 
 	// Everything is done, so the plugin collapses to a single row with no cases.
@@ -102,5 +105,53 @@ func TestDashboardLiveFeedback(t *testing.T) {
 	}
 	if len(nodes) != 1 || nodes[0].kind != nkPlugin || !nodes[0].collapsed {
 		t.Errorf("nodes after completion = %+v, want one collapsed plugin", nodes)
+	}
+}
+
+// TestRollupImprovementsBaselineBasis drives an eval to completion with a seeded
+// without-skill baseline and checks the row ranks as an improvement, measured
+// against the baseline (no previous run), with the baseline marker rendered.
+func TestRollupImprovementsBaselineBasis(t *testing.T) {
+	cat := soloCatalog(t)
+	_, m1 := soloModels()
+	key := m1.Key()
+	tr := run.UnitRef{Skill: "solo-skill", Key: key, Kind: run.KindTriggers}
+	ev := run.UnitRef{Skill: "solo-skill", Key: key, Kind: run.KindEvals}
+	filter := &run.Filter{
+		Skills: map[string]bool{"solo-skill": true},
+		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
+	}
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter, run.PriorMetrics{})
+	d.w, d.h = 120, 40
+
+	// Without the skill both evals failed; with it, e1 passes (1/2).
+	d.liveBaseline[caseKey{ev, "e1"}] = results.EvalCaseMetrics{Passed: new(false), PassRate: new(0.0)}
+	d.liveBaseline[caseKey{ev, "e2"}] = results.EvalCaseMetrics{Passed: new(false), PassRate: new(0.0)}
+	d.apply(unitStartedMsg{ref: ev, total: 2, mode: run.ModeRun})
+	d.apply(itemDoneMsg{ref: ev, item: run.ItemResult{Index: 0, Label: "e1", Status: run.StatusPass,
+		Metrics: run.ItemMetrics{AssertPassed: new(1), AssertTotal: new(1)}}})
+	d.apply(itemDoneMsg{ref: ev, item: run.ItemResult{Index: 1, Label: "e2", Status: run.StatusFail,
+		Metrics: run.ItemMetrics{AssertPassed: new(0), AssertTotal: new(1)}}})
+	d.apply(unitFinishedMsg{ref: ev, sum: run.UnitSummary{Executed: true, Passed: 1, Failed: 1, Total: 2}})
+
+	d.tab = tabImprovements
+	rows := d.rollupRows()
+	if len(rows) != 1 {
+		t.Fatalf("improvements = %+v, want one row", rows)
+	}
+	if rows[0].evalBasis != basisBaseline {
+		t.Errorf("basis = %v, want baseline (no previous run)", rows[0].evalBasis)
+	}
+	if rows[0].evalDelta.Rate == nil || *rows[0].evalDelta.Rate != 0.5 {
+		t.Errorf("pass-rate delta = %v, want +0.5", rows[0].evalDelta.Rate)
+	}
+	if line := d.rollupLine(rows[0], 120); !strings.Contains(line, baselineMark) {
+		t.Errorf("rollup line missing baseline marker:\n%s", line)
+	}
+
+	// It is an improvement, so the regressions tab is empty.
+	d.tab = tabRegressions
+	if r := d.rollupRows(); len(r) != 0 {
+		t.Errorf("regressions = %+v, want none", r)
 	}
 }

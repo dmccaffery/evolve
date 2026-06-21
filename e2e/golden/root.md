@@ -14,17 +14,17 @@ reporting, or no published pricing).
 
 ### Triggers
 
-| Provider | Model | Passed | Pass rate | Avg run | Input tokens | Est. input cost |
-| --- | --- | --- | --- | --- | --- | --- |
-| Anthropic | Claude Fable 5 (`claude-fable-5`) | 1/2 | 50% | 7.1s | 2,770 | $0.0277 |
-| Cursor | Cursor Composer 2.5 (`composer-2.5`) | 2/2 | 100% | 12.7s | n/a | n/a |
-| Google | Gemini 3.5 Flash (`gemini-3.5-flash`) | — | — | — | 2,580 | $0.0039 |
+| Provider | Model | Passed | Pass rate | Δ rate | Avg run | Input tokens | Est. input cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | 1/2 | 50% | -50% | 7.1s | 2,770 | $0.0277 |
+| Cursor | Cursor Composer 2.5 (`composer-2.5`) | 2/2 | 100% | — | 12.7s | n/a | n/a |
+| Google | Gemini 3.5 Flash (`gemini-3.5-flash`) | — | — | — | — | 2,580 | $0.0039 |
 
 ### Evals
 
-| Provider | Model | Passed | Avg run | Input tokens | Est. input cost | Measured in/out | Cache rd/wr | Measured cost |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Anthropic | Claude Fable 5 (`claude-fable-5`) | 0/1 | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
+| Provider | Model | Passed | Δ rate | Lift vs base | Avg run | Input tokens | Est. input cost | Measured in/out | Cache rd/wr | Measured cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | 0/1 | -100% | +0% | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
 ## Anthropic — `claude-fable-5`
 
@@ -32,18 +32,18 @@ reporting, or no published pricing).
 
 Last run 2026-06-11T10:00:00Z (evolve test, timeout 120s), 3 runs per query.
 
-| Query | Expected | Rate | Result | Avg run | Input tokens | Est. cost |
-| --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | 3/3 | PASS | 9.1s | 1,385 | $0.0138 |
-| Write pytest tests | no | 2/3 | FAIL | 5.0s | 1,385 | $0.0138 |
+| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Write tests \| with pipes | yes | 3/3 | +0% | PASS | 9.1s | 1,385 | $0.0138 |
+| Write pytest tests | no | 2/3 | -67% | FAIL | 5.0s | 1,385 | $0.0138 |
 
 ### Evals — solo-skill
 
 Last run 2026-06-11T12:00:00Z (evolve test, timeout 600s).
 
-| Eval | Result | Run | Input tokens | Est. cost | Measured in/out | Cache rd/wr | Measured cost |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| basic | FAIL | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
+| Eval | Result | Δ rate | Run | Input tokens | Est. cost | Measured in/out | Cache rd/wr | Measured cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| basic | FAIL | -100% | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
 - `basic` failed `file x exists`: x missing
 
@@ -53,10 +53,10 @@ Last run 2026-06-11T12:00:00Z (evolve test, timeout 600s).
 
 Last run 2026-06-11T11:00:00Z (evolve test, timeout 120s), 3 runs per query.
 
-| Query | Expected | Rate | Result | Avg run | Input tokens | Est. cost |
-| --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | 2/3 | PASS | 14.3s | n/a | n/a |
-| Write pytest tests | no | 0/3 | PASS | 11.0s | n/a | n/a |
+| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Write tests \| with pipes | yes | 2/3 | — | PASS | 14.3s | n/a | n/a |
+| Write pytest tests | no | 0/3 | — | PASS | 11.0s | n/a | n/a |
 
 ## Google — `gemini-3.5-flash`
 
@@ -64,7 +64,7 @@ Last run 2026-06-11T11:00:00Z (evolve test, timeout 120s), 3 runs per query.
 
 Last run 2026-06-11T09:00:00Z (evolve test, timeout 120s) — token counts only.
 
-| Query | Expected | Rate | Result | Avg run | Input tokens | Est. cost |
-| --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | — | — | — | 1,290 | $0.0019 |
-| Write pytest tests | no | — | — | — | 1,290 | $0.0019 |
+| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Write tests \| with pipes | yes | — | — | — | — | 1,290 | $0.0019 |
+| Write pytest tests | no | — | — | — | — | 1,290 | $0.0019 |

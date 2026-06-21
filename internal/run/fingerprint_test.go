@@ -106,3 +106,39 @@ func TestSpecHash(t *testing.T) {
 		t.Error("a prompt edit must change the spec hash")
 	}
 }
+
+func TestEvalFingerprint(t *testing.T) {
+	dir := t.TempDir()
+	seed := filepath.Join(dir, "seed.txt")
+	if err := os.WriteFile(seed, []byte("seed v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	withFile := evalspec.Eval{ID: "1", Prompt: "p",
+		Files: []evalspec.FileRef{{Dest: "seed.txt", Source: seed}}}
+	noFile := evalspec.Eval{ID: "1", Prompt: "p"}
+
+	// Folding the fixture in must change the fingerprint relative to the spec alone.
+	if evalFingerprint(withFile) == evalFingerprint(noFile) {
+		t.Error("a referenced fixture must change the eval fingerprint")
+	}
+	// And it must differ from the bare specHash (which ignores fixtures).
+	if evalFingerprint(withFile) == specHash(withFile) {
+		t.Error("evalFingerprint must fold in fixture content, unlike specHash")
+	}
+	before := evalFingerprint(withFile)
+
+	// Editing the fixture content changes the fingerprint; rewriting the same content
+	// restores it.
+	if err := os.WriteFile(seed, []byte("seed v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if evalFingerprint(withFile) == before {
+		t.Error("editing a fixture must change the eval fingerprint")
+	}
+	if err := os.WriteFile(seed, []byte("seed v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if evalFingerprint(withFile) != before {
+		t.Error("restoring fixture content must restore the fingerprint")
+	}
+}

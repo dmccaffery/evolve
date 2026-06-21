@@ -3,7 +3,15 @@
 
 package run
 
-import "testing"
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/tokencount"
+)
 
 // TestClearSelectionFlags pins the invariant the TUI relies on: once the form
 // encodes the user's choice as an explicit per-model Filter, every selection
@@ -24,6 +32,65 @@ func TestClearSelectionFlags(t *testing.T) {
 	if !in.New || !in.Failed || !in.Modified {
 		t.Error("receiver mutated; method must return a copy")
 	}
+}
+
+// TestCountTokens pins the fan-out helper that replaced the sequential per-case
+// counting loop: counts must come back positionally (no scrambling under
+// concurrency), a provider without the counting capability yields all-nil, and a
+// non-positive Jobs budget must not deadlock the errgroup (the SetLimit(0) trap).
+func TestCountTokens(t *testing.T) {
+	// countingTriggerProvider.CountTokens returns len(text); distinct-length
+	// texts make any positional scramble observable.
+	texts := []string{"a", "bb", "ccc", "dddd", "eeeee", "ffffff", "ggggggg"}
+	newCounter := func() *tokencount.Counter {
+		return tokencount.New(filepath.Join(t.TempDir(), "c.json"), os.Stderr)
+	}
+
+	t.Run("counting provider maps positionally", func(t *testing.T) {
+		p := &countingTriggerProvider{}
+		opts := Options{Counter: newCounter(), Jobs: 3} // fewer workers than texts
+		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		got := opts.countTokens(context.Background(), sel, texts)
+		if len(got) != len(texts) {
+			t.Fatalf("got %d counts, want %d", len(got), len(texts))
+		}
+		for i, text := range texts {
+			if got[i] == nil {
+				t.Errorf("count[%d] nil, want %d", i, len(text))
+			} else if *got[i] != len(text) {
+				t.Errorf("count[%d] = %d, want %d", i, *got[i], len(text))
+			}
+		}
+	})
+
+	t.Run("non-counting provider yields nils", func(t *testing.T) {
+		p := &fakeTriggerProvider{} // no TokenCounter capability (cursor-like)
+		opts := Options{Counter: newCounter(), Jobs: 4}
+		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		for i, c := range opts.countTokens(context.Background(), sel, texts) {
+			if c != nil {
+				t.Errorf("count[%d] = %d, want nil", i, *c)
+			}
+		}
+	})
+
+	t.Run("non-positive jobs does not deadlock", func(t *testing.T) {
+		p := &countingTriggerProvider{}
+		opts := Options{Counter: newCounter(), Jobs: 0} // clamps to 1, not SetLimit(0)
+		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		if got := opts.countTokens(context.Background(), sel, texts); len(got) != len(texts) {
+			t.Fatalf("got %d counts, want %d", len(got), len(texts))
+		}
+	})
+
+	t.Run("empty input returns empty", func(t *testing.T) {
+		p := &countingTriggerProvider{}
+		opts := Options{Counter: newCounter(), Jobs: 4}
+		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		if got := opts.countTokens(context.Background(), sel, nil); len(got) != 0 {
+			t.Errorf("got %d counts for empty input, want 0", len(got))
+		}
+	})
 }
 
 // TestOptionsSelects pins the --plugin/--skill filter semantics: an empty list

@@ -29,6 +29,7 @@ type Model struct {
 	form   formModel
 	dash   dashboardModel
 	cat    []run.SkillCatalog
+	prior  run.PriorMetrics
 	runReq chan<- RunRequest
 	w, h   int
 }
@@ -40,11 +41,12 @@ type Model struct {
 // non-matching evals off. The chosen RunRequest is sent on runReq when the user
 // runs; the channel is closed by the caller if they cancel.
 func New(cat []run.SkillCatalog, sels []provider.Selection, needs map[string]map[run.CaseRef]bool,
-	notes map[run.CaseRef]string, evalFilter string, runReq chan<- RunRequest) Model {
+	notes map[run.CaseRef]string, evalFilter string, prior run.PriorMetrics, runReq chan<- RunRequest) Model {
 	return Model{
 		screen: screenForm,
 		form:   newForm(cat, sels, needs, notes, evalFilter),
 		cat:    cat,
+		prior:  prior,
 		runReq: runReq,
 	}
 }
@@ -87,7 +89,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case unitStartedMsg, unitSkippedMsg, itemStartedMsg, itemDoneMsg, unitFinishedMsg, warnMsg, runDoneMsg:
+	case unitStartedMsg, unitSkippedMsg, itemStartedMsg, baselineStartedMsg, itemDoneMsg,
+		baselineDoneMsg, unitFinishedMsg, warnMsg, runDoneMsg:
 		m.dash.apply(msg)
 		return m, nil
 	}
@@ -103,7 +106,7 @@ func (m Model) startRun() (tea.Model, tea.Cmd) {
 	for _, sel := range req.Models {
 		units = append(units, run.PlanFor(m.cat, sel, req.Filters[sel.Key()], tiers)...)
 	}
-	m.dash = newDashboard(m.cat, units, mergeFilters(req.Filters))
+	m.dash = newDashboard(m.cat, units, mergeFilters(req.Filters), m.prior)
 	m.dash.w, m.dash.h = m.w, m.h
 	m.screen = screenDashboard
 	return m, tea.Batch(

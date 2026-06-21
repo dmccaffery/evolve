@@ -22,6 +22,11 @@
   // per-eval max_turns override it.
   "max_turns": 20,
 
+  // Benchmark each eval without the skill (the skill's lift over no skill),
+  // recomputed only when the eval or its fixtures change. --baseline
+  // overrides for one run.
+  "baseline": true,
+
   // How run/report treat stored results for models outside default_models:
   // keep or drop. --stale-results overrides.
   // Default: unset — prompt on a terminal, otherwise keep.

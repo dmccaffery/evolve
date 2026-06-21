@@ -5,6 +5,7 @@ package provider
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -39,18 +40,15 @@ func Select(spec string, providers []Provider) ([]Selection, error) {
 		spec = "anthropic"
 	}
 	var tokens []string
-	for _, t := range strings.Split(spec, ",") {
+	for t := range strings.SplitSeq(spec, ",") {
 		if t = strings.TrimSpace(t); t != "" {
 			tokens = append(tokens, t)
 		}
 	}
-	for _, t := range tokens {
-		if t == "all" {
-			tokens = tokens[:0]
-			for _, p := range providers {
-				tokens = append(tokens, p.Name())
-			}
-			break
+	if slices.Contains(tokens, "all") {
+		tokens = tokens[:0]
+		for _, p := range providers {
+			tokens = append(tokens, p.Name())
 		}
 	}
 

@@ -41,6 +41,14 @@ func (r *tuiReporter) ItemDone(u run.UnitRef, item run.ItemResult) {
 	r.p.Send(itemDoneMsg{ref: u, item: item})
 }
 
+func (r *tuiReporter) BaselineStarted(u run.UnitRef, item run.ItemStart) {
+	r.p.Send(baselineStartedMsg{ref: u, item: item})
+}
+
+func (r *tuiReporter) BaselineDone(u run.UnitRef, item run.ItemResult) {
+	r.p.Send(baselineDoneMsg{ref: u, item: item})
+}
+
 func (r *tuiReporter) UnitFinished(u run.UnitRef, sum run.UnitSummary, savedRel string) {
 	r.p.Send(unitFinishedMsg{ref: u, sum: sum, savedRel: savedRel})
 }

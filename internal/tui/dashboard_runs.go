@@ -54,7 +54,7 @@ func (d dashboardModel) execLine(e execItem, w int, selected bool) string {
 	}
 	g := pendStyle.Render("◌")
 	if c != nil {
-		g = d.glyph(c.status)
+		g = d.caseGlyph(c)
 	}
 	dur := emptyMetric
 	if el, ok := d.inflightElapsed(e.ref, e.label); ok {
@@ -67,7 +67,11 @@ func (d dashboardModel) execLine(e execItem, w int, selected bool) string {
 	label := truncate(e.label, avail)
 	pad := max(avail-ansi.StringWidth(label), 0)
 	body := label + strings.Repeat(" ", pad) + " " + mutedStyle.Render(dur)
-	if !selected {
+	switch {
+	case c != nil && c.baselineRunning:
+		// Baseline phase: tint the whole row yellow regardless of selection.
+		body = baselineStyle.Render(label+strings.Repeat(" ", pad)) + " " + mutedStyle.Render(dur)
+	case !selected:
 		body = mutedStyle.Render(body)
 	}
 	return clip(prefix+body, w)

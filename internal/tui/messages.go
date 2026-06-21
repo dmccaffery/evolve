@@ -25,7 +25,15 @@ type (
 		ref  run.UnitRef
 		item run.ItemStart
 	}
+	baselineStartedMsg struct {
+		ref  run.UnitRef
+		item run.ItemStart
+	}
 	itemDoneMsg struct {
+		ref  run.UnitRef
+		item run.ItemResult
+	}
+	baselineDoneMsg struct {
 		ref  run.UnitRef
 		item run.ItemResult
 	}

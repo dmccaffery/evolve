@@ -19,6 +19,14 @@
 // consulting the live model matrix. Readers treat an absent key and an
 // explicit null identically.
 //
+// Each entry keeps up to two compact prior states alongside the current run, so
+// deltas are computable without re-running: previous (the run this entry
+// replaced — the iteration signal) on both tiers, and baseline (the same evals
+// run with the skill absent — the skill's lift) on the eval tier only. Both hold
+// just the summary and per-case scalar metrics, never the full expectations, so
+// committed files stay readable. The deltas themselves are derived at report and
+// render time (see delta.go), not stored.
+//
 // Determinism matters because these files are committed: 2-space indent plus
 // trailing newline, map keys sorted, struct field order fixed by
 // declaration, RFC3339 UTC timestamps, costs rounded to 6 decimals and

@@ -16,10 +16,20 @@ import (
 
 // ── status ──────────────────────────────────────────────────────────────────
 
+// caseGlyph renders a case row's status glyph, tinting the live spinner yellow
+// while its without-skill baseline runs (ahead of the run under test) and blue
+// otherwise — see glyph for the settled-status glyphs.
+func (d dashboardModel) caseGlyph(c *caseState) string {
+	if c.baselineRunning {
+		return baselineStyle.Render(strings.TrimSpace(d.spin.View()))
+	}
+	return d.glyph(c.status)
+}
+
 func (d dashboardModel) glyph(s status) string {
 	switch s {
 	case stRunning:
-		return errStyle.Render(strings.TrimSpace(d.spin.View()))
+		return runStyle.Render(strings.TrimSpace(d.spin.View()))
 	case stPass:
 		return passStyle.Render("✓")
 	case stFail:

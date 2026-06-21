@@ -56,7 +56,7 @@ func TestFormShowsPreselectionReasons(t *testing.T) {
 	needs := map[string]map[run.CaseRef]bool{m1.Key(): {tq1: true}}
 	notes := map[run.CaseRef]string{tq1: "not passing (failed)"}
 
-	m := New(cat, sels, needs, notes, "", make(chan RunRequest, 1))
+	m := New(cat, sels, needs, notes, "", run.PriorMetrics{}, make(chan RunRequest, 1))
 	m = step(m, tea.WindowSizeMsg{Width: 120, Height: 32})
 	out := m.View()
 	if !strings.Contains(out, "not passing (failed)") {

@@ -9,6 +9,8 @@ import (
 	"io"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/bitwise-media-group/evolve/internal/layout"
 	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
@@ -39,7 +41,12 @@ type Options struct {
 	Jobs         int
 	MaxTurns     int // agent-turn ceiling per eval; 0 = provider.DefaultMaxTurns. A per-eval max_turns overrides it.
 	CountOnly    bool
-	New          bool
+	// Baseline runs each executed eval a second time with the skill absent, so the
+	// report and dashboard can show the skill's lift over no skill at all. The
+	// baseline is cached per eval and recomputed only when the eval (spec or
+	// fixtures) changes, never when the skill changes; count-only runs skip it.
+	Baseline bool
+	New      bool
 	// Failed selects units that did not pass on a previous run (a complete
 	// result graded as failing, or an eval that errored). It composes with New:
 	// with both set, a unit reruns when any case is missing data OR previously
@@ -158,6 +165,33 @@ func (o *Options) header(sel provider.Selection, executed bool) results.Header {
 
 func payload(skillMD []byte, prompt string) string {
 	return string(skillMD) + "\n\n" + prompt
+}
+
+// countTokens counts the input tokens for each text, returning the counts
+// positionally: out[i] is the count for texts[i], or nil when the provider has
+// no counting API or the call fails (Counter.Count swallows those into nil).
+//
+// On a cache miss each Count is a network round-trip to the provider's counting
+// API, and a SKILL.md edit invalidates every prior key, so the common iterate-
+// and-rerun case misses for all cases at once. Run sequentially that stalls each
+// skill/model unit for one round-trip per case before any agent run starts —
+// the dominant cost of the inter-unit gap, not the sub-millisecond results
+// rewrite. Fanning the calls out over the same opts.Jobs budget the agent runs
+// use collapses that to roughly a single round-trip; Counter is safe for
+// concurrent use.
+func (o *Options) countTokens(ctx context.Context, sel provider.Selection, texts []string) []*int {
+	out := make([]*int, len(texts))
+	limit := max(o.Jobs, 1)
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(limit)
+	for i, text := range texts {
+		g.Go(func() error {
+			out[i] = o.Counter.Count(gctx, sel.Provider, sel.Model.ID, text)
+			return nil
+		})
+	}
+	_ = g.Wait() // Count never returns an error; Wait is just the join.
+	return out
 }
 
 // warnSkillName flags an authored skill_name that contradicts the directory

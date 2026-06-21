@@ -23,17 +23,29 @@ import (
 // captureReporter records the ItemResults the engine streams so tests can assert
 // on the per-item output, verdict, and retained paths.
 type captureReporter struct {
-	mu    sync.Mutex
-	items []ItemResult
+	mu             sync.Mutex
+	items          []ItemResult
+	baselines      []ItemResult
+	baselineStarts []ItemStart
 }
 
 func (r *captureReporter) UnitStarted(UnitRef, int, int, Mode) {}
 func (r *captureReporter) UnitSkipped(UnitRef, string)         {}
 func (r *captureReporter) ItemStarted(UnitRef, ItemStart)      {}
+func (r *captureReporter) BaselineStarted(_ UnitRef, item ItemStart) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.baselineStarts = append(r.baselineStarts, item)
+}
 func (r *captureReporter) ItemDone(_ UnitRef, item ItemResult) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.items = append(r.items, item)
+}
+func (r *captureReporter) BaselineDone(_ UnitRef, item ItemResult) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.baselines = append(r.baselines, item)
 }
 func (r *captureReporter) UnitFinished(UnitRef, UnitSummary, string) {}
 func (r *captureReporter) Warn(string, ...any)                       {}
@@ -544,6 +556,214 @@ func byID(rs []results.EvalResult) map[string]results.EvalResult {
 		m[r.ID] = r
 	}
 	return m
+}
+
+// baselineRunner wraps fakeEvalRunner and records, per agent run, whether the
+// skill was mounted in the workspace — so a test can prove the baseline runs
+// without the skill present.
+type baselineRunner struct {
+	inner     fakeEvalRunner
+	mu        sync.Mutex
+	agentRuns []bool // true when the skill under test was symlinked in
+}
+
+func (r *baselineRunner) Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
+	if len(spec.Argv) > 1 && spec.Argv[1] == "AGENT" {
+		_, err := os.Stat(filepath.Join(spec.Dir, ".fake", "skills", "solo-skill", "SKILL.md"))
+		r.mu.Lock()
+		r.agentRuns = append(r.agentRuns, err == nil)
+		r.mu.Unlock()
+	}
+	return r.inner.Run(ctx, spec, timeout, onLine)
+}
+
+func TestEvalsBaseline(t *testing.T) {
+	repo := evalRepoFixture(t)
+	resultsDir := filepath.Join(repo.Root, "evals", "solo-skill")
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	opts.Baseline = true
+	rep := &captureReporter{}
+	opts.Reporter = rep
+	rn := &baselineRunner{}
+	opts.Runner = rn
+
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	// Two agent runs: the eval with the skill mounted, the baseline without it.
+	with, without := 0, 0
+	for _, mounted := range rn.agentRuns {
+		if mounted {
+			with++
+		} else {
+			without++
+		}
+	}
+	if with != 1 || without != 1 {
+		t.Fatalf("agent runs: with-skill=%d without-skill=%d, want 1 and 1 (%v)", with, without, rn.agentRuns)
+	}
+	if len(rep.baselines) != 1 {
+		t.Errorf("BaselineDone calls = %d, want 1", len(rep.baselines))
+	}
+	file, _ := results.LoadDir(resultsDir, "solo", "solo-skill")
+	entry := file.Evals["fake/model-1"]
+	if entry.Baseline == nil || entry.Baseline.Cases["basic"].Fingerprint == "" {
+		t.Fatalf("baseline not stored with a fingerprint: %+v", entry.Baseline)
+	}
+	if entry.Previous != nil {
+		t.Errorf("a first run should record no previous: %+v", entry.Previous)
+	}
+
+	// Second run, unchanged: the baseline is cached (only the with-skill eval runs),
+	// and the replaced run rotates into previous.
+	rn2 := &baselineRunner{}
+	opts.Runner = rn2
+	opts.Reporter = &captureReporter{}
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(rn2.agentRuns) != 1 || !rn2.agentRuns[0] {
+		t.Errorf("second run agent runs = %v, want one with-skill run (baseline cached)", rn2.agentRuns)
+	}
+	if file, _ = results.LoadDir(resultsDir, "solo", "solo-skill"); file.Evals["fake/model-1"].Previous == nil {
+		t.Error("second run should rotate the prior run into previous")
+	}
+
+	// Changing a fixture changes the eval fingerprint, so the baseline recomputes.
+	if err := os.WriteFile(filepath.Join(resultsDir, "files", "seed.txt"), []byte("changed seed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rn3 := &baselineRunner{}
+	opts.Runner = rn3
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(rn3.agentRuns) != 2 {
+		t.Errorf("a fixture change should recompute the baseline: agent runs = %v, want 2", rn3.agentRuns)
+	}
+}
+
+// TestEvalsBaselineInterleaved proves the baseline runs interleaved right before
+// its eval's own run (not as a silent post-pass) and announces a start, so the
+// dashboard can flag the row while the without-skill session executes: the agent
+// runs land baseline-then-run for the eval, and a BaselineStarted event precedes
+// the with-skill ItemDone.
+func TestEvalsBaselineInterleaved(t *testing.T) {
+	repo := evalRepoFixture(t)
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	opts.Baseline = true
+	rep := &captureReporter{}
+	opts.Reporter = rep
+	rn := &baselineRunner{}
+	opts.Runner = rn
+
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	// The single eval's baseline (without-skill) runs before its own run (with-skill):
+	// the interleave reversed the old run-then-baseline order.
+	if want := []bool{false, true}; len(rn.agentRuns) != 2 || rn.agentRuns[0] != want[0] || rn.agentRuns[1] != want[1] {
+		t.Errorf("agent run order = %v, want %v (baseline before run)", rn.agentRuns, want)
+	}
+	// The baseline announced a start (so the row can show it running) and a finish.
+	if len(rep.baselineStarts) != 1 {
+		t.Errorf("BaselineStarted calls = %d, want 1", len(rep.baselineStarts))
+	}
+	if len(rep.baselines) != 1 {
+		t.Errorf("BaselineDone calls = %d, want 1", len(rep.baselines))
+	}
+	if len(rep.baselineStarts) == 1 && rep.baselineStarts[0].Label != "basic" {
+		t.Errorf("BaselineStarted label = %q, want %q", rep.baselineStarts[0].Label, "basic")
+	}
+}
+
+// TestEvalsBaselineAdditiveWithNew proves --baseline composes with --new: when a
+// prior run left the with-skill result complete but no baseline, a --new --baseline
+// pass does not skip the unit as "complete" — a missing baseline is an additive gap
+// that pulls the eval into the run-set, so it reruns with-skill alongside a fresh
+// baseline (a contemporaneous pair for the lift delta).
+func TestEvalsBaselineAdditiveWithNew(t *testing.T) {
+	repo := evalRepoFixture(t)
+	resultsDir := filepath.Join(repo.Root, "evals", "solo-skill")
+
+	// First run without baselines: the with-skill result exists, no baseline does.
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	opts.Baseline = false
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if file, _ := results.LoadDir(resultsDir, "solo", "solo-skill"); file.Evals["fake/model-1"].Baseline != nil {
+		t.Fatal("precondition: the first run should leave no baseline")
+	}
+
+	// --new alone would see the with-skill result as complete; --baseline adds the
+	// eval back because its baseline is missing.
+	rn := &baselineRunner{}
+	opts.Baseline, opts.New, opts.Runner = true, true, rn
+	var stdout bytes.Buffer
+	opts.Stdout, opts.Stderr = &stdout, &stdout
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(stdout.String(), "skip: results complete") {
+		t.Errorf("--new skipped the unit, overriding --baseline:\n%s", stdout.String())
+	}
+	// Two agent runs: the with-skill rerun and its baseline (one mounted the skill,
+	// one did not).
+	with, without := 0, 0
+	for _, mounted := range rn.agentRuns {
+		if mounted {
+			with++
+		} else {
+			without++
+		}
+	}
+	if with != 1 || without != 1 {
+		t.Errorf("agent runs with-skill=%d without-skill=%d, want 1 and 1 (%v)", with, without, rn.agentRuns)
+	}
+	entry := mustLoadEval(t, resultsDir)
+	if entry.Baseline == nil || entry.Baseline.Cases["basic"].Fingerprint == "" {
+		t.Errorf("--baseline did not fill the missing baseline: %+v", entry.Baseline)
+	}
+	// The with-skill eval reran, so the replaced run rotated into previous.
+	if entry.Previous == nil {
+		t.Errorf("a with-skill rerun should rotate previous, got nil")
+	}
+}
+
+func mustLoadEval(t *testing.T, dir string) *results.EvalEntry {
+	t.Helper()
+	file, _ := results.LoadDir(dir, "solo", "solo-skill")
+	entry := file.Evals["fake/model-1"]
+	if entry == nil {
+		t.Fatal("no eval entry written")
+	}
+	return entry
+}
+
+// TestEvalsBaselineSkillChangeKeepsBaseline proves a skill-only change does not
+// recompute the baseline — the baseline measures the skill's absence.
+func TestEvalsBaselineSkillChangeKeepsBaseline(t *testing.T) {
+	repo := evalRepoFixture(t)
+	opts := evalOptions(t, repo, &fakeEvalProvider{reportsUsage: true})
+	opts.Baseline = true
+	opts.Runner = &baselineRunner{}
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	// Edit the skill body; the baseline depends only on the eval, so it must not run.
+	if err := os.WriteFile(filepath.Join(repo.Root, "skills", "solo-skill", "SKILL.md"),
+		[]byte("---\nname: solo-skill\ndescription: x. Use when testing.\nlicense: MIT\n---\nNEW BODY\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rn := &baselineRunner{}
+	opts.Runner = rn
+	if _, err := Evals(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(rn.agentRuns) != 1 || !rn.agentRuns[0] {
+		t.Errorf("skill change reran the baseline: agent runs = %v, want one with-skill run", rn.agentRuns)
+	}
 }
 
 func TestEvalFilter(t *testing.T) {

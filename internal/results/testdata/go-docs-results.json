@@ -1,0 +1,4068 @@
+{
+  "schema": 3,
+  "plugin": "golang",
+  "skill": "go-docs",
+  "triggers": {
+    "anthropic/claude-haiku-4-5": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "display": "Claude Haiku 4.5",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T13:46:13Z",
+      "executed": true,
+      "content_hash": "a1e2d73405336dfc12e64a56ca3b24e0ddc9010d2d5c91f52db3e2de05b9748f",
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": {
+        "input_per_mtok": 1,
+        "output_per_mtok": 5
+      },
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 7.2,
+          "estimate": {
+            "input_tokens": 1029,
+            "input_cost_usd": 0.001029
+          },
+          "spec_hash": "fd98ae88ad3a25f3fdf34c5e8ca0323cca089e6038e1a2c6d0cb49e2db891be8"
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 10,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.001027
+          },
+          "spec_hash": "bcab40145d7e8ef9d8fed39ebc78f7c5279fbbc0ee252571c6eb986f87ebfcb2"
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.6,
+          "estimate": {
+            "input_tokens": 1036,
+            "input_cost_usd": 0.001036
+          },
+          "spec_hash": "fe70ba0cd52aa9919c1a91dcb245f0a615480a4f2ea52d020df4526a7b5aa763"
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 7.8,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.001026
+          },
+          "spec_hash": "8439aeb29e0aa8e97007e2d2fced2d629f2f76b3ff1b1bc45e5ae4aad11f36b7"
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 11,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.001026
+          },
+          "spec_hash": "e728f225b099fa6af63f008ec0ad69f86aa7829a8045f5100ceb1bf6e69967e5"
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 8.6,
+          "estimate": {
+            "input_tokens": 1030,
+            "input_cost_usd": 0.00103
+          },
+          "spec_hash": "77cd4d8062f28fa57058dbdbca85ab734c6a09c4121eaca35063e0f5428f6d3e"
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 7.3,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.001027
+          },
+          "spec_hash": "f52908ad0cc1857a7f97db483c75239b324f9d8b9f54145cb4ff2328f7b61dd2"
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 7,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.001026
+          },
+          "spec_hash": "334c2e07db702839b14329a28522b2e3f403a4529ee419e259257dff9851577b"
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.5,
+          "estimate": {
+            "input_tokens": 1025,
+            "input_cost_usd": 0.001025
+          },
+          "spec_hash": "756a0cc1e508c485eba577154206471f1b69bf2c12460ae419ef875d90e13b81"
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.2,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.001027
+          },
+          "spec_hash": "b5cfd1dd46772595323f8d48ce6d6884d7e25885ad81fdf5cd53e210cb9cda30"
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 3.3,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.001027
+          },
+          "spec_hash": "75eb0dbf254924451b3ba9562e2d05c52624dc6eeb199474803d2bfe8fb6b39c"
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 10.8,
+          "estimate": {
+            "input_tokens": 1029,
+            "input_cost_usd": 0.001029
+          },
+          "spec_hash": "9eef8ddfa03d8db7007e8bb19541b1d9aea21ebc47de4382be746f6c295d7ab7"
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.7,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.001026
+          },
+          "spec_hash": "45e3584d3534540db1bd7416654885916a01f1587f63152a0dfc4c42d29610a9"
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 6.9,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.001027
+          },
+          "spec_hash": "4f1002296f70d5bc4826434469e7cbd686caa1a207f72c381c028ae54a2e0052"
+        }
+      ],
+      "summary": {
+        "passed": 7,
+        "failed": 7,
+        "total": 14,
+        "pass_rate": 0.5,
+        "avg_run_seconds": 7.6,
+        "estimate": {
+          "input_tokens": 14388,
+          "input_cost_usd": 0.014388
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:34:59Z",
+        "summary": {
+          "passed": 7,
+          "failed": 7,
+          "total": 14,
+          "pass_rate": 0.5,
+          "avg_run_seconds": 7.1,
+          "estimate": {
+            "input_tokens": 14388,
+            "input_cost_usd": 0.014388
+          }
+        },
+        "cases": {
+          "Add a doc.go to this package": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 6.4,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.001026
+            }
+          },
+          "Add doc comments to the exported functions in this Go package": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 5,
+            "estimate": {
+              "input_tokens": 1029,
+              "input_cost_usd": 0.001029
+            }
+          },
+          "Add docstrings to this Python module": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 4.9,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.001026
+            }
+          },
+          "Add inline comments explaining how this Go algorithm works": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 4.2,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.001027
+            }
+          },
+          "Document the exported API of this Go module": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 10,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.001026
+            }
+          },
+          "Generate OpenAPI docs for my Go REST API": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 8,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.001027
+            }
+          },
+          "Generate markdown CLI docs for my cobra tool": {
+            "hits": 1,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 8.7,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.001026
+            }
+          },
+          "Make my Go CLI's documentation consumable by LLMs": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 9,
+            "estimate": {
+              "input_tokens": 1030,
+              "input_cost_usd": 0.00103
+            }
+          },
+          "Review this Go package for missing godoc comments": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 5.1,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.001027
+            }
+          },
+          "Scaffold a new Go service with cmd and internal layout": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 14.5,
+            "estimate": {
+              "input_tokens": 1029,
+              "input_cost_usd": 0.001029
+            }
+          },
+          "Should the package comment go in doc.go or at the top of an existing file?": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 4.6,
+            "estimate": {
+              "input_tokens": 1036,
+              "input_cost_usd": 0.001036
+            }
+          },
+          "Write a README for this Go project": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 7.2,
+            "estimate": {
+              "input_tokens": 1025,
+              "input_cost_usd": 0.001025
+            }
+          },
+          "Write a package comment for internal/clientmap": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 7.4,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.001027
+            }
+          },
+          "Write table-driven tests for this Go function": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 3.9,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.001027
+            }
+          }
+        }
+      }
+    },
+    "anthropic/claude-opus-4-8": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-8",
+      "display": "Claude Opus 4.8",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T13:54:28Z",
+      "executed": true,
+      "content_hash": "a1e2d73405336dfc12e64a56ca3b24e0ddc9010d2d5c91f52db3e2de05b9748f",
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": {
+        "input_per_mtok": 5,
+        "output_per_mtok": 25
+      },
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.5,
+          "estimate": {
+            "input_tokens": 1396,
+            "input_cost_usd": 0.00698
+          },
+          "spec_hash": "fd98ae88ad3a25f3fdf34c5e8ca0323cca089e6038e1a2c6d0cb49e2db891be8"
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 8.2,
+          "estimate": {
+            "input_tokens": 1393,
+            "input_cost_usd": 0.006965
+          },
+          "spec_hash": "bcab40145d7e8ef9d8fed39ebc78f7c5279fbbc0ee252571c6eb986f87ebfcb2"
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5.4,
+          "estimate": {
+            "input_tokens": 1401,
+            "input_cost_usd": 0.007005
+          },
+          "spec_hash": "fe70ba0cd52aa9919c1a91dcb245f0a615480a4f2ea52d020df4526a7b5aa763"
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 13.3,
+          "estimate": {
+            "input_tokens": 1390,
+            "input_cost_usd": 0.00695
+          },
+          "spec_hash": "8439aeb29e0aa8e97007e2d2fced2d629f2f76b3ff1b1bc45e5ae4aad11f36b7"
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 8.1,
+          "estimate": {
+            "input_tokens": 1397,
+            "input_cost_usd": 0.006985
+          },
+          "spec_hash": "e728f225b099fa6af63f008ec0ad69f86aa7829a8045f5100ceb1bf6e69967e5"
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 6.9,
+          "estimate": {
+            "input_tokens": 1399,
+            "input_cost_usd": 0.006995
+          },
+          "spec_hash": "77cd4d8062f28fa57058dbdbca85ab734c6a09c4121eaca35063e0f5428f6d3e"
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.2,
+          "estimate": {
+            "input_tokens": 1393,
+            "input_cost_usd": 0.006965
+          },
+          "spec_hash": "f52908ad0cc1857a7f97db483c75239b324f9d8b9f54145cb4ff2328f7b61dd2"
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.5,
+          "estimate": {
+            "input_tokens": 1389,
+            "input_cost_usd": 0.006945
+          },
+          "spec_hash": "334c2e07db702839b14329a28522b2e3f403a4529ee419e259257dff9851577b"
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 10.8,
+          "estimate": {
+            "input_tokens": 1388,
+            "input_cost_usd": 0.00694
+          },
+          "spec_hash": "756a0cc1e508c485eba577154206471f1b69bf2c12460ae419ef875d90e13b81"
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 10.8,
+          "estimate": {
+            "input_tokens": 1397,
+            "input_cost_usd": 0.006985
+          },
+          "spec_hash": "b5cfd1dd46772595323f8d48ce6d6884d7e25885ad81fdf5cd53e210cb9cda30"
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 19.7,
+          "estimate": {
+            "input_tokens": 1392,
+            "input_cost_usd": 0.00696
+          },
+          "spec_hash": "75eb0dbf254924451b3ba9562e2d05c52624dc6eeb199474803d2bfe8fb6b39c"
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 15.1,
+          "estimate": {
+            "input_tokens": 1398,
+            "input_cost_usd": 0.00699
+          },
+          "spec_hash": "9eef8ddfa03d8db7007e8bb19541b1d9aea21ebc47de4382be746f6c295d7ab7"
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 16,
+          "estimate": {
+            "input_tokens": 1390,
+            "input_cost_usd": 0.00695
+          },
+          "spec_hash": "45e3584d3534540db1bd7416654885916a01f1587f63152a0dfc4c42d29610a9"
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 13.6,
+          "estimate": {
+            "input_tokens": 1397,
+            "input_cost_usd": 0.006985
+          },
+          "spec_hash": "4f1002296f70d5bc4826434469e7cbd686caa1a207f72c381c028ae54a2e0052"
+        }
+      ],
+      "summary": {
+        "passed": 13,
+        "failed": 1,
+        "total": 14,
+        "pass_rate": 0.928571,
+        "avg_run_seconds": 11,
+        "estimate": {
+          "input_tokens": 19520,
+          "input_cost_usd": 0.0976
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:42:42Z",
+        "summary": {
+          "passed": 12,
+          "failed": 2,
+          "total": 14,
+          "pass_rate": 0.857143,
+          "avg_run_seconds": 9.5,
+          "estimate": {
+            "input_tokens": 19520,
+            "input_cost_usd": 0.0976
+          }
+        },
+        "cases": {
+          "Add a doc.go to this package": {
+            "hits": 2,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 6.4,
+            "estimate": {
+              "input_tokens": 1389,
+              "input_cost_usd": 0.006945
+            }
+          },
+          "Add doc comments to the exported functions in this Go package": {
+            "hits": 1,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 9.7,
+            "estimate": {
+              "input_tokens": 1396,
+              "input_cost_usd": 0.00698
+            }
+          },
+          "Add docstrings to this Python module": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 11.5,
+            "estimate": {
+              "input_tokens": 1390,
+              "input_cost_usd": 0.00695
+            }
+          },
+          "Add inline comments explaining how this Go algorithm works": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 9.1,
+            "estimate": {
+              "input_tokens": 1397,
+              "input_cost_usd": 0.006985
+            }
+          },
+          "Document the exported API of this Go module": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 10.8,
+            "estimate": {
+              "input_tokens": 1390,
+              "input_cost_usd": 0.00695
+            }
+          },
+          "Generate OpenAPI docs for my Go REST API": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 13.4,
+            "estimate": {
+              "input_tokens": 1397,
+              "input_cost_usd": 0.006985
+            }
+          },
+          "Generate markdown CLI docs for my cobra tool": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 5.1,
+            "estimate": {
+              "input_tokens": 1397,
+              "input_cost_usd": 0.006985
+            }
+          },
+          "Make my Go CLI's documentation consumable by LLMs": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 6.7,
+            "estimate": {
+              "input_tokens": 1399,
+              "input_cost_usd": 0.006995
+            }
+          },
+          "Review this Go package for missing godoc comments": {
+            "hits": 2,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 9,
+            "estimate": {
+              "input_tokens": 1393,
+              "input_cost_usd": 0.006965
+            }
+          },
+          "Scaffold a new Go service with cmd and internal layout": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 14.4,
+            "estimate": {
+              "input_tokens": 1398,
+              "input_cost_usd": 0.00699
+            }
+          },
+          "Should the package comment go in doc.go or at the top of an existing file?": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 3.7,
+            "estimate": {
+              "input_tokens": 1401,
+              "input_cost_usd": 0.007005
+            }
+          },
+          "Write a README for this Go project": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 10.5,
+            "estimate": {
+              "input_tokens": 1388,
+              "input_cost_usd": 0.00694
+            }
+          },
+          "Write a package comment for internal/clientmap": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 7,
+            "estimate": {
+              "input_tokens": 1393,
+              "input_cost_usd": 0.006965
+            }
+          },
+          "Write table-driven tests for this Go function": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 16.1,
+            "estimate": {
+              "input_tokens": 1392,
+              "input_cost_usd": 0.00696
+            }
+          }
+        }
+      }
+    },
+    "anthropic/claude-sonnet-4-6": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "display": "Claude Sonnet 4.6",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T13:49:11Z",
+      "executed": true,
+      "content_hash": "a1e2d73405336dfc12e64a56ca3b24e0ddc9010d2d5c91f52db3e2de05b9748f",
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": {
+        "input_per_mtok": 3,
+        "output_per_mtok": 15
+      },
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 9.8,
+          "estimate": {
+            "input_tokens": 1029,
+            "input_cost_usd": 0.003087
+          },
+          "spec_hash": "fd98ae88ad3a25f3fdf34c5e8ca0323cca089e6038e1a2c6d0cb49e2db891be8"
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 6.3,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.003081
+          },
+          "spec_hash": "bcab40145d7e8ef9d8fed39ebc78f7c5279fbbc0ee252571c6eb986f87ebfcb2"
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5.9,
+          "estimate": {
+            "input_tokens": 1036,
+            "input_cost_usd": 0.003108
+          },
+          "spec_hash": "fe70ba0cd52aa9919c1a91dcb245f0a615480a4f2ea52d020df4526a7b5aa763"
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.003078
+          },
+          "spec_hash": "8439aeb29e0aa8e97007e2d2fced2d629f2f76b3ff1b1bc45e5ae4aad11f36b7"
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.2,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.003078
+          },
+          "spec_hash": "e728f225b099fa6af63f008ec0ad69f86aa7829a8045f5100ceb1bf6e69967e5"
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.1,
+          "estimate": {
+            "input_tokens": 1030,
+            "input_cost_usd": 0.00309
+          },
+          "spec_hash": "77cd4d8062f28fa57058dbdbca85ab734c6a09c4121eaca35063e0f5428f6d3e"
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.8,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.003081
+          },
+          "spec_hash": "f52908ad0cc1857a7f97db483c75239b324f9d8b9f54145cb4ff2328f7b61dd2"
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 10.6,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.003078
+          },
+          "spec_hash": "334c2e07db702839b14329a28522b2e3f403a4529ee419e259257dff9851577b"
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 60.4,
+          "estimate": {
+            "input_tokens": 1025,
+            "input_cost_usd": 0.003075
+          },
+          "spec_hash": "756a0cc1e508c485eba577154206471f1b69bf2c12460ae419ef875d90e13b81"
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 8,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.003081
+          },
+          "spec_hash": "b5cfd1dd46772595323f8d48ce6d6884d7e25885ad81fdf5cd53e210cb9cda30"
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.4,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.003081
+          },
+          "spec_hash": "75eb0dbf254924451b3ba9562e2d05c52624dc6eeb199474803d2bfe8fb6b39c"
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 12.7,
+          "estimate": {
+            "input_tokens": 1029,
+            "input_cost_usd": 0.003087
+          },
+          "spec_hash": "9eef8ddfa03d8db7007e8bb19541b1d9aea21ebc47de4382be746f6c295d7ab7"
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.5,
+          "estimate": {
+            "input_tokens": 1026,
+            "input_cost_usd": 0.003078
+          },
+          "spec_hash": "45e3584d3534540db1bd7416654885916a01f1587f63152a0dfc4c42d29610a9"
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 32.7,
+          "estimate": {
+            "input_tokens": 1027,
+            "input_cost_usd": 0.003081
+          },
+          "spec_hash": "4f1002296f70d5bc4826434469e7cbd686caa1a207f72c381c028ae54a2e0052"
+        }
+      ],
+      "summary": {
+        "passed": 12,
+        "failed": 2,
+        "total": 14,
+        "pass_rate": 0.857143,
+        "avg_run_seconds": 12.8,
+        "estimate": {
+          "input_tokens": 14388,
+          "input_cost_usd": 0.043164
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:38:28Z",
+        "summary": {
+          "passed": 12,
+          "failed": 2,
+          "total": 14,
+          "pass_rate": 0.857143,
+          "avg_run_seconds": 13.2,
+          "estimate": {
+            "input_tokens": 14388,
+            "input_cost_usd": 0.043164
+          }
+        },
+        "cases": {
+          "Add a doc.go to this package": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 8.3,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.003078
+            }
+          },
+          "Add doc comments to the exported functions in this Go package": {
+            "hits": 0,
+            "runs": 3,
+            "passed": false,
+            "avg_run_seconds": 9.2,
+            "estimate": {
+              "input_tokens": 1029,
+              "input_cost_usd": 0.003087
+            }
+          },
+          "Add docstrings to this Python module": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 7.3,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.003078
+            }
+          },
+          "Add inline comments explaining how this Go algorithm works": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 7.7,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.003081
+            }
+          },
+          "Document the exported API of this Go module": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 5.4,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.003078
+            }
+          },
+          "Generate OpenAPI docs for my Go REST API": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 21,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.003081
+            }
+          },
+          "Generate markdown CLI docs for my cobra tool": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 4,
+            "estimate": {
+              "input_tokens": 1026,
+              "input_cost_usd": 0.003078
+            }
+          },
+          "Make my Go CLI's documentation consumable by LLMs": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 6.1,
+            "estimate": {
+              "input_tokens": 1030,
+              "input_cost_usd": 0.00309
+            }
+          },
+          "Review this Go package for missing godoc comments": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 3.3,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.003081
+            }
+          },
+          "Scaffold a new Go service with cmd and internal layout": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 13.6,
+            "estimate": {
+              "input_tokens": 1029,
+              "input_cost_usd": 0.003087
+            }
+          },
+          "Should the package comment go in doc.go or at the top of an existing file?": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 3.3,
+            "estimate": {
+              "input_tokens": 1036,
+              "input_cost_usd": 0.003108
+            }
+          },
+          "Write a README for this Go project": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 83.8,
+            "estimate": {
+              "input_tokens": 1025,
+              "input_cost_usd": 0.003075
+            }
+          },
+          "Write a package comment for internal/clientmap": {
+            "hits": 3,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 3.6,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.003081
+            }
+          },
+          "Write table-driven tests for this Go function": {
+            "hits": 0,
+            "runs": 3,
+            "passed": true,
+            "avg_run_seconds": 7.6,
+            "estimate": {
+              "input_tokens": 1027,
+              "input_cost_usd": 0.003081
+            }
+          }
+        }
+      }
+    },
+    "antigravity/gemini-3.1-pro": {
+      "provider": "antigravity",
+      "model": "gemini-3.1-pro",
+      "display": "Antigravity — Gemini 3.1 Pro",
+      "tool_version": "v0.2.1-16-gd19ac95",
+      "ran_at": "2026-06-19T20:16:40Z",
+      "executed": true,
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": null,
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 89.9
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 93.2
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 6.5
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 107.3
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 106.6
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 108.4
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 149.8
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 0,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 84.3
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 93
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 73.7
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 90.3
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 18.7
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5.8
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5.9
+        }
+      ],
+      "summary": {
+        "passed": 8,
+        "failed": 6,
+        "total": 14,
+        "pass_rate": 0.571429,
+        "avg_run_seconds": 73.8
+      }
+    },
+    "openai/gpt-5.4": {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "display": "GPT-5.4",
+      "tool_version": "v0.2.1-16-gd19ac95",
+      "ran_at": "2026-06-19T19:54:31Z",
+      "executed": true,
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": {
+        "input_per_mtok": 2.5,
+        "output_per_mtok": 15
+      },
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 2,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 40.2,
+          "estimate": {
+            "input_tokens": 907,
+            "input_cost_usd": 0.002268
+          }
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 14.5,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00226
+          }
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.7,
+          "estimate": {
+            "input_tokens": 913,
+            "input_cost_usd": 0.002283
+          }
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 12.5,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00226
+          }
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 11.9,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00226
+          }
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 12.5,
+          "estimate": {
+            "input_tokens": 908,
+            "input_cost_usd": 0.00227
+          }
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.7,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.002262
+          }
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 32.1,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.002258
+          }
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 120,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.002258
+          }
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 50.1,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.002262
+          }
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 36.6,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00226
+          }
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 120,
+          "estimate": {
+            "input_tokens": 907,
+            "input_cost_usd": 0.002268
+          }
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 26.8,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.002258
+          }
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 2,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 31,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.002262
+          }
+        }
+      ],
+      "summary": {
+        "passed": 13,
+        "failed": 1,
+        "total": 14,
+        "pass_rate": 0.928571,
+        "avg_run_seconds": 37.5,
+        "estimate": {
+          "input_tokens": 12675,
+          "input_cost_usd": 0.031689
+        }
+      }
+    },
+    "openai/gpt-5.5": {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "display": "GPT-5.5",
+      "tool_version": "v0.2.1-16-gd19ac95",
+      "ran_at": "2026-06-19T20:02:40Z",
+      "executed": true,
+      "runs_per_query": 3,
+      "timeout_seconds": 120,
+      "pricing": {
+        "input_per_mtok": 5,
+        "output_per_mtok": 30
+      },
+      "results": [
+        {
+          "query": "Add doc comments to the exported functions in this Go package",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.5,
+          "estimate": {
+            "input_tokens": 907,
+            "input_cost_usd": 0.004535
+          }
+        },
+        {
+          "query": "Write a package comment for internal/clientmap",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 7.4,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00452
+          }
+        },
+        {
+          "query": "Should the package comment go in doc.go or at the top of an existing file?",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 4.6,
+          "estimate": {
+            "input_tokens": 913,
+            "input_cost_usd": 0.004565
+          }
+        },
+        {
+          "query": "Document the exported API of this Go module",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 8.3,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00452
+          }
+        },
+        {
+          "query": "Generate markdown CLI docs for my cobra tool",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 9.2,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00452
+          }
+        },
+        {
+          "query": "Make my Go CLI's documentation consumable by LLMs",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 8.1,
+          "estimate": {
+            "input_tokens": 908,
+            "input_cost_usd": 0.00454
+          }
+        },
+        {
+          "query": "Review this Go package for missing godoc comments",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 5,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.004525
+          }
+        },
+        {
+          "query": "Add a doc.go to this package",
+          "should_trigger": true,
+          "hits": 3,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 11.8,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.004515
+          }
+        },
+        {
+          "query": "Write a README for this Go project",
+          "should_trigger": false,
+          "hits": 1,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 83.2,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.004515
+          }
+        },
+        {
+          "query": "Add inline comments explaining how this Go algorithm works",
+          "should_trigger": false,
+          "hits": 2,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 68.1,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.004525
+          }
+        },
+        {
+          "query": "Write table-driven tests for this Go function",
+          "should_trigger": false,
+          "hits": 1,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 99.5,
+          "estimate": {
+            "input_tokens": 904,
+            "input_cost_usd": 0.00452
+          }
+        },
+        {
+          "query": "Scaffold a new Go service with cmd and internal layout",
+          "should_trigger": false,
+          "hits": 3,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 29.4,
+          "estimate": {
+            "input_tokens": 907,
+            "input_cost_usd": 0.004535
+          }
+        },
+        {
+          "query": "Add docstrings to this Python module",
+          "should_trigger": false,
+          "hits": 0,
+          "runs": 3,
+          "passed": true,
+          "avg_run_seconds": 44.9,
+          "estimate": {
+            "input_tokens": 903,
+            "input_cost_usd": 0.004515
+          }
+        },
+        {
+          "query": "Generate OpenAPI docs for my Go REST API",
+          "should_trigger": false,
+          "hits": 2,
+          "runs": 3,
+          "passed": false,
+          "avg_run_seconds": 47.6,
+          "estimate": {
+            "input_tokens": 905,
+            "input_cost_usd": 0.004525
+          }
+        }
+      ],
+      "summary": {
+        "passed": 11,
+        "failed": 3,
+        "total": 14,
+        "pass_rate": 0.785714,
+        "avg_run_seconds": 31.2,
+        "estimate": {
+          "input_tokens": 12675,
+          "input_cost_usd": 0.063375
+        }
+      }
+    }
+  },
+  "evals": {
+    "anthropic/claude-haiku-4-5": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5",
+      "display": "Claude Haiku 4.5",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T13:47:31Z",
+      "executed": true,
+      "content_hash": "df4bcb0a1a0fe916fe054c07c5aab7db223f83b42414a1aead73fbcc59eaefe3",
+      "timeout_seconds": 600,
+      "pricing": {
+        "input_per_mtok": 1,
+        "output_per_mtok": 5
+      },
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1033,
+            "input_cost_usd": 0.001033
+          },
+          "measured": {
+            "input_tokens": 37,
+            "cache_read_input_tokens": 108694,
+            "cache_creation_input_tokens": 18660,
+            "output_tokens": 1219,
+            "cost_usd": 0.054916
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 128610,
+            "executor_duration_seconds": 23.1
+          },
+          "spec_hash": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1032,
+            "input_cost_usd": 0.001032
+          },
+          "measured": {
+            "input_tokens": 27,
+            "cache_read_input_tokens": 83632,
+            "cache_creation_input_tokens": 15608,
+            "output_tokens": 700,
+            "cost_usd": 0.043695
+          },
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Version ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Version /",
+              "passed": true,
+              "evidence": "\t// Version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Commit ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Commit /",
+              "passed": true,
+              "evidence": "\t// Commit ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// BuildDate ",
+              "text": "internal/version/version.go matches /^[\\t ]*// BuildDate /",
+              "passed": true,
+              "evidence": "\t// BuildDate ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 7,
+            "failed": 0,
+            "total": 7,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 99967,
+            "executor_duration_seconds": 11.7
+          },
+          "spec_hash": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": false,
+          "estimate": {
+            "input_tokens": 1072,
+            "input_cost_usd": 0.001072
+          },
+          "measured": {
+            "input_tokens": 72,
+            "cache_read_input_tokens": 318057,
+            "cache_creation_input_tokens": 18078,
+            "output_tokens": 2433,
+            "cost_usd": 0.080858
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": false,
+              "evidence": "internal/tools/docgen/main.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": false,
+              "evidence": "internal/tools/docgen/main.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": false,
+              "evidence": "internal/tools/docgen/main.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": false,
+              "evidence": "internal/tools/docgen/main.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": false,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 1,
+            "failed": 5,
+            "total": 6,
+            "pass_rate": 0.166667
+          },
+          "timing": {
+            "total_tokens": 338640,
+            "executor_duration_seconds": 35.3
+          },
+          "spec_hash": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+        }
+      ],
+      "summary": {
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "pass_rate": 0.666667,
+        "avg_run_seconds": 23.4,
+        "estimate": {
+          "input_tokens": 3137,
+          "input_cost_usd": 0.003137
+        },
+        "measured": {
+          "input_tokens": 136,
+          "cache_read_input_tokens": 510383,
+          "cache_creation_input_tokens": 52346,
+          "output_tokens": 4352,
+          "cost_usd": 0.179469
+        }
+      },
+      "baseline": {
+        "ran_at": "2026-06-21T13:47:31Z",
+        "summary": {
+          "passed": 0,
+          "failed": 3,
+          "total": 3,
+          "pass_rate": 0,
+          "avg_run_seconds": 25.4,
+          "measured": {
+            "input_tokens": 127,
+            "cache_read_input_tokens": 485023,
+            "cache_creation_input_tokens": 50839,
+            "output_tokens": 5748,
+            "cost_usd": 0.18087
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": false,
+            "pass_rate": 0.333333,
+            "avg_run_seconds": 43.2,
+            "measured": {
+              "input_tokens": 65,
+              "cache_read_input_tokens": 267243,
+              "cache_creation_input_tokens": 19267,
+              "output_tokens": 4027,
+              "cost_usd": 0.086097
+            },
+            "fingerprint": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+          },
+          "doc-multi-file-package": {
+            "passed": false,
+            "pass_rate": 0.6,
+            "avg_run_seconds": 22.8,
+            "measured": {
+              "input_tokens": 35,
+              "cache_read_input_tokens": 134462,
+              "cache_creation_input_tokens": 16274,
+              "output_tokens": 1092,
+              "cost_usd": 0.052084
+            },
+            "fingerprint": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+          },
+          "doc-single-file-package": {
+            "passed": false,
+            "pass_rate": 0.857143,
+            "avg_run_seconds": 10.1,
+            "measured": {
+              "input_tokens": 27,
+              "cache_read_input_tokens": 83318,
+              "cache_creation_input_tokens": 15298,
+              "output_tokens": 629,
+              "cost_usd": 0.042689
+            },
+            "fingerprint": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+          }
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:35:35Z",
+        "summary": {
+          "passed": 3,
+          "failed": 0,
+          "total": 3,
+          "pass_rate": 1,
+          "avg_run_seconds": 23.3,
+          "estimate": {
+            "input_tokens": 3137,
+            "input_cost_usd": 0.003137
+          },
+          "measured": {
+            "input_tokens": 138,
+            "cache_read_input_tokens": 485223,
+            "cache_creation_input_tokens": 56628,
+            "output_tokens": 5480,
+            "cost_usd": 0.191144
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 36.3,
+            "measured": {
+              "input_tokens": 68,
+              "cache_read_input_tokens": 265743,
+              "cache_creation_input_tokens": 21205,
+              "output_tokens": 2860,
+              "cost_usd": 0.083996
+            },
+            "estimate": {
+              "input_tokens": 1072,
+              "input_cost_usd": 0.001072
+            }
+          },
+          "doc-multi-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 20.2,
+            "measured": {
+              "input_tokens": 42,
+              "cache_read_input_tokens": 135450,
+              "cache_creation_input_tokens": 19618,
+              "output_tokens": 1683,
+              "cost_usd": 0.061833
+            },
+            "estimate": {
+              "input_tokens": 1033,
+              "input_cost_usd": 0.001033
+            }
+          },
+          "doc-single-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 13.3,
+            "measured": {
+              "input_tokens": 28,
+              "cache_read_input_tokens": 84030,
+              "cache_creation_input_tokens": 15805,
+              "output_tokens": 937,
+              "cost_usd": 0.045315
+            },
+            "estimate": {
+              "input_tokens": 1032,
+              "input_cost_usd": 0.001032
+            }
+          }
+        }
+      }
+    },
+    "anthropic/claude-opus-4-8": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-8",
+      "display": "Claude Opus 4.8",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T14:01:11Z",
+      "executed": true,
+      "content_hash": "df4bcb0a1a0fe916fe054c07c5aab7db223f83b42414a1aead73fbcc59eaefe3",
+      "timeout_seconds": 600,
+      "pricing": {
+        "input_per_mtok": 5,
+        "output_per_mtok": 25
+      },
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1405,
+            "input_cost_usd": 0.007025
+          },
+          "measured": {
+            "input_tokens": 2859,
+            "cache_read_input_tokens": 166365,
+            "cache_creation_input_tokens": 10390,
+            "output_tokens": 2803,
+            "cost_usd": 0.272048
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 182417,
+            "executor_duration_seconds": 56.3
+          },
+          "spec_hash": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1403,
+            "input_cost_usd": 0.007015
+          },
+          "measured": {
+            "input_tokens": 2859,
+            "cache_read_input_tokens": 163185,
+            "cache_creation_input_tokens": 9374,
+            "output_tokens": 2122,
+            "cost_usd": 0.243267
+          },
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Version ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Version /",
+              "passed": true,
+              "evidence": "\t// Version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Commit ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Commit /",
+              "passed": true,
+              "evidence": "\t// Commit ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// BuildDate ",
+              "text": "internal/version/version.go matches /^[\\t ]*// BuildDate /",
+              "passed": true,
+              "evidence": "\t// BuildDate ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 7,
+            "failed": 0,
+            "total": 7,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 177540,
+            "executor_duration_seconds": 38.5
+          },
+          "spec_hash": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1462,
+            "input_cost_usd": 0.00731
+          },
+          "measured": {
+            "input_tokens": 2865,
+            "cache_read_input_tokens": 261434,
+            "cache_creation_input_tokens": 14153,
+            "output_tokens": 5418,
+            "cost_usd": 0.422666
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 283870,
+            "executor_duration_seconds": 79.9
+          },
+          "spec_hash": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+        }
+      ],
+      "summary": {
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "pass_rate": 1,
+        "avg_run_seconds": 58.2,
+        "estimate": {
+          "input_tokens": 4270,
+          "input_cost_usd": 0.02135
+        },
+        "measured": {
+          "input_tokens": 8583,
+          "cache_read_input_tokens": 590984,
+          "cache_creation_input_tokens": 33917,
+          "output_tokens": 10343,
+          "cost_usd": 0.937981
+        }
+      },
+      "baseline": {
+        "ran_at": "2026-06-21T14:01:11Z",
+        "summary": {
+          "passed": 1,
+          "failed": 2,
+          "total": 3,
+          "pass_rate": 0.333333,
+          "avg_run_seconds": 143.2,
+          "measured": {
+            "input_tokens": 8072,
+            "cache_read_input_tokens": 628669,
+            "cache_creation_input_tokens": 39006,
+            "output_tokens": 20885,
+            "cost_usd": 1.268729
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": false,
+            "pass_rate": 0.333333,
+            "avg_run_seconds": 322.8,
+            "measured": {
+              "input_tokens": 2812,
+              "cache_read_input_tokens": 291747,
+              "cache_creation_input_tokens": 21346,
+              "output_tokens": 15661,
+              "cost_usd": 0.765583
+            },
+            "fingerprint": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+          },
+          "doc-multi-file-package": {
+            "passed": false,
+            "pass_rate": 0.7,
+            "avg_run_seconds": 59.9,
+            "measured": {
+              "input_tokens": 2629,
+              "cache_read_input_tokens": 158453,
+              "cache_creation_input_tokens": 9345,
+              "output_tokens": 3042,
+              "cost_usd": 0.262467
+            },
+            "fingerprint": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+          },
+          "doc-single-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 46.8,
+            "measured": {
+              "input_tokens": 2631,
+              "cache_read_input_tokens": 178469,
+              "cache_creation_input_tokens": 8315,
+              "output_tokens": 2182,
+              "cost_usd": 0.240679
+            },
+            "fingerprint": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+          }
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:43:55Z",
+        "summary": {
+          "passed": 3,
+          "failed": 0,
+          "total": 3,
+          "pass_rate": 1,
+          "avg_run_seconds": 59.8,
+          "estimate": {
+            "input_tokens": 4270,
+            "input_cost_usd": 0.02135
+          },
+          "measured": {
+            "input_tokens": 8585,
+            "cache_read_input_tokens": 614238,
+            "cache_creation_input_tokens": 35973,
+            "output_tokens": 11709,
+            "cost_usd": 1.004342
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 72.4,
+            "measured": {
+              "input_tokens": 2861,
+              "cache_read_input_tokens": 201571,
+              "cache_creation_input_tokens": 14156,
+              "output_tokens": 5406,
+              "cost_usd": 0.392459
+            },
+            "estimate": {
+              "input_tokens": 1462,
+              "input_cost_usd": 0.00731
+            }
+          },
+          "doc-multi-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 58.3,
+            "measured": {
+              "input_tokens": 2859,
+              "cache_read_input_tokens": 167822,
+              "cache_creation_input_tokens": 10966,
+              "output_tokens": 3112,
+              "cost_usd": 0.286261
+            },
+            "estimate": {
+              "input_tokens": 1405,
+              "input_cost_usd": 0.007025
+            }
+          },
+          "doc-single-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 48.8,
+            "measured": {
+              "input_tokens": 2865,
+              "cache_read_input_tokens": 244845,
+              "cache_creation_input_tokens": 10851,
+              "output_tokens": 3191,
+              "cost_usd": 0.325622
+            },
+            "estimate": {
+              "input_tokens": 1403,
+              "input_cost_usd": 0.007015
+            }
+          }
+        }
+      }
+    },
+    "anthropic/claude-sonnet-4-6": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "display": "Claude Sonnet 4.6",
+      "tool_version": "v0.2.1-37-g57b4712-dirty",
+      "ran_at": "2026-06-21T13:53:36Z",
+      "executed": true,
+      "content_hash": "df4bcb0a1a0fe916fe054c07c5aab7db223f83b42414a1aead73fbcc59eaefe3",
+      "timeout_seconds": 600,
+      "pricing": {
+        "input_per_mtok": 3,
+        "output_per_mtok": 15
+      },
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1033,
+            "input_cost_usd": 0.003099
+          },
+          "measured": {
+            "input_tokens": 8,
+            "cache_read_input_tokens": 116855,
+            "cache_creation_input_tokens": 9777,
+            "output_tokens": 899,
+            "cost_usd": 0.107822
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 127539,
+            "executor_duration_seconds": 21.9
+          },
+          "spec_hash": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1032,
+            "input_cost_usd": 0.003096
+          },
+          "measured": {
+            "input_tokens": 8,
+            "cache_read_input_tokens": 116417,
+            "cache_creation_input_tokens": 10371,
+            "output_tokens": 1878,
+            "cost_usd": 0.125934
+          },
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Version ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Version /",
+              "passed": true,
+              "evidence": "\t// Version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// Commit ",
+              "text": "internal/version/version.go matches /^[\\t ]*// Commit /",
+              "passed": true,
+              "evidence": "\t// Commit ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^[\\t ]*// BuildDate ",
+              "text": "internal/version/version.go matches /^[\\t ]*// BuildDate /",
+              "passed": true,
+              "evidence": "\t// BuildDate ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 7,
+            "failed": 0,
+            "total": 7,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 128674,
+            "executor_duration_seconds": 37.2
+          },
+          "spec_hash": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 1072,
+            "input_cost_usd": 0.003216
+          },
+          "measured": {
+            "input_tokens": 10,
+            "cache_read_input_tokens": 178277,
+            "cache_creation_input_tokens": 13301,
+            "output_tokens": 2791,
+            "cost_usd": 0.203738
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 194379,
+            "executor_duration_seconds": 76.3
+          },
+          "spec_hash": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+        }
+      ],
+      "summary": {
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "pass_rate": 1,
+        "avg_run_seconds": 45.1,
+        "estimate": {
+          "input_tokens": 3137,
+          "input_cost_usd": 0.009411
+        },
+        "measured": {
+          "input_tokens": 26,
+          "cache_read_input_tokens": 411549,
+          "cache_creation_input_tokens": 33449,
+          "output_tokens": 5568,
+          "cost_usd": 0.437494
+        }
+      },
+      "baseline": {
+        "ran_at": "2026-06-21T13:53:36Z",
+        "summary": {
+          "passed": 1,
+          "failed": 2,
+          "total": 3,
+          "pass_rate": 0.333333,
+          "avg_run_seconds": 98.7,
+          "measured": {
+            "input_tokens": 22,
+            "cache_read_input_tokens": 399638,
+            "cache_creation_input_tokens": 37821,
+            "output_tokens": 13156,
+            "cost_usd": 0.595434
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": false,
+            "pass_rate": 0.333333,
+            "avg_run_seconds": 188.7,
+            "measured": {
+              "input_tokens": 9,
+              "cache_read_input_tokens": 195944,
+              "cache_creation_input_tokens": 19065,
+              "output_tokens": 10398,
+              "cost_usd": 0.356587
+            },
+            "fingerprint": "132c92e168d6f654d16d3c41610150cac0c8a2c900237478d6a500ed2cad33ba"
+          },
+          "doc-multi-file-package": {
+            "passed": false,
+            "pass_rate": 0.7,
+            "avg_run_seconds": 47.2,
+            "measured": {
+              "input_tokens": 6,
+              "cache_read_input_tokens": 89535,
+              "cache_creation_input_tokens": 9578,
+              "output_tokens": 1711,
+              "cost_usd": 0.110601
+            },
+            "fingerprint": "8b5f6d032c568f00c97989c7f41236d6e8bb75dcfacb5862a5c01e6a3ec96518"
+          },
+          "doc-single-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 60.3,
+            "measured": {
+              "input_tokens": 7,
+              "cache_read_input_tokens": 114159,
+              "cache_creation_input_tokens": 9178,
+              "output_tokens": 1047,
+              "cost_usd": 0.128246
+            },
+            "fingerprint": "b24e8fdadeacc9e6e4d55063ce6a660c415556890b53e2db155fff9c70a9211c"
+          }
+        }
+      },
+      "previous": {
+        "ran_at": "2026-06-21T03:40:55Z",
+        "summary": {
+          "passed": 2,
+          "failed": 1,
+          "total": 3,
+          "pass_rate": 0.666667,
+          "avg_run_seconds": 69.4,
+          "estimate": {
+            "input_tokens": 3137,
+            "input_cost_usd": 0.009411
+          },
+          "measured": {
+            "input_tokens": 27,
+            "cache_read_input_tokens": 440294,
+            "cache_creation_input_tokens": 34409,
+            "output_tokens": 6506,
+            "cost_usd": 0.474626
+          }
+        },
+        "cases": {
+          "cobra-docgen": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 146.9,
+            "measured": {
+              "input_tokens": 10,
+              "cache_read_input_tokens": 180015,
+              "cache_creation_input_tokens": 14181,
+              "output_tokens": 3773,
+              "cost_usd": 0.232945
+            },
+            "estimate": {
+              "input_tokens": 1072,
+              "input_cost_usd": 0.003216
+            }
+          },
+          "doc-multi-file-package": {
+            "passed": true,
+            "pass_rate": 1,
+            "avg_run_seconds": 38.9,
+            "measured": {
+              "input_tokens": 9,
+              "cache_read_input_tokens": 143881,
+              "cache_creation_input_tokens": 10771,
+              "output_tokens": 1831,
+              "cost_usd": 0.135877
+            },
+            "estimate": {
+              "input_tokens": 1033,
+              "input_cost_usd": 0.003099
+            }
+          },
+          "doc-single-file-package": {
+            "passed": false,
+            "pass_rate": 0.571429,
+            "avg_run_seconds": 22.3,
+            "measured": {
+              "input_tokens": 8,
+              "cache_read_input_tokens": 116398,
+              "cache_creation_input_tokens": 9457,
+              "output_tokens": 902,
+              "cost_usd": 0.105804
+            },
+            "estimate": {
+              "input_tokens": 1032,
+              "input_cost_usd": 0.003096
+            }
+          }
+        }
+      }
+    },
+    "antigravity/gemini-3.1-pro": {
+      "provider": "antigravity",
+      "model": "gemini-3.1-pro",
+      "display": "Antigravity — Gemini 3.1 Pro",
+      "tool_version": "v0.2.1-30-g92b77e3",
+      "ran_at": "2026-06-20T20:36:14Z",
+      "executed": true,
+      "timeout_seconds": 600,
+      "pricing": null,
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "executor_duration_seconds": 23.8
+          }
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": false,
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// .+\\nvar \\(",
+              "text": "internal/version/version.go matches /^// .+\\nvar \\(/",
+              "passed": false,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 4,
+            "failed": 1,
+            "total": 5,
+            "pass_rate": 0.8
+          },
+          "timing": {
+            "executor_duration_seconds": 18.1
+          }
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "executor_duration_seconds": 35.9
+          }
+        }
+      ],
+      "summary": {
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "pass_rate": 0.666667,
+        "avg_run_seconds": 25.9
+      }
+    },
+    "antigravity/gemini-3.5-flash": {
+      "provider": "antigravity",
+      "model": "gemini-3.5-flash",
+      "display": "Antigravity — Gemini 3.5 Flash",
+      "tool_version": "v0.2.1-30-g92b77e3",
+      "ran_at": "2026-06-20T20:36:33Z",
+      "executed": true,
+      "timeout_seconds": 600,
+      "pricing": null,
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "executor_duration_seconds": 32.3
+          }
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": false,
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// .+\\nvar \\(",
+              "text": "internal/version/version.go matches /^// .+\\nvar \\(/",
+              "passed": false,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 4,
+            "failed": 1,
+            "total": 5,
+            "pass_rate": 0.8
+          },
+          "timing": {
+            "executor_duration_seconds": 18.3
+          }
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "executor_duration_seconds": 22.7
+          }
+        }
+      ],
+      "summary": {
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "pass_rate": 0.666667,
+        "avg_run_seconds": 24.4
+      }
+    },
+    "openai/gpt-5.4": {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "display": "GPT-5.4",
+      "tool_version": "v0.2.1-16-gd19ac95",
+      "ran_at": "2026-06-19T19:56:03Z",
+      "executed": true,
+      "timeout_seconds": 600,
+      "pricing": {
+        "input_per_mtok": 2.5,
+        "output_per_mtok": 15
+      },
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 910,
+            "input_cost_usd": 0.002275
+          },
+          "measured": {
+            "input_tokens": 79469,
+            "output_tokens": 1350,
+            "cost_usd": 0.218923
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 80819,
+            "executor_duration_seconds": 33.1
+          }
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 909,
+            "input_cost_usd": 0.002273
+          },
+          "measured": {
+            "input_tokens": 79758,
+            "output_tokens": 1463,
+            "cost_usd": 0.22134
+          },
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// .+\\nvar \\(",
+              "text": "internal/version/version.go matches /^// .+\\nvar \\(/",
+              "passed": true,
+              "evidence": "// with `-ldflags -X` during release builds.\nvar (",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 5,
+            "failed": 0,
+            "total": 5,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 81221,
+            "executor_duration_seconds": 35.4
+          }
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 945,
+            "input_cost_usd": 0.002363
+          },
+          "measured": {
+            "input_tokens": 144765,
+            "output_tokens": 4181,
+            "cost_usd": 0.424628
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 148946,
+            "executor_duration_seconds": 91.3
+          }
+        }
+      ],
+      "summary": {
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "pass_rate": 1,
+        "avg_run_seconds": 53.3,
+        "estimate": {
+          "input_tokens": 2764,
+          "input_cost_usd": 0.006911
+        },
+        "measured": {
+          "input_tokens": 303992,
+          "output_tokens": 6994,
+          "cost_usd": 0.864891
+        }
+      }
+    },
+    "openai/gpt-5.5": {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "display": "GPT-5.5",
+      "tool_version": "v0.2.1-30-g92b77e3",
+      "ran_at": "2026-06-20T20:35:56Z",
+      "executed": true,
+      "timeout_seconds": 600,
+      "pricing": {
+        "input_per_mtok": 5,
+        "output_per_mtok": 30
+      },
+      "results": [
+        {
+          "id": "doc-multi-file-package",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 910,
+            "input_cost_usd": 0.00455
+          },
+          "measured": {
+            "input_tokens": 103832,
+            "output_tokens": 1187,
+            "cost_usd": 0.55477
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/keyval/doc.go",
+              "text": "file internal/keyval/doc.go exists",
+              "passed": true,
+              "evidence": "internal/keyval/doc.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/doc.go",
+              "pattern": "^// Package keyval ",
+              "text": "internal/keyval/doc.go matches /^// Package keyval /",
+              "passed": true,
+              "evidence": "// Package keyval ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Store ",
+              "text": "internal/keyval/store.go matches /^// Store /",
+              "passed": true,
+              "evidence": "// Store ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// NewStore ",
+              "text": "internal/keyval/store.go matches /^// NewStore /",
+              "passed": true,
+              "evidence": "// NewStore ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Get ",
+              "text": "internal/keyval/store.go matches /^// Get /",
+              "passed": true,
+              "evidence": "// Get ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Parse ",
+              "text": "internal/keyval/parse.go matches /^// Parse /",
+              "passed": true,
+              "evidence": "// Parse ",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/store.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/store.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "not_regex",
+              "path": "internal/keyval/parse.go",
+              "pattern": "^// Package",
+              "text": "internal/keyval/parse.go does not match /^// Package/",
+              "passed": true,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 10,
+            "failed": 0,
+            "total": 10,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 105019,
+            "executor_duration_seconds": 31.2
+          }
+        },
+        {
+          "id": "doc-single-file-package",
+          "passed": false,
+          "estimate": {
+            "input_tokens": 909,
+            "input_cost_usd": 0.004545
+          },
+          "measured": {
+            "input_tokens": 11664,
+            "cache_read_input_tokens": 102144,
+            "output_tokens": 1566,
+            "cost_usd": 0.61602
+          },
+          "expectations": [
+            {
+              "type": "file_absent",
+              "path": "internal/version/doc.go",
+              "text": "file internal/version/doc.go is absent",
+              "passed": true,
+              "evidence": "internal/version/doc.go missing",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// Package version ",
+              "text": "internal/version/version.go matches /^// Package version /",
+              "passed": true,
+              "evidence": "// Package version ",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/version/version.go",
+              "pattern": "^// .+\\nvar \\(",
+              "text": "internal/version/version.go matches /^// .+\\nvar \\(/",
+              "passed": false,
+              "evidence": "no match",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "go vet ./...",
+              "requires": "go",
+              "text": "command `go vet ./...` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            },
+            {
+              "type": "command",
+              "run": "test -z \"$(gofmt -l .)\"",
+              "requires": "gofmt",
+              "text": "command `test -z \"$(gofmt -l .)\"` exits 0",
+              "passed": true,
+              "evidence": "exit 0: ",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 4,
+            "failed": 1,
+            "total": 5,
+            "pass_rate": 0.8
+          },
+          "timing": {
+            "total_tokens": 115374,
+            "executor_duration_seconds": 39.8
+          }
+        },
+        {
+          "id": "cobra-docgen",
+          "passed": true,
+          "estimate": {
+            "input_tokens": 945,
+            "input_cost_usd": 0.004725
+          },
+          "measured": {
+            "input_tokens": 127545,
+            "output_tokens": 2832,
+            "cost_usd": 0.722685
+          },
+          "expectations": [
+            {
+              "type": "file_exists",
+              "path": "internal/tools/docgen/main.go",
+              "text": "file internal/tools/docgen/main.go exists",
+              "passed": true,
+              "evidence": "internal/tools/docgen/main.go exists",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "spf13/cobra/doc",
+              "text": "internal/tools/docgen/main.go matches /spf13/cobra/doc/",
+              "passed": true,
+              "evidence": "spf13/cobra/doc",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "DisableAutoGenTag",
+              "text": "internal/tools/docgen/main.go matches /DisableAutoGenTag/",
+              "passed": true,
+              "evidence": "DisableAutoGenTag",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/tools/docgen/main.go",
+              "pattern": "GenMarkdownTree",
+              "text": "internal/tools/docgen/main.go matches /GenMarkdownTree/",
+              "passed": true,
+              "evidence": "GenMarkdownTree",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "internal/cli/root.go",
+              "pattern": "func Root\\(\\) \\*cobra\\.Command",
+              "text": "internal/cli/root.go matches /func Root\\(\\) \\*cobra\\.Command/",
+              "passed": true,
+              "evidence": "func Root() *cobra.Command",
+              "source": "assertion"
+            },
+            {
+              "type": "regex",
+              "path": "Makefile",
+              "pattern": "go run \\./internal/tools/docgen",
+              "text": "Makefile matches /go run \\./internal/tools/docgen/",
+              "passed": true,
+              "evidence": "go run ./internal/tools/docgen",
+              "source": "assertion"
+            }
+          ],
+          "summary": {
+            "passed": 6,
+            "failed": 0,
+            "total": 6,
+            "pass_rate": 1
+          },
+          "timing": {
+            "total_tokens": 130377,
+            "executor_duration_seconds": 62.4
+          }
+        }
+      ],
+      "summary": {
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "pass_rate": 0.666667,
+        "avg_run_seconds": 44.5,
+        "estimate": {
+          "input_tokens": 2764,
+          "input_cost_usd": 0.01382
+        },
+        "measured": {
+          "input_tokens": 243041,
+          "cache_read_input_tokens": 102144,
+          "output_tokens": 5585,
+          "cost_usd": 1.893475
+        }
+      }
+    }
+  }
+}

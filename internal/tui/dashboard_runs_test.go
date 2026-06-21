@@ -27,7 +27,7 @@ func sharedSelDashboard(t *testing.T) dashboardModel {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40
 	d.apply(unitStartedMsg{ref: tr, total: 2, mode: run.ModeRun})
 	for _, q := range []string{"q1", "q2"} {
@@ -118,7 +118,7 @@ func TestRunsPreloadsPendingExecutions(t *testing.T) {
 	key := m1.Key()
 	tr := run.UnitRef{Skill: "solo-skill", Key: key, Kind: run.KindTriggers}
 	ev := run.UnitRef{Skill: "solo-skill", Key: key, Kind: run.KindEvals}
-	d := newDashboard(cat, []run.UnitRef{tr, ev}, nil)
+	d := newDashboard(cat, []run.UnitRef{tr, ev}, nil, run.PriorMetrics{})
 	d.w, d.h = 100, 30
 
 	// Every planned execution is listed before anything starts, in plan order.
@@ -166,7 +166,7 @@ func TestRunsFollowPause(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := newDashboard(cat, []run.UnitRef{ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 100, 30
 
 	d.apply(unitStartedMsg{ref: ev, total: 2, mode: run.ModeRun})
@@ -209,7 +209,7 @@ func TestRunsPaneCentersSelection(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {}},
 	}
-	d := newDashboard(cat, []run.UnitRef{ev}, filter)
+	d := newDashboard(cat, []run.UnitRef{ev}, filter, run.PriorMetrics{})
 	d.w, d.h = 120, 40 // tall enough that the Runs window hits its 7-row cap
 
 	const n = 15

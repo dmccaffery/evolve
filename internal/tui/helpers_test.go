@@ -62,7 +62,7 @@ func testModel(t *testing.T) Model {
 			{Skill: "solo-skill", Kind: run.KindEvals, Case: "e2"}:    true,
 		},
 	}
-	return New(cat, sels, needs, nil, "", make(chan RunRequest, 1))
+	return New(cat, sels, needs, nil, "", run.PriorMetrics{}, make(chan RunRequest, 1))
 }
 
 func step(m Model, msg tea.Msg) Model {

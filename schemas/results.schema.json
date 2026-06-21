@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bitwise-media-group/evolve/main/schemas/results.schema.json",
-  "title": "evolve results file (schema 2)",
-  "description": "One skill's committed results (evals/<skill>/results.<ext>; format selected by results_format). Each per-eval result is a superset of a skill-creator grading.json document. Consumers must treat an absent key and an explicit null identically.",
+  "title": "evolve results file (schema 3)",
+  "description": "One skill's committed results (evals/<skill>/results.<ext>; format selected by results_format). Each per-eval result is a superset of a skill-creator grading.json document. Entries also retain compact prior states — previous (the run replaced) on both tiers and baseline (the same evals run without the skill) on the eval tier — so deltas are computable without re-running. Consumers must treat an absent key and an explicit null identically.",
   "type": "object",
   "required": ["schema", "plugin", "skill"],
   "properties": {
@@ -29,10 +29,36 @@
           "required": ["results", "summary"],
           "properties": {
             "results": { "type": "array", "items": { "$ref": "#/$defs/triggerResult" } },
-            "summary": { "$ref": "#/$defs/triggerSummary" }
+            "summary": { "$ref": "#/$defs/triggerSummary" },
+            "previous": { "$ref": "#/$defs/triggerSnapshot" }
           }
         }
       ]
+    },
+    "triggerSnapshot": {
+      "description": "A compact record of one prior trigger run: its summary plus per-query scalar metrics, keyed by query.",
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "ran_at": { "type": "string", "format": "date-time" },
+        "summary": { "$ref": "#/$defs/triggerSummary" },
+        "cases": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/triggerCaseMetrics" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "triggerCaseMetrics": {
+      "type": "object",
+      "properties": {
+        "hits": { "type": "integer", "minimum": 0 },
+        "runs": { "type": "integer", "minimum": 1 },
+        "passed": { "type": ["boolean", "null"] },
+        "avg_run_seconds": { "type": "number", "minimum": 0 },
+        "estimate": { "$ref": "common.schema.json#/$defs/estimate" }
+      },
+      "additionalProperties": true
     },
     "triggerResult": {
       "type": "object",
@@ -73,10 +99,42 @@
           "required": ["results", "summary"],
           "properties": {
             "results": { "type": "array", "items": { "$ref": "#/$defs/evalResult" } },
-            "summary": { "$ref": "#/$defs/evalSummary" }
+            "summary": { "$ref": "#/$defs/evalSummary" },
+            "baseline": { "$ref": "#/$defs/evalSnapshot" },
+            "previous": { "$ref": "#/$defs/evalSnapshot" }
           }
         }
       ]
+    },
+    "evalSnapshot": {
+      "description": "A compact record of one prior eval run (previous or without-skill baseline): its summary plus per-eval scalar metrics, keyed by eval id.",
+      "type": "object",
+      "required": ["summary"],
+      "properties": {
+        "ran_at": { "type": "string", "format": "date-time" },
+        "summary": { "$ref": "#/$defs/evalSummary" },
+        "cases": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/evalCaseMetrics" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "evalCaseMetrics": {
+      "type": "object",
+      "properties": {
+        "passed": { "type": ["boolean", "null"] },
+        "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "avg_run_seconds": { "type": "number", "minimum": 0 },
+        "measured": { "$ref": "common.schema.json#/$defs/measured" },
+        "estimate": { "$ref": "common.schema.json#/$defs/estimate" },
+        "errored": { "type": "boolean" },
+        "fingerprint": {
+          "description": "Baseline cases only: the eval spec+fixtures fingerprint the baseline was run against, so a baseline is recomputed only when the eval changes.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
     },
     "evalResult": {
       "description": "One eval's outcome: grading.json's expectations/summary/execution_metrics/timing (and, once populated, claims/user_notes_summary/eval_feedback) plus evolve's identity, token, and cost extras. Count-only runs carry just id and estimate.",
