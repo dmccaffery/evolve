@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
@@ -114,15 +114,15 @@ func TestExecutingPaneAndRuler(t *testing.T) {
 
 	// k (in the Runs pane, focused by default) selects the previous row and pauses
 	// follow; G jumps to the bottom of the list; f re-follows the live execution.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	d.handleKey(runeKey("k"))
 	if d.runFollow || d.execLog[d.currentRun()].label != "q2" {
 		t.Errorf("k should select the previous run: follow=%v sel=%q", d.runFollow, d.execLog[d.currentRun()].label)
 	}
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+	d.handleKey(runeKey("G"))
 	if d.currentRun() != len(d.execLog)-1 {
 		t.Errorf("G should jump to the bottom: sel=%d want %d", d.currentRun(), len(d.execLog)-1)
 	}
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+	d.handleKey(runeKey("f"))
 	if !d.runFollow || d.execLog[d.currentRun()].label != "e1" {
 		t.Errorf("f should re-follow the live execution: follow=%v sel=%q", d.runFollow, d.execLog[d.currentRun()].label)
 	}
@@ -210,7 +210,7 @@ func TestExecutionBrowseKeepsCursorOnScreen(t *testing.T) {
 	// A live path (so the model is expanded), then focus the Execution pane.
 	d.apply(unitStartedMsg{ref: tr, total: 2, mode: run.ModeRun})
 	d.apply(itemStartedMsg{ref: tr, item: run.ItemStart{Label: "q1"}})
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	d.handleKey(runeKey("1"))
 
 	const w, h = 60, 5
 	if nodes := d.execNodes(); len(nodes) <= h {
@@ -219,7 +219,7 @@ func TestExecutionBrowseKeepsCursorOnScreen(t *testing.T) {
 	// Walk to the top (plugin row), step down through the headers, jump to the
 	// bottom, and back up; the cursor glyph must appear in every rendering.
 	for _, k := range []string{"g", "j", "j", "G", "k"} {
-		d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
+		d.handleKey(runeKey(k))
 		body := d.renderLeftBody(d.execNodes(), d.execSel, w, h)
 		if !strings.Contains(body, "›") {
 			t.Errorf("after %q the highlight ran off-screen (no › in body):\n%s", k, body)
@@ -263,7 +263,7 @@ func TestExecutionBrowseMode(t *testing.T) {
 
 	// Focus the Execution pane → browse mode, seeded from the live path so the
 	// running model is already expanded.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	d.handleKey(runeKey("1"))
 	if !d.execBrowse {
 		t.Fatal("focusing the Execution pane should enter browse mode")
 	}
@@ -273,7 +273,7 @@ func TestExecutionBrowseMode(t *testing.T) {
 
 	// Walking the cursor never settles on a ruler divider.
 	for range 12 {
-		d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+		d.handleKey(runeKey("k"))
 		nodes := d.execNodes()
 		if nodes[d.execSel].kind == nkRule {
 			t.Fatalf("cursor landed on a ruler at index %d", d.execSel)
@@ -293,7 +293,7 @@ func TestExecutionBrowseMode(t *testing.T) {
 		t.Fatal("e1 case row not visible in the expanded tree")
 	}
 	d.execSel = e1
-	d.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	d.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if d.focus != paneDetails {
 		t.Errorf("opening a case should focus Details, got %v", d.focus)
 	}

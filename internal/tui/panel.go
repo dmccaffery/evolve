@@ -4,10 +4,11 @@
 package tui
 
 import (
+	"image/color"
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -27,7 +28,7 @@ const (
 // omit those. w and h are the panel's total outer dimensions.
 // accent, when supplied, paints the border and title in a fixed colour
 // regardless of focus — used for the dashboard's non-selectable panels.
-func panel(num int, title, count, topRight, body string, focused bool, w, h int, accent ...lipgloss.Color) string {
+func panel(num int, title, count, topRight, body string, focused bool, w, h int, accent ...color.Color) string {
 	if w < 4 {
 		w = 4
 	}
@@ -39,7 +40,7 @@ func panel(num int, title, count, topRight, body string, focused bool, w, h int,
 
 	bs, ts := borderBlurStyle, titleBlurStyle
 	switch {
-	case len(accent) > 0 && accent[0] != "":
+	case len(accent) > 0 && accent[0] != nil:
 		// Accent panels (the dashboard): the title keeps the pane's bright hue at
 		// all times for readability; only the border dims when the pane is blurred.
 		ts = lipgloss.NewStyle().Bold(true).Foreground(accent[0])

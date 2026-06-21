@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
@@ -372,56 +372,13 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 			u.settlePending(stSkipped)
 		}
 	case baselineStartedMsg:
-		// An eval's without-skill baseline started, ahead of its own run. Mark the
-		// row running (baseline phase) so it streams a yellow indicator instead of
-		// stalling silently while the baseline agent session executes.
-		d.markStarted()
-		if u := d.unit(m.ref); u != nil {
-			cr := u.byLabel[m.item.Label]
-			if cr == nil {
-				cr = &caseState{kind: m.ref.Kind, label: m.item.Label}
-				u.cases = append(u.cases, cr)
-				u.byLabel[m.item.Label] = cr
-			}
-			cr.status = stRunning
-			cr.baselineRunning = true
-			u.status = stRunning
-			d.removeInflight(m.ref, m.item.Label)
-			d.inflight = append(d.inflight, inflight{ref: m.ref, label: m.item.Label, start: d.now()})
-			idx := d.execLogIndex(m.ref, m.item.Label)
-			if idx < 0 {
-				d.execLog = append(d.execLog, execItem{ref: m.ref, label: m.item.Label})
-				idx = len(d.execLog) - 1
-			}
-			d.liveIdx = idx
-			d.followAdvance()
-		}
+		// An eval's without-skill baseline started, ahead of its own run. Marking
+		// the row running in its baseline phase streams a yellow indicator instead
+		// of stalling silently while the baseline agent session executes.
+		d.startCase(m.ref, m.item.Label, true)
 	case itemStartedMsg:
-		d.markStarted()
-		if u := d.unit(m.ref); u != nil {
-			cr := u.byLabel[m.item.Label]
-			if cr == nil {
-				cr = &caseState{kind: m.ref.Kind, label: m.item.Label}
-				u.cases = append(u.cases, cr)
-				u.byLabel[m.item.Label] = cr
-			}
-			cr.status = stRunning
-			cr.baselineRunning = false // the baseline phase (if any) is over; this is the run under test
-			u.status = stRunning
-			// A baseline phase may have left an inflight entry and a live timer; reset
-			// it so the run under test times its own duration, not baseline+run.
-			d.removeInflight(m.ref, m.item.Label)
-			d.inflight = append(d.inflight, inflight{ref: m.ref, label: m.item.Label, start: d.now()})
-			// The execution is normally already in the pre-populated log; append only
-			// a case the catalog did not predeclare. Either way it is now the live one.
-			idx := d.execLogIndex(m.ref, m.item.Label)
-			if idx < 0 {
-				d.execLog = append(d.execLog, execItem{ref: m.ref, label: m.item.Label})
-				idx = len(d.execLog) - 1
-			}
-			d.liveIdx = idx
-			d.followAdvance()
-		}
+		// The run under test; the baseline phase (if any) is now over.
+		d.startCase(m.ref, m.item.Label, false)
 	case itemDoneMsg:
 		if u := d.unit(m.ref); u != nil {
 			u.done++
@@ -478,6 +435,40 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 	}
 }
 
+// startCase marks a case as running and makes it the live execution: it creates
+// the case row if the event arrived before the unit pre-listed it, (re)starts
+// its inflight timer, and points the Runs log and follow cursor at it. baseline
+// distinguishes an eval's without-skill baseline phase from the run under test
+// that follows it; a baseline phase may have left an inflight entry and a live
+// timer, so the timer is reset either way and each phase times its own duration.
+func (d *dashboardModel) startCase(ref run.UnitRef, label string, baseline bool) {
+	d.markStarted()
+	u := d.unit(ref)
+	if u == nil {
+		return
+	}
+	cr := u.byLabel[label]
+	if cr == nil {
+		cr = &caseState{kind: ref.Kind, label: label}
+		u.cases = append(u.cases, cr)
+		u.byLabel[label] = cr
+	}
+	cr.status = stRunning
+	cr.baselineRunning = baseline
+	u.status = stRunning
+	d.removeInflight(ref, label)
+	d.inflight = append(d.inflight, inflight{ref: ref, label: label, start: d.now()})
+	// The execution is normally already in the pre-populated log; append only a
+	// case the catalog did not predeclare. Either way it is now the live one.
+	idx := d.execLogIndex(ref, label)
+	if idx < 0 {
+		d.execLog = append(d.execLog, execItem{ref: ref, label: label})
+		idx = len(d.execLog) - 1
+	}
+	d.liveIdx = idx
+	d.followAdvance()
+}
+
 // settlePending moves a unit's still-pending cases to s — used when a count-only
 // unit finishes without per-case run results.
 func (u *unitState) settlePending(s status) {
@@ -518,7 +509,7 @@ func (d *dashboardModel) removeInflight(ref run.UnitRef, label string) {
 // pane; the rest route to whichever pane is active. The Execution pane has two
 // modes: it reflects the shared selection while unfocused and becomes a navigable
 // tree while focused (see enterBrowse/exitBrowse).
-func (d *dashboardModel) handleKey(msg tea.KeyMsg) bool {
+func (d *dashboardModel) handleKey(msg tea.KeyPressMsg) bool {
 	key := msg.String()
 
 	// The quit-confirmation dialog captures input until dismissed; a second
@@ -587,7 +578,7 @@ func (d *dashboardModel) paneKey(key string) {
 			d.moveRun(d.runPageStep())
 		case "ctrl+u", "pgup":
 			d.moveRun(-d.runPageStep())
-		case "enter", " ":
+		case "enter", " ", "space":
 			d.detailScroll = 0
 			d.setFocus(paneDetails)
 		}

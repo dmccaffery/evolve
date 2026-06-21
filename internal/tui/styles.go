@@ -5,44 +5,36 @@ package tui
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
+	"image/color"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
-// Palette. Colours are ANSI-256 so they degrade gracefully on limited
-// terminals.
+// Palette. 24-bit cyberdream hues: lipgloss/bubbletea v2 detect the terminal's
+// colour profile and downsample truecolor natively, so the styles can stay hex
+// and still degrade gracefully on 256/16-colour terminals.
 var (
-	colGreen  = lipgloss.Color("42")  // pass
-	colRed    = lipgloss.Color("203") // fail
-	colYellow = lipgloss.Color("214") // error / warning
-	colGrey   = lipgloss.Color("245") // pending / muted
-	colBlue   = lipgloss.Color("39")  // focus / accent
-	colFaint  = lipgloss.Color("239") // borders, separators
+	colGreen  = lipgloss.Color("#5eff6b") // pass
+	colRed    = lipgloss.Color("#ff6e5e") // fail
+	colYellow = lipgloss.Color("#f1ff5e") // error / warning
+	colGrey   = lipgloss.Color("#7b8496") // pending / muted
+	colBlue   = lipgloss.Color("#5ea1ff") // focus / accent
+	colFaint  = lipgloss.Color("#3c4048") // borders, separators
 
-	// cyberdream accents for the dashboard's panel borders, one per pane.
-	colCyberPink   = lipgloss.Color("#ff5ea0") // execution (left, never focusable)
-	colCyberGreen  = lipgloss.Color("#5eff6c") // rollup
-	colCyberBlue   = lipgloss.Color("#5ec8ff") // runs
-	colCyberOrange = lipgloss.Color("#ffbd5e") // details
+	// Accents for the dashboard's panel borders, one per pane.
+	accentExec    = lipgloss.Color("#ff5ea0") // execution (left, never focusable)
+	accentRollup  = lipgloss.Color("#5eff6b") // rollup
+	accentRuns    = lipgloss.Color("#5ef1ff") // runs
+	accentDetails = lipgloss.Color("#ffbd5e") // details
 )
 
-// dim darkens a hex pane colour for an inactive panel's border/title; non-hex
-// colours fall back to the faint border grey. Active panels keep the bright hue.
-func dim(c lipgloss.Color) lipgloss.Color {
-	s := string(c)
-	if len(s) != 7 || !strings.HasPrefix(s, "#") {
-		return colFaint
-	}
-	scale := func(a, b int) int64 {
-		n, err := strconv.ParseInt(s[a:b], 16, 0)
-		if err != nil {
-			return 0
-		}
-		return n * 40 / 100
-	}
-	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", scale(1, 3), scale(3, 5), scale(5, 7)))
+// dim darkens a pane colour to 40% brightness for an inactive panel's border;
+// active panels keep the bright hue. It reads the colour's channels via RGBA so
+// it works for every palette entry regardless of how it was specified.
+func dim(c color.Color) color.Color {
+	r, g, b, _ := c.RGBA() // 16-bit per channel, alpha-premultiplied
+	scale := func(v uint32) int { return int(v>>8) * 40 / 100 }
+	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", scale(r), scale(g), scale(b)))
 }
 
 var (
@@ -58,7 +50,7 @@ var (
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colBlue)
 	headerStyle   = lipgloss.NewStyle().Bold(true).Foreground(colYellow)
 
-	tabActiveStyle = lipgloss.NewStyle().Bold(true).Foreground(colCyberGreen)
+	tabActiveStyle = lipgloss.NewStyle().Bold(true).Foreground(accentRollup)
 
 	passStyle  = lipgloss.NewStyle().Foreground(colGreen)
 	failStyle  = lipgloss.NewStyle().Foreground(colRed)
@@ -73,6 +65,6 @@ var (
 
 	buttonStyle = lipgloss.NewStyle().Padding(0, 2).Foreground(colGrey).
 			Border(lipgloss.RoundedBorder()).BorderForeground(colFaint)
-	buttonActive = lipgloss.NewStyle().Padding(0, 2).Bold(true).Foreground(lipgloss.Color("231")).
+	buttonActive = lipgloss.NewStyle().Padding(0, 2).Bold(true).Foreground(lipgloss.Color("#ffffff")).
 			Background(colBlue).Border(lipgloss.RoundedBorder()).BorderForeground(colBlue)
 )

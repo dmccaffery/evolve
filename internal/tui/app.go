@@ -8,8 +8,8 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
@@ -72,7 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.screen == screenForm {
 			var action formAction
 			m.form, action = m.form.update(msg.String())
@@ -145,9 +145,14 @@ func mergeFilters(filters map[string]*run.Filter) *run.Filter {
 	return merged
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	content := m.dash.view()
 	if m.screen == screenForm {
-		return m.form.view()
+		content = m.form.view()
 	}
-	return m.dash.view()
+	// Alt-screen is declared on the View in bubbletea v2 (the WithAltScreen
+	// program option is gone); the renderer enters full-window mode for us.
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }

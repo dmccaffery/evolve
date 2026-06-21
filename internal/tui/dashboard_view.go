@@ -5,9 +5,10 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -84,16 +85,16 @@ func (d dashboardModel) rightDims() (w, rollupH, runsH, detailsH int) {
 	return w, rollupH, runsH, detailsH
 }
 
-func paneBaseColor(p pane) lipgloss.Color {
+func paneBaseColor(p pane) color.Color {
 	switch p {
 	case paneExecution:
-		return colCyberPink
+		return accentExec
 	case paneRollup:
-		return colCyberGreen
+		return accentRollup
 	case paneRuns:
-		return colCyberBlue
+		return accentRuns
 	default:
-		return colCyberOrange
+		return accentDetails
 	}
 }
 
@@ -117,7 +118,7 @@ func (d dashboardModel) footerHints() string {
 func (d dashboardModel) quitDialog() string {
 	box := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(colCyberOrange).
+		BorderForeground(accentDetails).
 		Padding(1, 4).
 		Align(lipgloss.Center).
 		Render(titleStyle.Render("Are you sure you want to quit?") + "\n\n" +

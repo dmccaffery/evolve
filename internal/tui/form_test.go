@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
 	"github.com/bitwise-media-group/evolve/internal/provider"
@@ -17,7 +17,7 @@ import (
 func TestFormRendersAndPreselects(t *testing.T) {
 	m := testModel(t)
 	m = step(m, tea.WindowSizeMsg{Width: 120, Height: 32})
-	out := m.View()
+	out := m.View().Content
 	if !strings.Contains(out, "Providers") || !strings.Contains(out, "Triggers") || !strings.Contains(out, "Evaluations") {
 		t.Errorf("form view missing pane titles:\n%s", out)
 	}
@@ -58,7 +58,7 @@ func TestFormShowsPreselectionReasons(t *testing.T) {
 
 	m := New(cat, sels, needs, notes, "", run.PriorMetrics{}, make(chan RunRequest, 1))
 	m = step(m, tea.WindowSizeMsg{Width: 120, Height: 32})
-	out := m.View()
+	out := m.View().Content
 	if !strings.Contains(out, "not passing (failed)") {
 		t.Errorf("form view missing the q1 preselection reason:\n%s", out)
 	}

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -17,7 +17,7 @@ func TestRunTransitionAndDashboard(t *testing.T) {
 	m = step(m, tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	// RUN.
-	m = step(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	m = step(m, runeKey("r"))
 	if m.screen != screenDashboard {
 		t.Fatal("did not switch to dashboard on RUN")
 	}
@@ -54,7 +54,7 @@ func TestRunTransitionAndDashboard(t *testing.T) {
 		t.Errorf("unit status = %v, want pass", m.dash.units[0].status)
 	}
 
-	out := m.View()
+	out := m.View().Content
 	for _, want := range []string{"Execution", "Rollup", "Runs", "Details"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("dashboard view missing %q:\n%s", want, out)
@@ -65,14 +65,14 @@ func TestRunTransitionAndDashboard(t *testing.T) {
 	if m.dash.focus != paneRuns {
 		t.Fatalf("default focus = %v, want Runs", m.dash.focus)
 	}
-	m = step(m, tea.KeyMsg{Type: tea.KeyTab})
+	m = step(m, tea.KeyPressMsg{Code: tea.KeyTab})
 	if m.dash.focus != paneDetails {
 		t.Errorf("Tab from Runs should focus Details, got %v", m.dash.focus)
 	}
 	// Focus the Rollup pane (2) and switch its tabs with → only while it is active.
-	m = step(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
+	m = step(m, runeKey("2"))
 	before := m.dash.tab
-	m = step(m, tea.KeyMsg{Type: tea.KeyRight})
+	m = step(m, tea.KeyPressMsg{Code: tea.KeyRight})
 	if m.dash.tab == before {
 		t.Error("→ in the Rollup pane did not advance the tab")
 	}
@@ -130,7 +130,7 @@ func TestTitleBarAlignment(t *testing.T) {
 func TestCancelQuits(t *testing.T) {
 	m := testModel(t)
 	m = step(m, tea.WindowSizeMsg{Width: 80, Height: 24})
-	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	if cmd == nil {
 		t.Fatal("esc on form should return a quit command")
 	}

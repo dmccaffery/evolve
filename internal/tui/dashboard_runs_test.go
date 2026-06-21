@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -62,8 +62,8 @@ func TestSharedSelectionRunsToExecution(t *testing.T) {
 	if got := highlightLabel(d); got != "e2" {
 		t.Fatalf("while following, Execution highlight = %q, want the newest (e2)", got)
 	}
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")}) // focus Runs
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}) // select the older run (e1)
+	d.handleKey(runeKey("3")) // focus Runs
+	d.handleKey(runeKey("k")) // select the older run (e1)
 	if d.currentRun() != 2 || d.runFollow {
 		t.Fatalf("Runs k: sel=%d follow=%v, want 2/false", d.currentRun(), d.runFollow)
 	}
@@ -76,13 +76,13 @@ func TestSharedSelectionRunsToExecution(t *testing.T) {
 // shared selection, and leaving the pane does not snap back to the newest run.
 func TestSharedSelectionExecutionToRuns(t *testing.T) {
 	d := sharedSelDashboard(t)
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")}) // browse, cursor seeded on e2
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}) // up to e1
+	d.handleKey(runeKey("1")) // browse, cursor seeded on e2
+	d.handleKey(runeKey("k")) // up to e1
 	if d.currentRun() != 2 || d.runFollow {
 		t.Fatalf("browse k to e1: sel=%d follow=%v, want 2/false", d.currentRun(), d.runFollow)
 	}
 	// Leaving the Execution pane keeps the selection on e1 (no auto-follow jump).
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	d.handleKey(runeKey("3"))
 	if d.execBrowse {
 		t.Error("leaving Execution should exit browse")
 	}
@@ -95,9 +95,9 @@ func TestSharedSelectionExecutionToRuns(t *testing.T) {
 // selected run, mirroring the Execution pane's enter.
 func TestRunsEnterOpensDetails(t *testing.T) {
 	d := sharedSelDashboard(t)
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")}) // focus Runs
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}) // select e1
-	d.handleKey(tea.KeyMsg{Type: tea.KeyEnter})
+	d.handleKey(runeKey("3")) // focus Runs
+	d.handleKey(runeKey("k")) // select e1
+	d.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if d.focus != paneDetails {
 		t.Errorf("enter in Runs should focus Details, got %v", d.focus)
 	}
@@ -176,23 +176,23 @@ func TestRunsFollowPause(t *testing.T) {
 	}
 
 	// Focusing Details pauses Runs' follow: a new execution does not move it.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("4")})
+	d.handleKey(runeKey("4"))
 	d.apply(itemStartedMsg{ref: ev, item: run.ItemStart{Index: 1, Label: "e2"}})
 	if d.currentRun() != 0 {
 		t.Errorf("Details active should pause follow, sel=%d want 0", d.currentRun())
 	}
 	// Leaving Details for Runs resumes follow → snaps to the newest (index 1).
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	d.handleKey(runeKey("3"))
 	if d.currentRun() != 1 {
 		t.Errorf("leaving Details should resume follow, sel=%d want 1", d.currentRun())
 	}
 
 	// k pauses follow; F re-follows the newest.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+	d.handleKey(runeKey("k"))
 	if d.runFollow {
 		t.Error("k off the last row should pause follow")
 	}
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("F")})
+	d.handleKey(runeKey("F"))
 	if !d.runFollow || d.currentRun() != 1 {
 		t.Errorf("F should follow the newest, follow=%v sel=%d", d.runFollow, d.currentRun())
 	}
@@ -222,10 +222,10 @@ func TestRunsPaneCentersSelection(t *testing.T) {
 	}
 
 	// Focus Runs, go to the oldest row, then step to a comfortably mid-list one.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	d.handleKey(runeKey("3"))
+	d.handleKey(runeKey("g"))
 	for range 7 {
-		d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+		d.handleKey(runeKey("j"))
 	}
 	if sel := d.currentRun(); sel != 7 {
 		t.Fatalf("selection = %d, want 7 (mid-list)", sel)

@@ -6,7 +6,7 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
 	"github.com/bitwise-media-group/evolve/internal/provider"
@@ -63,6 +63,12 @@ func testModel(t *testing.T) Model {
 		},
 	}
 	return New(cat, sels, needs, nil, "", run.PriorMetrics{}, make(chan RunRequest, 1))
+}
+
+// runeKey builds a printable key-press message from a single-character string,
+// the bubbletea v2 replacement for tea.KeyMsg{Type: tea.KeyRunes, ...}.
+func runeKey(s string) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: []rune(s)[0], Text: s}
 }
 
 func step(m Model, msg tea.Msg) Model {

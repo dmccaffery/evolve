@@ -625,7 +625,7 @@ func (d *dashboardModel) execKey(key string) {
 		d.execExpandCurrent(true)
 	case "left", "h":
 		d.execExpandCurrent(false)
-	case "enter", " ":
+	case "enter", " ", "space":
 		d.execActivate()
 		return
 	}

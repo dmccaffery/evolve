@@ -10,7 +10,7 @@ import (
 	"os"
 	"sync"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -79,7 +79,7 @@ func runWithUI(cmd *cobra.Command, cat []run.SkillCatalog, sels []provider.Selec
 ) (bool, error) {
 	runReq := make(chan tui.RunRequest, 1)
 	model := tui.New(cat, sels, needs, notes, evalFilter, prior, runReq)
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	rep := tui.NewReporter(p)
 
 	ctx, cancel := context.WithCancel(cmd.Context())

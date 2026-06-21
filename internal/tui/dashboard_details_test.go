@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -36,14 +36,14 @@ func TestExecutingPaneScrolls(t *testing.T) {
 	}})
 
 	// Focus the Details pane so its scroll keys are live.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("4")})
+	d.handleKey(runeKey("4"))
 	w, _, _, detailsH := d.rightDims()
 	render := func() string { return d.renderDetails(w, detailsH-2) }
 	if strings.Contains(render(), "VERDICT-MARKER") {
 		t.Skip("pane tall enough to show the verdict without scrolling")
 	}
 	for i := 0; i < 30 && !strings.Contains(render(), "VERDICT-MARKER"); i++ {
-		d.handleKey(tea.KeyMsg{Type: tea.KeyCtrlD})
+		d.handleKey(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
 	}
 	if !strings.Contains(render(), "VERDICT-MARKER") {
 		t.Errorf("verdict not reachable by scrolling:\n%s", render())
@@ -52,7 +52,7 @@ func TestExecutingPaneScrolls(t *testing.T) {
 		t.Error("detailScroll should have advanced while scrolling")
 	}
 	// g returns the result to the top.
-	d.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	d.handleKey(runeKey("g"))
 	if d.detailScroll != 0 {
 		t.Errorf("detailScroll = %d after g, want 0", d.detailScroll)
 	}
