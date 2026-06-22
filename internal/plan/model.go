@@ -77,12 +77,23 @@ func (p Plan) Filters() map[string]*Filter {
 							out[m.Key] = f
 						}
 						f.Skills[u.Ref.Skill] = true
+						// An included skill must restrict *both* tiers. Pin each tier
+						// to an empty set up front: the tier this case belongs to then
+						// lists its queued cases, while the other tier stays empty and
+						// so runs nothing. Leaving a tier without an entry for the
+						// skill would read as "no restriction" in
+						// triggerIncluded/evalIncluded and run every case of that tier
+						// — the opposite of what was queued (e.g. an eval-only skill
+						// would sweep all its triggers).
+						if f.Triggers[u.Ref.Skill] == nil {
+							f.Triggers[u.Ref.Skill] = map[string]bool{}
+						}
+						if f.Evals[u.Ref.Skill] == nil {
+							f.Evals[u.Ref.Skill] = map[string]bool{}
+						}
 						dst := f.Triggers
 						if c.Kind == KindEvals {
 							dst = f.Evals
-						}
-						if dst[u.Ref.Skill] == nil {
-							dst[u.Ref.Skill] = map[string]bool{}
 						}
 						dst[u.Ref.Skill][c.Label] = true
 					}
