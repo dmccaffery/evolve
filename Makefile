@@ -21,6 +21,10 @@ FUZZ_PKG ?= ./internal/manifest
 FUZZ     ?= FuzzFrontmatter
 FUZZTIME ?= 20s
 
+# Benchmarks: `make bench` runs BENCH (a -bench regexp) over BENCH_PKG.
+BENCH     ?= .
+BENCH_PKG ?= ./...
+
 # Go developer CLIs (addlicense, goreleaser) are pinned in tools/go.mod — a
 # separate module so their dependency graphs never touch the application's go.mod —
 # and invoked with `go tool -modfile=tools/go.mod <name>`: compiled into the build
@@ -112,6 +116,10 @@ test: ## run the unit tests (+ fuzz seed corpora)
 .PHONY: fuzz
 fuzz: ## fuzz one target (FUZZ=FuzzParse FUZZTIME=20s FUZZ_PKG=./internal/evalspec)
 	@ go test -run '^$$' -fuzz '^$(FUZZ)$$' -fuzztime $(FUZZTIME) $(FUZZ_PKG)
+
+.PHONY: bench
+bench: ## run benchmarks (BENCH=. all, BENCH=DashboardView one; BENCH_PKG=./internal/tui; profile with BENCH_FLAGS='-cpuprofile=cpu.prof')
+	@ go test -run '^$$' -bench '$(BENCH)' -benchmem $(BENCH_FLAGS) $(BENCH_PKG)
 
 .PHONY: smoke
 smoke: ## real `evolve run all` on the marketplace fixture (SMOKE_MODEL=claude-haiku-4-5, 1 run, 1 job; needs the claude CLI + credentials)
