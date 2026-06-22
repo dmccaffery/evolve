@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Release pipeline — thin caller for the org's reusable release workflow.
 # release-please watches main and keeps a release PR current from the Conventional
 # Commit history; when that PR merges the workflow cuts the draft GitHub release +

@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Security analysis — thin caller for the org's reusable security workflow. It runs
 # CodeQL over the repository's GitHub Actions workflows (build-free) and the Go
 # module (autobuild; setup-go matches go.mod), on every push and pull request plus a

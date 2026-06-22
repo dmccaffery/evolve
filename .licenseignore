@@ -4,3 +4,5 @@ node_modules/**
 docs/**
 e2e/repos/**
 e2e/golden/**
+dist/**
+coverage/**

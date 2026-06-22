@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Keep module deps, pinned dev tools, npm lint tools, and SHA-pinned actions fresh.
 version: 2
 updates:

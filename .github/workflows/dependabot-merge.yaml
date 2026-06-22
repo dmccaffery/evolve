@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Dependabot auto-merge — thin caller for the org's reusable dependabot-merge
 # workflow. Dependabot opens a PR (see .github/dependabot.yaml); minor/patch
 # updates are auto-approved and fast-forwarded once CI is green, preserving

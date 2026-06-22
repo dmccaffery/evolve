@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Continuous integration — thin caller for the org's reusable ci workflow. It runs
 # the canonical Makefile gates (lint, build, test) as one parallel job each, then a
 # Codecov upload from coverage/cobertura-coverage.xml (emitted by `make test`).

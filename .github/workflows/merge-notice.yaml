@@ -1,3 +1,6 @@
+# Copyright 2026 Bitwise Media Group Ltd
+# SPDX-License-Identifier: MIT
+
 # Fast-forward merge notice — thin caller for the org's reusable merge-notice
 # workflow. When a PR is opened it posts a one-time comment explaining this repo
 # merges by fast-forward (a maintainer comments `/merge`, see merge.yaml) so
