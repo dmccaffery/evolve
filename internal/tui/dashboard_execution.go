@@ -233,7 +233,7 @@ func (d dashboardModel) leftHeader(w int) string {
 	right := metricCols("Pass/Tot", "Avg", "↑In", "↓Out", "Cost")
 	tw := max(w-1-ansi.StringWidth(right)-1, 6)
 	title := "Tree" + strings.Repeat(" ", max(tw-4, 0))
-	return headerStyle.Render(clip(title+" "+right, w))
+	return headerExecStyle.Render(clip(title+" "+right, w))
 }
 
 // renderLeft draws the Execution pane: a fixed column header above the scrollable

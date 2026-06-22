@@ -53,7 +53,12 @@ var (
 	titleStyle    = lipgloss.NewStyle().Bold(true).Foreground(colBlue)
 	mutedStyle    = lipgloss.NewStyle().Foreground(colGrey)
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colBlue)
-	headerStyle   = lipgloss.NewStyle().Bold(true).Foreground(colYellow)
+
+	// Per-pane heading styles: each pane's column/section headings take that pane's
+	// accent hue (see paneBaseColor) so a heading reads as belonging to its pane.
+	headerExecStyle    = lipgloss.NewStyle().Bold(true).Foreground(accentExec)
+	headerRollupStyle  = lipgloss.NewStyle().Bold(true).Foreground(accentRollup)
+	headerDetailsStyle = lipgloss.NewStyle().Bold(true).Foreground(accentDetails)
 
 	tabActiveStyle = lipgloss.NewStyle().Bold(true).Foreground(accentRollup)
 

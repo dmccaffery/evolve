@@ -238,7 +238,7 @@ func rollupHeader(w int) string {
 	tw := max(w-aggRightGap-ansi.StringWidth(right)-1, 6)
 	label := "Skill · model"
 	title := label + strings.Repeat(" ", max(tw-ansi.StringWidth(label), 0))
-	return headerStyle.Render(clip(title+" "+right, w))
+	return headerRollupStyle.Render(clip(title+" "+right, w))
 }
 
 func (d dashboardModel) renderTabs(w, h int) string {

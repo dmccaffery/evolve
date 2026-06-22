@@ -128,7 +128,7 @@ func openHint(c *caseState) string {
 // writeBlock writes a titled, width-wrapped block clipped to maxRows lines, with
 // an ellipsis when the text overflows.
 func writeBlock(b *strings.Builder, title, text string, w, maxRows int) {
-	b.WriteString(headerStyle.Render(title))
+	b.WriteString(headerDetailsStyle.Render(title))
 	b.WriteString("\n")
 	lines := strings.Split(lipgloss.NewStyle().Width(max(w, 10)).Render(text), "\n")
 	clipped := false
@@ -154,7 +154,7 @@ func writeBlock(b *strings.Builder, title, text string, w, maxRows int) {
 func (d dashboardModel) writePrompt(b *strings.Builder, e execItem, w int) {
 	wrap := lipgloss.NewStyle().Width(max(w, 10))
 	if e.ref.Kind == run.KindTriggers {
-		b.WriteString(headerStyle.Render("Query"))
+		b.WriteString(headerDetailsStyle.Render("Query"))
 		b.WriteString("\n")
 		b.WriteString(wrap.Render(e.label))
 		b.WriteString("\n\n")
@@ -164,7 +164,7 @@ func (d dashboardModel) writePrompt(b *strings.Builder, e execItem, w int) {
 	if ev == nil {
 		return
 	}
-	b.WriteString(headerStyle.Render("Prompt"))
+	b.WriteString(headerDetailsStyle.Render("Prompt"))
 	b.WriteString("\n")
 	b.WriteString(wrap.Render(ev.Prompt))
 	b.WriteString("\n\n")
@@ -177,7 +177,7 @@ func (d dashboardModel) writeSpec(b *strings.Builder, e execItem, w int) {
 	sc := d.skillCat[e.ref.Skill]
 	d.writePrompt(b, e, w)
 	if e.ref.Kind == run.KindTriggers {
-		b.WriteString(headerStyle.Render("Expected"))
+		b.WriteString(headerDetailsStyle.Render("Expected"))
 		b.WriteString("\n")
 		exp := "should NOT trigger this skill"
 		if t := findTrigger(sc, e.label); t != nil && t.ShouldTrigger {
@@ -192,14 +192,14 @@ func (d dashboardModel) writeSpec(b *strings.Builder, e execItem, w int) {
 		return
 	}
 	if ev.ExpectedOutput != "" {
-		b.WriteString(headerStyle.Render("Expected output"))
+		b.WriteString(headerDetailsStyle.Render("Expected output"))
 		b.WriteString("\n")
 		b.WriteString(wrap.Render(ev.ExpectedOutput))
 		b.WriteString("\n\n")
 	}
 	switch {
 	case len(ev.Assertions) > 0:
-		b.WriteString(headerStyle.Render("Assertions"))
+		b.WriteString(headerDetailsStyle.Render("Assertions"))
 		b.WriteString("\n")
 		for _, a := range ev.Assertions {
 			if a.FromExpectation {
@@ -210,7 +210,7 @@ func (d dashboardModel) writeSpec(b *strings.Builder, e execItem, w int) {
 		}
 		b.WriteString("\n")
 	case len(ev.Expectations) > 0:
-		b.WriteString(headerStyle.Render("Expectations"))
+		b.WriteString(headerDetailsStyle.Render("Expectations"))
 		b.WriteString("\n")
 		for _, x := range ev.Expectations {
 			b.WriteString(wrap.Render("• " + x))
@@ -219,7 +219,7 @@ func (d dashboardModel) writeSpec(b *strings.Builder, e execItem, w int) {
 		b.WriteString("\n")
 	}
 	if len(ev.Files) > 0 {
-		b.WriteString(headerStyle.Render("Files"))
+		b.WriteString(headerDetailsStyle.Render("Files"))
 		b.WriteString("\n")
 		for _, f := range ev.Files {
 			b.WriteString(mutedStyle.Render("• " + f.Rel + " → " + f.Dest))
