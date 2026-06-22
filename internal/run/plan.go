@@ -111,6 +111,79 @@ func Needs(
 	return need, notes
 }
 
+// CaseReasons categorizes, per resolved model and applicable case, whether a
+// rerun would select it as new, modified, or failing — the independent toggles
+// the TUI's filter pane drives (Needs, by contrast, bakes the active flags into a
+// single queued baseline for the non-TUI path). It uses the same per-case
+// predicates the engine does, so a filter the form turns on selects exactly what
+// the equivalent CLI flag would. Only cases under def's tiers and evalFilter,
+// applicable to the model (skip_providers honored), appear.
+func CaseReasons(opts Options, cat []plan.SkillCatalog, sels []harness.Selection,
+	def plan.Tiers, evalFilter string,
+) plan.Reasons {
+	out := make(plan.Reasons, len(sels))
+	for _, sel := range sels {
+		out[sel.Key()] = map[plan.CaseRef]plan.CaseReason{}
+	}
+	for _, sc := range cat {
+		if !opts.selects(sc.Plugin, sc.Skill) {
+			continue
+		}
+		file, _ := results.LoadDir(sc.ResultsDir, sc.Plugin, sc.Skill)
+		var triggerContent, evalContent string
+		if def.Triggers {
+			if md, err := os.ReadFile(filepath.Join(sc.SkillDir, "SKILL.md")); err == nil {
+				triggerContent = triggerContentHash(md)
+			}
+		}
+		if def.Evals {
+			evalContent, _ = skillContentHash(sc.SkillDir)
+		}
+		if def.Triggers {
+			for _, t := range sc.Triggers {
+				cr := plan.CaseRef{Skill: sc.Skill, Kind: plan.KindTriggers, Case: t.Query}
+				freshSpec := specHash(t)
+				for _, sel := range sels {
+					if t.SkipsProvider(sel.Model.ProviderID) {
+						continue
+					}
+					r, storedContent, ok := lookupTrigger(file, sel.Key(), t.Query)
+					fp := fingerprints{storedContent: storedContent, freshContent: triggerContent, freshSpec: freshSpec}
+					exec := triggerExecutes(opts, sel)
+					out[sel.Key()][cr] = plan.CaseReason{
+						New:      triggerCaseReason(r, ok, exec, true, false, false, fp) != ReasonNone,
+						Modified: triggerCaseReason(r, ok, exec, false, false, true, fp) != ReasonNone,
+						Failing:  triggerCaseReason(r, ok, exec, false, true, false, fp) != ReasonNone,
+					}
+				}
+			}
+		}
+		if def.Evals {
+			for _, c := range sc.Evals {
+				if evalFilter != "" && c.ID != evalFilter {
+					continue
+				}
+				cr := plan.CaseRef{Skill: sc.Skill, Kind: plan.KindEvals, Case: c.ID}
+				freshSpec := evalFingerprint(c)
+				for _, sel := range sels {
+					if c.SkipsProvider(sel.Model.ProviderID) {
+						continue
+					}
+					r, storedContent, ok := lookupEval(file, sel.Key(), c.ID)
+					execute, reportsUsage, priced := evalCapabilities(opts, sel)
+					fp := fingerprints{storedContent: storedContent, freshContent: evalContent, freshSpec: freshSpec}
+					out[sel.Key()][cr] = plan.CaseReason{
+						New:      evalCaseReason(r, ok, execute, reportsUsage, priced, true, false, false, fp) != ReasonNone,
+						Modified: evalCaseReason(r, ok, execute, reportsUsage, priced, false, false, true, fp) != ReasonNone,
+						Failing:  evalCaseReason(r, ok, execute, reportsUsage, priced, false, true, false, fp) != ReasonNone,
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
 // needContentHashes computes a skill's per-tier content fingerprints for the
 // --modified preview, or empty strings when --modified is off (the only flag
 // that consults them). Empty on any read/walk error: a missing fingerprint is

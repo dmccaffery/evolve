@@ -5,80 +5,30 @@ package tui
 
 import "github.com/bitwise-media-group/evolve/internal/plan"
 
-// nodeState is a leaf's tri-state selection. Partial is an initial-only state
-// (from --new analysis): once the user toggles a leaf it becomes on or off and
-// can never return to partial.
-type nodeState int
-
-const (
-	nodeOff nodeState = iota
-	nodePartial
-	nodeOn
-)
-
-// treeNode is one row in a checkbox tree. Parents derive their state from their
-// descendant leaves; only leaves carry an authoritative state.
+// treeNode is one row in the selection form's plugin → skill → case tree. The
+// tree is pure structure and navigation: selection state lives in the
+// plan.Session, and rows render their glyph by querying it, so the tree never
+// holds an authoritative on/off. Case leaves carry the (skill, kind, case)
+// identity that forms a plan.CaseRef; parents carry only their label and the
+// skill/kind they scope.
 type treeNode struct {
 	label    string
-	note     string // grey annotation shown beside a partial leaf
 	depth    int
 	parent   int   // index into tree.nodes, -1 at the top level
 	children []int // indices into tree.nodes
 	leaf     bool
 	expanded bool
-	state    nodeState // authoritative for leaves only
 
-	// payloads, by node role:
-	selIdx  int             // model leaf -> index into the selections slice
-	skill   string          // skill / tier / case nodes
-	kind    plan.Kind       // tier / case nodes -> which tier
-	caseKey string          // case leaf -> trigger query or eval id
-	skip    map[string]bool // case leaf -> provider names this case skips
+	skill   string    // skill / case nodes -> the skill the node scopes
+	kind    plan.Kind // case nodes -> which tier
+	caseKey string    // case leaf -> trigger query or eval id
+	hasKind bool      // skill-tier nodes and case leaves scope a single tier
 }
 
-// tree is a navigable, collapsible checkbox tree.
+// tree is a navigable, collapsible structure tree.
 type tree struct {
 	nodes  []treeNode
 	cursor int // position within the currently visible rows
-
-	// display overrides a leaf's rendered checkbox (node index -> state), without
-	// touching its authoritative state. The form sets it on the case panes so a
-	// case shows whether it will actually run for any enabled model (the resolved
-	// plan), while toggles keep editing the leaf's own intent. nil = render state.
-	display map[int]nodeState
-}
-
-// displayState is the checkbox state to render for node i: a leaf's display
-// override if one is set, else its own state; a parent aggregates its leaves'
-// display states (every leaf on -> on, every leaf off -> off, else partial).
-func (t *tree) displayState(i int) nodeState {
-	if t.nodes[i].leaf {
-		if s, ok := t.display[i]; ok {
-			return s
-		}
-		return t.nodes[i].state
-	}
-	leaves := t.leaves(i)
-	if len(leaves) == 0 {
-		return nodeOff
-	}
-	on, off := 0, 0
-	for _, l := range leaves {
-		switch t.displayState(l) {
-		case nodeOn:
-			on++
-		case nodeOff:
-			off++
-		}
-	}
-	switch {
-	case on == len(leaves):
-		return nodeOn
-	case off == len(leaves):
-		return nodeOff
-	default:
-		return nodePartial
-	}
 }
 
 // add appends a node and returns its index, registering it with its parent.
@@ -113,72 +63,17 @@ func (t *tree) nodeVisible(i int) bool {
 	return true
 }
 
-// leaves returns every leaf descendant of node i (or i itself if it is a leaf).
-func (t *tree) leaves(i int) []int {
+// caseLeaves returns the CaseRefs of every case leaf at or under node i — the
+// set a plugin/skill/case toggle applies to.
+func (t *tree) caseLeaves(i int) []plan.CaseRef {
 	if t.nodes[i].leaf {
-		return []int{i}
+		return []plan.CaseRef{{Skill: t.nodes[i].skill, Kind: t.nodes[i].kind, Case: t.nodes[i].caseKey}}
 	}
-	var out []int
+	var out []plan.CaseRef
 	for _, c := range t.nodes[i].children {
-		// Parent nodes have no authoritative state, so recurse until we reach the
-		// leaves that actually carry on/off/partial.
-		out = append(out, t.leaves(c)...)
+		out = append(out, t.caseLeaves(c)...)
 	}
 	return out
-}
-
-// checkState reports the aggregate state under i: nodeOff (no leaf selected),
-// nodeOn (every leaf fully on), or nodePartial (anything in between, including
-// any partial leaf).
-func (t *tree) checkState(i int) nodeState {
-	leaves := t.leaves(i)
-	if len(leaves) == 0 {
-		return nodeOff
-	}
-	on, off := 0, 0
-	for _, l := range leaves {
-		// Partial leaves deliberately increment neither counter. That makes any
-		// mixed branch, or any branch containing a partial leaf, aggregate to partial.
-		switch t.nodes[l].state {
-		case nodeOn:
-			on++
-		case nodeOff:
-			off++
-		}
-	}
-	switch {
-	case on == len(leaves):
-		return nodeOn
-	case off == len(leaves):
-		return nodeOff
-	default:
-		return nodePartial
-	}
-}
-
-// toggle flips a leaf (a partial leaf becomes fully on), or sets every leaf
-// under a parent to on unless the whole branch is already on, in which case it
-// turns the branch off. Either way a touched leaf loses its partial state.
-func (t *tree) toggle(i int) {
-	if t.nodes[i].leaf {
-		if t.nodes[i].state == nodeOn {
-			t.nodes[i].state = nodeOff
-		} else {
-			t.nodes[i].state = nodeOn
-		}
-		t.nodes[i].note = "" // a manual change supersedes the preselection reason
-		return
-	}
-	target := nodeOn
-	if t.checkState(i) == nodeOn {
-		target = nodeOff
-	}
-	for _, l := range t.leaves(i) {
-		// Writing only leaves keeps parent state derived and clears partial markers
-		// once the user explicitly touches this branch.
-		t.nodes[l].state = target
-		t.nodes[l].note = ""
-	}
 }
 
 // currentNode returns the node index under the cursor, or -1 when empty.
@@ -213,8 +108,8 @@ func (t *tree) move(delta int) {
 func (t *tree) top()    { t.cursor = 0 }
 func (t *tree) bottom() { t.cursor = len(t.visible()) - 1 }
 
-// setExpand collapses or expands the node under the cursor; on a leaf, l/right
-// is a no-op and h/left jumps to the parent.
+// expand collapses or expands the node under the cursor; on a leaf, right is a
+// no-op and left jumps to the parent.
 func (t *tree) expand(open bool) {
 	i := t.currentNode()
 	if i < 0 {
@@ -245,39 +140,22 @@ func (t *tree) selectNode(idx int) {
 	}
 }
 
-// anyChecked reports whether any leaf will run (is on or partial).
-func (t *tree) anyChecked() bool {
-	for i := range t.nodes {
-		if t.nodes[i].leaf && t.nodes[i].state != nodeOff {
-			return true
-		}
-	}
-	return false
-}
-
-// counts returns the number of leaves that will run (on or partial) and the
-// total leaf count.
-func (t *tree) counts() (selected, total int) {
-	for i := range t.nodes {
-		if t.nodes[i].leaf {
-			total++
-			if t.nodes[i].state != nodeOff {
-				selected++
-			}
-		}
-	}
-	return selected, total
-}
-
-// collapseUnselected expands every parent that contains a selected leaf and
-// collapses the rest, so the initial view is as compact as possible while still
-// revealing the preselected cases.
-func (t *tree) collapseUnselected() {
+// expandWhere expands every parent that has a leaf matching pred and collapses
+// the rest, so the initial view reveals the preselected cases while staying
+// compact.
+func (t *tree) expandWhere(pred func(plan.CaseRef) bool) {
 	for i := range t.nodes {
 		if t.nodes[i].leaf || len(t.nodes[i].children) == 0 {
 			continue
 		}
-		t.nodes[i].expanded = t.checkState(i) != nodeOff
+		open := false
+		for _, cr := range t.caseLeaves(i) {
+			if pred(cr) {
+				open = true
+				break
+			}
+		}
+		t.nodes[i].expanded = open
 	}
 	t.cursor = 0
 }
@@ -288,8 +166,6 @@ func (t *tree) expandLevel() {
 	best := -1
 	for i := range t.nodes {
 		if t.foldable(i) && !t.nodes[i].expanded && t.nodeVisible(i) {
-			// Find the shallowest collapsed row that is currently reachable; deeper
-			// rows hidden behind it should wait for a later expand-level command.
 			if best == -1 || t.nodes[i].depth < best {
 				best = t.nodes[i].depth
 			}
@@ -300,8 +176,6 @@ func (t *tree) expandLevel() {
 	}
 	for i := range t.nodes {
 		if t.foldable(i) && !t.nodes[i].expanded && t.nodes[i].depth == best && t.nodeVisible(i) {
-			// Open every peer at that depth so repeated calls reveal the tree one
-			// whole level at a time.
 			t.nodes[i].expanded = true
 		}
 	}
@@ -313,8 +187,6 @@ func (t *tree) collapseLevel() {
 	best := -1
 	for i := range t.nodes {
 		if t.foldable(i) && t.nodes[i].expanded && t.nodeVisible(i) && t.nodes[i].depth > best {
-			// Collapse from the bottom upward so parents stay visible while their
-			// deepest open children are folded.
 			best = t.nodes[i].depth
 		}
 	}

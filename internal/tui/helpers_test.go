@@ -68,20 +68,35 @@ func evalOnlyCatalog(t *testing.T) []plan.SkillCatalog {
 	}}
 }
 
+// testSession builds a form session over cat with the fake harness available,
+// both models known, the given models enabled, and the given filters. Every case
+// is categorized "new" so, with no filter set, all are queued (a plain run).
+func testSession(t *testing.T, cat []plan.SkillCatalog, enabledModelKeys []string, filters plan.Filters) *plan.Session {
+	t.Helper()
+	models := []model.Model{fakeModel("m1", "Model 1"), fakeModel("m2", "Model 2")}
+	harnesses := []plan.HarnessState{{Harness: fakeProv{}, Available: true}}
+	reasons := plan.Reasons{}
+	for _, m := range models {
+		rm := map[plan.CaseRef]plan.CaseReason{}
+		for _, sc := range cat {
+			for _, tr := range sc.Triggers {
+				rm[plan.CaseRef{Skill: sc.Skill, Kind: plan.KindTriggers, Case: tr.Query}] = plan.CaseReason{New: true}
+			}
+			for _, ev := range sc.Evals {
+				rm[plan.CaseRef{Skill: sc.Skill, Kind: plan.KindEvals, Case: ev.ID}] = plan.CaseReason{New: true}
+			}
+		}
+		reasons[m.Key()] = rm
+	}
+	return plan.NewSession(cat, models, harnesses, plan.PriorMetrics{}, reasons, filters, []string{"fake"}, enabledModelKeys)
+}
+
 func testModel(t *testing.T) Model {
 	t.Helper()
 	cat := soloCatalog(t)
-	sels, m1 := soloModels()
-	// Only m1 is resolved; it needs every case (e.g. a plain run).
-	needs := map[string]map[plan.CaseRef]bool{
-		m1.Key(): {
-			{Skill: "solo-skill", Kind: plan.KindTriggers, Case: "q1"}: true,
-			{Skill: "solo-skill", Kind: plan.KindTriggers, Case: "q2"}: true,
-			{Skill: "solo-skill", Kind: plan.KindEvals, Case: "e1"}:    true,
-			{Skill: "solo-skill", Kind: plan.KindEvals, Case: "e2"}:    true,
-		},
-	}
-	return New(cat, sels, needs, nil, "", plan.PriorMetrics{}, make(chan RunRequest, 1))
+	// Only m1 is enabled; with no filter set it needs every case (a plain run).
+	session := testSession(t, cat, []string{"fake/m1"}, plan.Filters{})
+	return New(session, cat, "", plan.PriorMetrics{}, make(chan RunRequest, 1))
 }
 
 // selectionFromFilter builds the plan.Selection the dashboard would receive for

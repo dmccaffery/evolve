@@ -41,20 +41,27 @@ Generated/build outputs not to edit by hand: `docs/` (run `make docs`), `dist/` 
 
 ## Packages (`internal/`)
 
-- `cli` — shared command plumbing: global `Options`, layered `.evolve` config, provider/repo/threshold resolution.
+- `cli` — shared command plumbing: global `Options`, layered `.evolve` config, harness/model/repo/threshold resolution.
 - `plan` — the planner: the single owner of _what runs, for which models, in what order_. Holds the structural types
   (`UnitRef`, `Kind`, `Status`, `Mode`, `ItemMetrics`, `CaseRef`, `Filter`, `Tiers`, `SkillCatalog`), applicability +
-  prior-metrics, and the canonical model — `Plan` (ordered plugin→skill→model→unit→case tree), `Selection` (the form's
-  enable/disable intent), and `Build` (resolve a Selection into a Plan with per-model queued/prior). `run` and `tui`
-  both import it and must not re-derive ordering or selection; it imports neither, so the two cannot drift from it.
+  prior-metrics, the canonical model — `Plan` (ordered plugin→skill→model→unit→case tree), `Selection` (enable/disable
+  intent), and `Build` (resolve a Selection into a Plan with per-model queued/prior) — and `Session` (`session.go`): the
+  stateful owner of the TUI form's filter/harness/model/case selection, with receivers the form drives and a `Plan()`
+  that resolves through the same `Build`. `run` and `tui` both import it and must not re-derive ordering or selection.
 - `run` — the three eval engines (`checks.go`, `triggers.go`, `evals.go`, `sweep.go`), the unit enumeration / preselect
-  matrix (`plan.go`: `Catalog`/`Plan`/`Needs`), and the `Reporter` seam (`reporter.go`) the TUI and plain output both
-  implement. Executes the per-model filters `plan.Build` resolves.
+  matrix (`plan.go`: `Catalog`/`Plan`/`Needs`/`CaseReasons`), and the `Reporter` seam (`reporter.go`) the TUI and plain
+  output both implement. Executes the per-model filters `plan.Build` resolves.
 - `tui` — the interactive bubbletea selection form and live run dashboard; a presentation layer over `plan` (the form
-  previews `plan.Build`; the dashboard projects the `plan.Plan` the engine runs). **See DESIGN.md → TUI for the full
+  drives a `plan.Session`; the dashboard projects the `plan.Plan` the engine runs). **See DESIGN.md → TUI for the full
   wiring.**
-- `provider` — the agent providers: model matrices + pricing, runner-CLI command construction, output parsing.
-- `runner` — executes provider command specs; the only package touching `os/exec` (so engines test against a fake).
+- `model` — the model vendors (Anthropic, OpenAI, Google, Cursor) and the canonical model registry: provider-qualified
+  ids, pricing, the harnesses each model can be driven by (the `Supported` map), and the vendor token-counting clients.
+  The lowest-level domain package (imports no other internal package); owns the shared value types `CommandSpec`,
+  `EvalInput`, `Usage`.
+- `harness` — the agent CLIs evolve drives (Claude Code, Codex, Gemini, Cursor, Copilot, Antigravity): runner-CLI
+  command construction, output parsing, the optional `EvalRunner` capability, and `Selection`/`RunnableHarness` that
+  bind a model to the one harness that runs it (evals run once per model, never once per harness).
+- `runner` — executes `model.CommandSpec`s; the only package touching `os/exec` (so engines test against a fake).
 - `grade` — assertion evaluation: deterministic checks (files/regex/commands) plus an LLM judge.
 - `workspace` — builds the throwaway project dirs each agent session runs in.
 - `results` — the committed per-skill `results.<ext>` files beside each skill's evals.
@@ -62,7 +69,7 @@ Generated/build outputs not to edit by hand: `docs/` (run `make docs`), `dist/` 
 - `evalspec` — parses authored triggers/evals definitions.
 - `manifest` — parses plugin/marketplace manifests and SKILL.md frontmatter.
 - `layout` — detects the repo shape (single/multi/marketplace) and enumerates plugins + eval sets.
-- `tokencount` — caches provider-reported input-token counts (from official counting APIs, never a local tokenizer).
+- `tokencount` — caches vendor-reported input-token counts (from official counting APIs, never a local tokenizer).
 - `encfmt` — reads/writes JSON, JSONC, YAML behind one data model.
 - `configdoc` — renders the configuration reference and annotated example configs.
 - `telemetry` — OpenTelemetry setup: picks the exporter (JSON files when `--telemetry-dir`/`telemetry.dir` is set, else

@@ -34,7 +34,7 @@ restores exit 1 on failures (`cli.ErrFailures`). `report --check` always exits 1
 ./cmd/evolve/docs.go   # hidden command that regenerates docs/cli, docs/man, and docs/config
 
 ./internal/cli/...     # shared command plumbing: global Options, config layering,
-                       # provider/repo/threshold resolution
+                       # harness/model/repo/threshold resolution
 ./internal/run/...     # the three eval engines: checks, triggers, evals
 ./internal/tui/...     # interactive selection form + live run dashboard (bubbletea)
 ./internal/<area>/...  # one package per remaining concern (grade, report, results,
@@ -57,7 +57,7 @@ with the file's `init()` registering its flags and adding the command to its par
 tiers). Shared global state lives in the package-level `opts` (`cli.Options`).
 
 `internal/cli` owns the resolved global state (`Options`) and the helpers that turn it into a detected repository, an
-effective provider set, a token counter, and report thresholds. The engines (`run`, `report`) take everything they need
+effective harness/model set, a token counter, and report thresholds. The engines (`run`, `report`) take what they need
 as explicit options — the trigger and case engines embed the shared `run.Options` — and write through the interfaces
 they declare, so they test against fakes; `runner` is the only package that touches `os/exec`.
 
@@ -74,7 +74,7 @@ out.
 Several agent CLIs sandbox their own shell commands the same way (Claude Code and codex both use macOS Seatbelt), and
 Seatbelt cannot nest — a second `sandbox-exec` inside evolve's aborts every shell command with
 `Operation not permitted`, silently degrading a run rather than failing it. So when evolve's sandbox is active the
-providers disable the agent's own (`run.Options.HostSandboxed`, threaded into `TriggerSpec`/`EvalSpec`): Claude via
+harnesses disable the agent's own (`run.Options.HostSandboxed`, threaded into `TriggerSpec`/`EvalSpec`): Claude via
 `--settings` with `{"sandbox":{"enabled":false}}`, codex via `--sandbox danger-full-access`, gemini via
 `GEMINI_SANDBOX=false`. evolve's outer sandbox is then the sole layer and still covers everything (file tools included,
 not just shell). The fallback is symmetric: with evolve unconfined (`--no-sandbox`) the agent keeps its own sandbox as
@@ -134,14 +134,18 @@ model, constructs the dashboard, and `tea.Batch`es dispatching the request with 
 
 ### Selection form
 
-`formModel` (`form.go`) is a three-pane, lazygit-style screen: a providers/models tree on the left, and triggers and
-evals trees stacked on the right. All three are the generic collapsible checkbox `tree` (`tree.go`) whose leaves carry a
-tri-state (`nodeOff` / `nodePartial` / `nodeOn`). The initial selection is _derived_, not blank: `run.Needs` returns the
-per-model run matrix the non-TUI path would execute (honouring `--new`/`--failed`/`--modified`, `--plugin`, `--skill`,
-`--eval`), and `deriveStates` turns it into the leaf states — so the form opens already matching flag-only mode, with
-`--new`'s partial units shown as partial. `request()` walks the final selection into a `tui.RunRequest` carrying a
-_per-model_ `run.Filter`, letting each model run a different set of cases (needed so `--new` reruns only the stale units
-while a peer runs everything).
+`formModel` (`form.go`) is a four-region screen: a left column stacking a **filters** pane (the new/modified/failed
+toggles), a **harnesses** pane, and a **models** pane, beside a large plugin → skill → case **tree**. All selection
+state lives in `plan.Session` (`internal/plan/session.go`): the form navigates and routes each key press to a Session
+receiver (`SetNewFilter`/`SetModifiedFilter`/`SetFailedFilter`, `EnableHarness`, `EnableModel`, `SetCases`), then
+renders every pane by querying the Session. `tree.go` is now pure structure and navigation — it holds no selection state
+— and the flat regions use a minimal `list` (`list.go`). The Session holds the per-(model, case) categories
+(`run.CaseReasons`) the filters act on, derives the queued baseline from the active filters, and resolves the whole
+state into a `plan.Plan` through the same `plan.Build` the engine runs. A case renders as force-on (`☑`), force-off
+(`☐`), or one of the auto states — queued for all (`◉`), some (`◷`), or none (`○`) of its applicable enabled models; a
+harness off PATH and a model unsupported by the enabled harnesses render disabled. `request()` returns a
+`tui.RunRequest` carrying the Session's enabled selections and resolved `plan.Selection`; the engine and dashboard
+re-`Build` from those, so the form preview, the dashboard, and the engine cannot drift.
 
 ### Live dashboard
 

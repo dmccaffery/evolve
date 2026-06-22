@@ -11,7 +11,6 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
 )
 
@@ -34,17 +33,16 @@ type Model struct {
 	w, h   int
 }
 
-// New builds the model. cat is the full catalog; sels is every available
-// provider/model pair; needs is the per-resolved-model, per-case run matrix
-// (from run.Needs) that seeds the form's tri-state selection; notes are the
-// per-case preselection reasons shown beside each case; evalFilter forces
-// non-matching evals off. The chosen RunRequest is sent on runReq when the user
-// runs; the channel is closed by the caller if they cancel.
-func New(cat []plan.SkillCatalog, sels []harness.Selection, needs map[string]map[plan.CaseRef]bool,
-	notes map[plan.CaseRef]string, evalFilter string, prior plan.PriorMetrics, runReq chan<- RunRequest) Model {
+// New builds the model. session owns the form's filter and selection state (the
+// harnesses/models it lists and the new/modified/failed baseline); cat is the
+// full catalog the form's case tree is built from; evalFilter forces non-matching
+// evals off; prior seeds the dashboard's deltas. The chosen RunRequest is sent on
+// runReq when the user runs; the channel is closed by the caller if they cancel.
+func New(session *plan.Session, cat []plan.SkillCatalog, evalFilter string,
+	prior plan.PriorMetrics, runReq chan<- RunRequest) Model {
 	return Model{
 		screen: screenForm,
-		form:   newForm(cat, sels, needs, notes, evalFilter),
+		form:   newForm(session, cat, evalFilter),
 		cat:    cat,
 		prior:  prior,
 		runReq: runReq,

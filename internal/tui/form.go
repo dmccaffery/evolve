@@ -10,8 +10,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
-	"github.com/bitwise-media-group/evolve/internal/harness"
-	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
 )
 
@@ -24,268 +22,157 @@ const (
 	actionCancel
 )
 
-// The form's three focusable panes.
+// The form's four focusable regions.
 const (
-	paneModels = iota
-	paneTriggers
-	paneEvals
+	paneFilters = iota
+	paneHarness
+	paneModels
+	paneTree
 	paneCount
 )
 
-// formModel is the selection screen: a providers/models tree on the left, and
-// the right side split lazygit-style into a triggers tree (top) and an evals
-// tree (bottom), each plugin → skill → case.
+// Case-marker and selection glyphs. Markers identify the tier; the selection
+// glyph shows the resolved state the Session computes (force on/off, or auto
+// queued for all / some / none of a node's applicable enabled models).
+const (
+	markTrigger = "⌖"
+	markEval    = "⚙"
+
+	glyphForceOn  = "☑"
+	glyphForceOff = "☐"
+	glyphAutoAll  = "◉"
+	glyphPartial  = "◷"
+	glyphAutoNone = "○"
+)
+
+// formModel is the selection screen: a left column stacking the filter,
+// harness, and model panes, beside a plugin → skill → case tree. All selection
+// state lives in the plan.Session; the form navigates and routes key presses to
+// the Session's receivers, then renders each pane's glyphs from it.
 type formModel struct {
-	left     tree // providers -> models
-	triggers tree // plugin -> skills -> triggers
-	evals    tree // plugin -> skills -> evals
-	cat      []plan.SkillCatalog
-	sels     []harness.Selection
-	needs    map[string]map[plan.CaseRef]bool // resolved model key -> case -> needs run
-	focus    int
-	w, h     int
+	session *plan.Session
+	cat     []plan.SkillCatalog
+
+	filters list
+	harness list
+	models  list
+	tree    tree
+	focus   int
+	w, h    int
 }
 
-func newForm(
-	cat []plan.SkillCatalog, sels []harness.Selection,
-	needs map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string, evalFilter string,
-) formModel {
-	st := deriveStates(needs)
+func newForm(session *plan.Session, cat []plan.SkillCatalog, evalFilter string) formModel {
 	f := formModel{
-		left:     buildProviderTree(sels, st),
-		triggers: buildTierTree(cat, plan.KindTriggers, st, notes, evalFilter),
-		evals:    buildTierTree(cat, plan.KindEvals, st, notes, evalFilter),
-		cat:      cat,
-		sels:     sels,
-		needs:    needs,
+		session: session,
+		cat:     cat,
+		filters: list{items: []listItem{
+			{label: "new", id: "new"},
+			{label: "modified", id: "modified"},
+			{label: "failed", id: "failed"},
+		}},
+		tree: buildCaseTree(cat),
 	}
-	// Start compact: only branches that contain a selected case are open.
-	f.left.collapseUnselected()
-	f.triggers.collapseUnselected()
-	f.evals.collapseUnselected()
-	f.resolve() // seed the case panes' displayed state from the initial plan
+	for _, h := range session.Harnesses() {
+		f.harness.items = append(f.harness.items, listItem{label: h.Harness.Name(), id: h.Harness.ID()})
+	}
+	for _, m := range session.Models() {
+		f.models.items = append(f.models.items, listItem{label: m.Name, id: m.Key()})
+	}
+	// --eval forces every non-matching eval off so the run is scoped to it.
+	if evalFilter != "" {
+		for _, n := range f.tree.nodes {
+			if n.leaf && n.kind == plan.KindEvals && n.caseKey != evalFilter {
+				session.SetCases([]plan.CaseRef{{Skill: n.skill, Kind: plan.KindEvals, Case: n.caseKey}}, plan.Off)
+			}
+		}
+	}
+	// Open branches that have a preselected case; keep the rest compact.
+	f.tree.expandWhere(func(cr plan.CaseRef) bool {
+		switch session.NodeSel([]plan.CaseRef{cr}) {
+		case plan.SelForceOn, plan.SelAutoAll, plan.SelAutoPartial:
+			return true
+		default:
+			return false
+		}
+	})
 	return f
 }
 
-// formStates holds the form's initial tri-state selection, derived so the run
-// reproduces non-TUI mode exactly: a model/case is fully on only when it would
-// run for every involved counterpart, partial when it runs for some, off when
-// none. Case annotations are the per-case reasons (held separately in notes),
-// not a fraction; only the model fraction stays here.
-type formStates struct {
-	model     map[string]nodeState // model key -> state
-	mNote     map[string]string    // grey fraction for partial models
-	caseState map[plan.CaseRef]nodeState
-}
-
-func deriveStates(needs map[string]map[plan.CaseRef]bool) formStates {
-	involvedCases := map[plan.CaseRef]bool{}
-	involvedModels := map[string]bool{}
-	for mk, cm := range needs {
-		for cr, need := range cm {
-			if need {
-				involvedCases[cr] = true
-				involvedModels[mk] = true
-			}
-		}
-	}
-	s := formStates{
-		model:     map[string]nodeState{},
-		mNote:     map[string]string{},
-		caseState: map[plan.CaseRef]nodeState{},
-	}
-	for mk := range needs {
-		got := 0
-		for cr := range involvedCases {
-			if needs[mk][cr] {
-				got++
-			}
-		}
-		total := len(involvedCases)
-		switch got {
-		case 0:
-			s.model[mk] = nodeOff
-		case total:
-			s.model[mk] = nodeOn
-		default:
-			s.model[mk] = nodePartial
-			s.mNote[mk] = fmt.Sprintf("(%d/%d)", got, total)
-		}
-	}
-	for cr := range involvedCases {
-		got := 0
-		for mk := range involvedModels {
-			if needs[mk][cr] {
-				got++
-			}
-		}
-		if total := len(involvedModels); got == total {
-			s.caseState[cr] = nodeOn
-		} else {
-			s.caseState[cr] = nodePartial
-		}
-	}
-	return s
-}
-
-// buildProviderTree lists every available provider/model; the derived states
-// decide which start on/partial/off, so the config/flags (and --new) preselect
-// a subset of the full matrix — the same semantics as the case trees.
-func buildProviderTree(sels []harness.Selection, st formStates) tree {
-	var t tree
-	group := map[string]int{}
-	for i, sel := range sels {
-		name := sel.Model.ProviderID
-		pidx, ok := group[name]
-		if !ok {
-			display := name
-			if p, ok := model.ProviderByID(name); ok {
-				display = p.Name
-			}
-			pidx = t.add(treeNode{label: display, parent: -1, expanded: true, selIdx: -1})
-			group[name] = pidx
-		}
-		label := sel.Model.Name
-		if label == "" {
-			label = sel.Model.ID
-		}
-		k := sel.Key()
-		t.add(treeNode{
-			label: label, note: st.mNote[k], depth: 1, parent: pidx, leaf: true,
-			state: st.model[k], selIdx: i,
-		})
-	}
-	return t
-}
-
-type caseRow struct {
-	key   string
-	label string
-	skip  map[string]bool
-}
-
-func skipSet(names []string) map[string]bool {
-	if len(names) == 0 {
-		return nil
-	}
-	m := make(map[string]bool, len(names))
-	for _, n := range names {
-		m[n] = true
-	}
-	return m
-}
-
-func tierCases(sc plan.SkillCatalog, kind plan.Kind) []caseRow {
-	var rows []caseRow
-	if kind == plan.KindTriggers {
-		for _, tr := range sc.Triggers {
-			rows = append(rows, caseRow{key: tr.Query, label: triggerLabel(tr), skip: skipSet(tr.SkipProviders)})
-		}
-		return rows
-	}
-	for _, ev := range sc.Evals {
-		rows = append(rows, caseRow{key: ev.ID, label: evalLabel(ev), skip: skipSet(ev.SkipProviders)})
-	}
-	return rows
-}
-
-// buildTierTree builds a plugin → skill → case tree for one tier, with each leaf
-// in its per-case tri-state and annotated with the reason it is preselected.
-// --eval forces non-matching evals off.
-func buildTierTree(cat []plan.SkillCatalog, kind plan.Kind, st formStates,
-	notes map[plan.CaseRef]string, evalFilter string,
-) tree {
+// buildCaseTree builds the plugin → skill → case tree: under each skill the
+// trigger cases come first (target glyph), then the eval cases (gear glyph).
+func buildCaseTree(cat []plan.SkillCatalog) tree {
 	var t tree
 	pluginNode := map[string]int{}
 	for _, sc := range cat {
-		cases := tierCases(sc, kind)
-		if len(cases) == 0 {
+		if len(sc.Triggers) == 0 && len(sc.Evals) == 0 {
 			continue
 		}
 		pidx, ok := pluginNode[sc.Plugin]
 		if !ok {
-			pidx = t.add(treeNode{label: sc.Plugin, parent: -1, expanded: true, selIdx: -1})
+			pidx = t.add(treeNode{label: sc.Plugin, parent: -1, expanded: true})
 			pluginNode[sc.Plugin] = pidx
 		}
-		sidx := t.add(treeNode{
-			label: sc.Skill, depth: 1, parent: pidx, expanded: true,
-			skill: sc.Skill, kind: kind, selIdx: -1,
-		})
-		for _, c := range cases {
-			cr := plan.CaseRef{Skill: sc.Skill, Kind: kind, Case: c.key}
-			state, note := st.caseState[cr], notes[cr]
-			if kind == plan.KindEvals && evalFilter != "" && c.key != evalFilter {
-				state, note = nodeOff, ""
-			}
+		sidx := t.add(treeNode{label: sc.Skill, depth: 1, parent: pidx, expanded: true, skill: sc.Skill})
+		for _, tr := range sc.Triggers {
 			t.add(treeNode{
-				label: c.label, note: note, depth: 2, parent: sidx, leaf: true,
-				state: state, skill: sc.Skill, kind: kind, caseKey: c.key, skip: c.skip, selIdx: -1,
+				label: triggerLabel(tr), depth: 2, parent: sidx, leaf: true,
+				skill: sc.Skill, kind: plan.KindTriggers, caseKey: tr.Query, hasKind: true,
+			})
+		}
+		for _, ev := range sc.Evals {
+			t.add(treeNode{
+				label: evalLabel(ev), depth: 2, parent: sidx, leaf: true,
+				skill: sc.Skill, kind: plan.KindEvals, caseKey: ev.ID, hasKind: true,
 			})
 		}
 	}
 	return t
 }
 
-func (f *formModel) focused() *tree {
-	switch f.focus {
-	case paneTriggers:
-		return &f.triggers
-	case paneEvals:
-		return &f.evals
-	default:
-		return &f.left
-	}
-}
-
-func (f formModel) valid() bool {
-	return f.left.anyChecked() && (f.triggers.anyChecked() || f.evals.anyChecked())
-}
+func (f formModel) valid() bool { return f.session.AnyQueued() }
 
 // update handles one key on the form and reports whether the user chose to run
-// or cancel.
+// or cancel. Toggles route to the Session; the next render reflects the result.
 func (f formModel) update(key string) (formModel, formAction) {
-	t := f.focused()
 	switch key {
 	case "tab":
 		f.focus = (f.focus + 1) % paneCount
 	case "shift+tab":
 		f.focus = (f.focus + paneCount - 1) % paneCount
 	case "1":
-		f.focus = paneModels
+		f.focus = paneFilters
 	case "2":
-		f.focus = paneTriggers
+		f.focus = paneHarness
 	case "3":
-		f.focus = paneEvals
+		f.focus = paneModels
+	case "4":
+		f.focus = paneTree
 	case "up", "k":
-		t.move(-1)
+		f.moveCursor(-1)
 	case "down", "j":
-		t.move(1)
+		f.moveCursor(1)
 	case "left", "h":
-		t.expand(false)
+		if f.focus == paneTree {
+			f.tree.expand(false)
+		}
 	case "right", "l":
-		t.expand(true)
+		if f.focus == paneTree {
+			f.tree.expand(true)
+		}
 	case "]":
-		t.expandLevel()
+		if f.focus == paneTree {
+			f.tree.expandLevel()
+		}
 	case "[":
-		t.collapseLevel()
+		if f.focus == paneTree {
+			f.tree.collapseLevel()
+		}
 	case "g", "home":
-		t.top()
+		f.toEnd(true)
 	case "G", "end":
-		t.bottom()
-	case " ", "space":
-		if i := t.currentNode(); i >= 0 {
-			t.toggle(i)
-			f.resolve() // re-resolve the plan so the case panes reflect the new selection
-		}
-	case "enter":
-		if i := t.currentNode(); i >= 0 {
-			if t.nodes[i].leaf {
-				t.toggle(i)
-				f.resolve()
-			} else {
-				t.nodes[i].expanded = !t.nodes[i].expanded
-			}
-		}
+		f.toEnd(false)
+	case " ", "space", "enter":
+		f.toggle()
 	case "r":
 		if f.valid() {
 			return f, actionRun
@@ -296,181 +183,243 @@ func (f formModel) update(key string) (formModel, formAction) {
 	return f, actionNone
 }
 
-// request turns the current selection into a RunRequest: the enabled models (in
-// display order) and a plan.Selection capturing each model's and case's intent
-// plus the preselect baseline. The engine resolves it through plan.Build — the
-// same resolver this form previews with — so what runs matches what is shown.
+// moveCursor advances the focused region's cursor.
+func (f *formModel) moveCursor(delta int) {
+	switch f.focus {
+	case paneFilters:
+		f.filters.move(delta)
+	case paneHarness:
+		f.harness.move(delta)
+	case paneModels:
+		f.models.move(delta)
+	case paneTree:
+		f.tree.move(delta)
+	}
+}
+
+// toEnd jumps the focused region's cursor to the top (start=true) or bottom.
+func (f *formModel) toEnd(start bool) {
+	jump := func(l *list) {
+		if start {
+			l.top()
+		} else {
+			l.bottom()
+		}
+	}
+	switch f.focus {
+	case paneFilters:
+		jump(&f.filters)
+	case paneHarness:
+		jump(&f.harness)
+	case paneModels:
+		jump(&f.models)
+	case paneTree:
+		if start {
+			f.tree.top()
+		} else {
+			f.tree.bottom()
+		}
+	}
+}
+
+// toggle applies the toggle key to the focused region's current selection.
+func (f *formModel) toggle() {
+	switch f.focus {
+	case paneFilters:
+		if it, ok := f.filters.current(); ok {
+			cur := f.session.FilterState()
+			switch it.id {
+			case "new":
+				f.session.SetNewFilter(!cur.New)
+			case "modified":
+				f.session.SetModifiedFilter(!cur.Modified)
+			case "failed":
+				f.session.SetFailedFilter(!cur.Failed)
+			}
+		}
+	case paneHarness:
+		if it, ok := f.harness.current(); ok && f.harnessAvailable(it.id) {
+			f.session.EnableHarness(it.id, !f.session.HarnessEnabled(it.id))
+		}
+	case paneModels:
+		if it, ok := f.models.current(); ok && f.modelRunnable(it.id) {
+			f.session.EnableModel(it.id, !f.session.ModelEnabled(it.id))
+		}
+	case paneTree:
+		if i := f.tree.currentNode(); i >= 0 {
+			f.cycleNode(f.tree.caseLeaves(i))
+		}
+	}
+}
+
+// cycleNode advances a node through auto → off → on → auto (the auto slot is
+// skipped when nothing under the node is queued).
+func (f *formModel) cycleNode(refs []plan.CaseRef) {
+	switch f.session.NodeSel(refs) {
+	case plan.SelForceOff:
+		f.session.SetCases(refs, plan.On)
+	case plan.SelForceOn:
+		if f.session.AutoAvailable(refs) {
+			f.session.SetCases(refs, plan.Partial)
+		} else {
+			f.session.SetCases(refs, plan.Off)
+		}
+	default: // any auto state
+		f.session.SetCases(refs, plan.Off)
+	}
+}
+
+func (f formModel) harnessAvailable(id string) bool {
+	for _, h := range f.session.Harnesses() {
+		if h.Harness.ID() == id {
+			return h.Available
+		}
+	}
+	return false
+}
+
+func (f formModel) modelRunnable(key string) bool {
+	for _, m := range f.session.Models() {
+		if m.Key() == key {
+			return f.session.ModelRunnable(m)
+		}
+	}
+	return false
+}
+
+// request turns the current Session state into a RunRequest: the enabled
+// (model, harness) selections and the resolved plan.Selection. The engine and
+// dashboard re-Build from these — the same inputs the Session's Plan() uses — so
+// what runs matches what the form showed.
 func (f formModel) request() RunRequest {
-	return RunRequest{Models: f.enabledModels(), Selection: f.selection()}
+	return RunRequest{Models: f.session.EnabledSelections(), Selection: f.session.Selection()}
 }
 
-// selection captures the form's current intent as a plan.Selection over the whole
-// matrix (every model and case, plus the preselect baseline).
-func (f formModel) selection() plan.Selection {
-	sel := plan.Selection{
-		Models: map[string]plan.State{},
-		Cases:  map[plan.CaseRef]plan.State{},
-		Needs:  f.needs,
-	}
-	for _, mn := range f.left.nodes {
-		if mn.leaf {
-			sel.Models[f.sels[mn.selIdx].Key()] = planState(mn.state)
-		}
-	}
-	for _, t := range []*tree{&f.triggers, &f.evals} {
-		for _, cn := range t.nodes {
-			if cn.leaf {
-				sel.Cases[plan.CaseRef{Skill: cn.skill, Kind: cn.kind, Case: cn.caseKey}] = planState(cn.state)
-			}
-		}
-	}
-	return sel
-}
-
-// enabledModels is the selections whose model leaf is not off, in display order.
-func (f formModel) enabledModels() []harness.Selection {
-	var out []harness.Selection
-	for _, mn := range f.left.nodes {
-		if mn.leaf && planState(mn.state) != plan.Off {
-			out = append(out, f.sels[mn.selIdx])
-		}
-	}
-	return out
-}
-
-// resolve rebuilds the live plan from the current selection and refreshes the
-// case panes' displayed checkboxes from it. Disabling a model immediately
-// unchecks a case only that model would have run, so the form shows exactly what
-// will run before the user submits — the engine owns the resolution, the form
-// just reflects it.
-func (f *formModel) resolve() {
-	disp := caseDisplayFromPlan(plan.Build(f.cat, f.enabledModels(), f.selection(), plan.PriorMetrics{}))
-	for _, t := range []*tree{&f.triggers, &f.evals} {
-		t.display = map[int]nodeState{}
-		for i, cn := range t.nodes {
-			if cn.leaf {
-				t.display[i] = disp[plan.CaseRef{Skill: cn.skill, Kind: cn.kind, Case: cn.caseKey}]
-			}
-		}
-	}
-}
-
-// caseDisplayFromPlan reduces a resolved plan to a per-case checkbox state: a case
-// is on when every enabled model that has it will run it, off when none will, and
-// partial in between. A case absent from the plan (no enabled model has it) is off.
-func caseDisplayFromPlan(p plan.Plan) map[plan.CaseRef]nodeState {
-	type agg struct{ queued, total int }
-	tally := map[plan.CaseRef]*agg{}
-	for _, pl := range p.Plugins {
-		for _, sk := range pl.Skills {
-			for _, mdl := range sk.Models {
-				for _, u := range mdl.Units {
-					for _, c := range u.Cases {
-						cr := plan.CaseRef{Skill: sk.Skill, Kind: c.Kind, Case: c.Label}
-						a := tally[cr]
-						if a == nil {
-							a = &agg{}
-							tally[cr] = a
-						}
-						a.total++
-						if c.Queued {
-							a.queued++
-						}
-					}
-				}
-			}
-		}
-	}
-	out := make(map[plan.CaseRef]nodeState, len(tally))
-	for cr, a := range tally {
-		switch a.queued {
-		case 0:
-			out[cr] = nodeOff
-		case a.total:
-			out[cr] = nodeOn
-		default:
-			out[cr] = nodePartial
-		}
-	}
-	return out
-}
-
-// planState maps a form node's tri-state to the planner's.
-func planState(s nodeState) plan.State {
-	switch s {
-	case nodeOn:
-		return plan.On
-	case nodePartial:
-		return plan.Partial
-	default:
-		return plan.Off
-	}
-}
-
-// view renders the providers pane beside the stacked triggers/evals panes, with
-// a button/hint footer.
+// view renders the filter/harness/model column beside the case tree, with a
+// button/hint footer.
 func (f formModel) view() string {
 	const footerH = 4
-	paneH := max(f.h-footerH, 6)
-	leftW := max(f.w/3, 16)
-	rightW := max(f.w-leftW, 16)
-	topH := paneH / 2
-	botH := paneH - topH
+	paneH := max(f.h-footerH, 8)
+	leftW := max(f.w/3, 20)
+	rightW := max(f.w-leftW, 20)
 
-	mc, mt := f.left.counts()
-	tc, tt := f.triggers.counts()
-	ec, et := f.evals.counts()
+	filtersH := 5
+	harnessH := min(len(f.harness.items)+2, max(paneH/3, 5))
+	modelsH := max(paneH-filtersH-harnessH, 4)
 
-	left := panel(1, "Providers / Models", countLabel(mc, mt), "",
-		renderTree(&f.left, f.focus == paneModels, panelContentWidth(leftW), paneH-2),
-		f.focus == paneModels, leftW, paneH)
-	trig := panel(2, "Triggers", countLabel(tc, tt), "",
-		renderTree(&f.triggers, f.focus == paneTriggers, panelContentWidth(rightW), topH-2),
-		f.focus == paneTriggers, rightW, topH)
-	eval := panel(3, "Evaluations", countLabel(ec, et), "",
-		renderTree(&f.evals, f.focus == paneEvals, panelContentWidth(rightW), botH-2),
-		f.focus == paneEvals, rightW, botH)
-	right := lipgloss.JoinVertical(lipgloss.Left, trig, eval)
+	cw := panelContentWidth(leftW)
+	filters := panel(1, "Filters", "", "",
+		f.renderFilters(cw, filtersH-2), f.focus == paneFilters, leftW, filtersH)
+	harness := panel(2, "Harnesses", "", "",
+		f.renderHarness(cw, harnessH-2), f.focus == paneHarness, leftW, harnessH)
+	models := panel(3, "Models", f.modelCount(), "",
+		f.renderModels(cw, modelsH-2), f.focus == paneModels, leftW, modelsH)
+	left := lipgloss.JoinVertical(lipgloss.Left, filters, harness, models)
+
+	right := panel(4, "Plugins / Skills / Cases", "", "",
+		f.renderTree(panelContentWidth(rightW), paneH-2), f.focus == paneTree, rightW, paneH)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 
 	runBtn := buttonStyle.Render("r  RUN")
 	if f.valid() {
 		runBtn = buttonActive.Render("r  RUN")
 	}
-	cancel := buttonStyle.Render("esc  CANCEL")
-	buttons := lipgloss.JoinHorizontal(lipgloss.Top, cancel, "  ", runBtn)
-	hint := footerHint.Render("1/2/3 pane · ↑↓/jk move · ←→/hl fold · [ ] fold level · space toggle · g/G ends")
+	buttons := lipgloss.JoinHorizontal(lipgloss.Top, buttonStyle.Render("esc  CANCEL"), "  ", runBtn)
+	hint := footerHint.Render("1/2/3/4 pane · ↑↓/jk move · ←→/hl fold · space toggle · g/G ends")
 	footer := lipgloss.JoinVertical(lipgloss.Left, buttons, hint)
 
 	return lipgloss.JoinVertical(lipgloss.Left, panes, footer)
 }
 
-// countLabel renders the "checked of total" tag for a pane's bottom border.
-func countLabel(checked, total int) string {
-	return fmt.Sprintf("%d of %d", checked, total)
+func (f formModel) modelCount() string {
+	on := 0
+	for _, m := range f.session.Models() {
+		if f.session.ModelEnabled(m.Key()) {
+			on++
+		}
+	}
+	return countLabel(on, len(f.models.items))
 }
 
-// renderTree draws the visible rows, scrolled to keep the cursor on screen.
-func renderTree(t *tree, focused bool, w, h int) string {
-	vis := t.visible()
-	if t.cursor >= len(vis) {
-		t.cursor = len(vis) - 1
+// renderFilters draws the new/modified/failed checkboxes.
+func (f formModel) renderFilters(w, h int) string {
+	cur := f.session.FilterState()
+	on := map[string]bool{"new": cur.New, "modified": cur.Modified, "failed": cur.Failed}
+	return renderRows(f.filters.items, f.filters.cursor, f.focus == paneFilters, w, h,
+		func(it listItem) string {
+			return checkGlyph(on[it.id]) + " " + it.label
+		})
+}
+
+// renderHarness draws the harness rows, greying any whose CLI is off PATH.
+func (f formModel) renderHarness(w, h int) string {
+	return renderRows(f.harness.items, f.harness.cursor, f.focus == paneHarness, w, h,
+		func(it listItem) string {
+			if !f.harnessAvailable(it.id) {
+				return errStyle.Render("[!]") + " " + mutedStyle.Render(it.label+" (n/a)")
+			}
+			return checkGlyph(f.session.HarnessEnabled(it.id)) + " " + it.label
+		})
+}
+
+// renderModels draws the model rows, greying any not runnable under the enabled
+// harnesses.
+func (f formModel) renderModels(w, h int) string {
+	return renderRows(f.models.items, f.models.cursor, f.focus == paneModels, w, h,
+		func(it listItem) string {
+			if !f.modelRunnable(it.id) {
+				return mutedStyle.Render("[·] " + it.label + " (uns.)")
+			}
+			return checkGlyph(f.session.ModelEnabled(it.id)) + " " + it.label
+		})
+}
+
+// renderRows draws a flat list with a cursor marker, scrolled to keep the cursor
+// visible, each row rendered by line.
+func renderRows(items []listItem, cursor int, focused bool, w, h int, line func(listItem) string) string {
+	rows := max(h, 1)
+	start := 0
+	if cursor >= rows {
+		start = cursor - rows + 1
 	}
-	if t.cursor < 0 {
-		t.cursor = 0
+	end := min(start+rows, len(items))
+	var b strings.Builder
+	for i := start; i < end; i++ {
+		row := clip(line(items[i]), w-2)
+		if i == cursor && focused {
+			row = selectedStyle.Render("› ") + row
+		} else {
+			row = "  " + row
+		}
+		b.WriteString(row)
+		if i < end-1 {
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
+
+// renderTree draws the visible plugin/skill/case rows, computing each row's
+// glyph from the Session, scrolled to keep the cursor on screen.
+func (f formModel) renderTree(w, h int) string {
+	vis := f.tree.visible()
+	if f.tree.cursor >= len(vis) {
+		f.tree.cursor = len(vis) - 1
+	}
+	if f.tree.cursor < 0 {
+		f.tree.cursor = 0
 	}
 	rows := max(h, 1)
 	start := 0
-	if t.cursor >= rows {
-		start = t.cursor - rows + 1
+	if f.tree.cursor >= rows {
+		start = f.tree.cursor - rows + 1
 	}
 	end := min(start+rows, len(vis))
 
 	var b strings.Builder
 	for pos := start; pos < end; pos++ {
 		i := vis[pos]
-		n := t.nodes[i]
-		box := checkbox(t, i)
+		n := f.tree.nodes[i]
 		arrow := "  "
 		if !n.leaf && len(n.children) > 0 {
 			if n.expanded {
@@ -479,17 +428,19 @@ func renderTree(t *tree, focused bool, w, h int) string {
 				arrow = "▸ "
 			}
 		}
-		line := strings.Repeat("  ", n.depth) + arrow + box + " " + n.label
-		if n.leaf && n.state != nodeOff && n.note != "" {
-			line += " " + mutedStyle.Render(n.note)
+		glyph := selGlyph(f.session.NodeSel(f.tree.caseLeaves(i)))
+		marker := ""
+		if n.leaf {
+			marker = caseMarker(n.kind) + " "
 		}
-		line = clip(line, w-2) // leave room for the 2-col cursor marker
-		if pos == t.cursor && focused {
-			line = selectedStyle.Render("› ") + line
+		row := strings.Repeat("  ", n.depth) + arrow + glyph + " " + marker + n.label
+		row = clip(row, w-2)
+		if pos == f.tree.cursor && f.focus == paneTree {
+			row = selectedStyle.Render("› ") + row
 		} else {
-			line = "  " + line
+			row = "  " + row
 		}
-		b.WriteString(line)
+		b.WriteString(row)
 		if pos < end-1 {
 			b.WriteByte('\n')
 		}
@@ -497,15 +448,40 @@ func renderTree(t *tree, focused bool, w, h int) string {
 	return b.String()
 }
 
-func checkbox(t *tree, i int) string {
-	switch t.displayState(i) {
-	case nodeOn:
+// checkGlyph renders an on/off checkbox.
+func checkGlyph(on bool) string {
+	if on {
 		return passStyle.Render("[x]")
-	case nodePartial:
-		return errStyle.Render("[~]")
-	default:
-		return mutedStyle.Render("[ ]")
 	}
+	return mutedStyle.Render("[ ]")
+}
+
+// selGlyph maps a node's resolved selection to its rendered glyph.
+func selGlyph(s plan.NodeSel) string {
+	switch s {
+	case plan.SelForceOn:
+		return passStyle.Render(glyphForceOn)
+	case plan.SelForceOff:
+		return mutedStyle.Render(glyphForceOff)
+	case plan.SelAutoAll:
+		return runStyle.Render(glyphAutoAll)
+	case plan.SelAutoPartial:
+		return errStyle.Render(glyphPartial)
+	default:
+		return mutedStyle.Render(glyphAutoNone)
+	}
+}
+
+func caseMarker(kind plan.Kind) string {
+	if kind == plan.KindEvals {
+		return mutedStyle.Render(markEval)
+	}
+	return mutedStyle.Render(markTrigger)
+}
+
+// countLabel renders the "checked of total" tag for a pane's bottom border.
+func countLabel(checked, total int) string {
+	return fmt.Sprintf("%d of %d", checked, total)
 }
 
 func triggerLabel(tr evalspec.Trigger) string {
