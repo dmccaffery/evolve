@@ -140,13 +140,25 @@ func retainedDir(root, ws string) string {
 	return ws
 }
 
+// ensureReporter materializes the default PlainReporter once, before any parallel
+// fan-out. Without it reporter() would mint a fresh PlainReporter per call, and
+// the per-instance write lock NewPlainReporter installs could not serialize the
+// concurrent agent-run goroutines against each other. Each engine entry point
+// calls it first thing; a caller-supplied Reporter (the TUI) is left untouched.
+func (o *Options) ensureReporter() {
+	if o.Reporter == nil {
+		o.Reporter = NewPlainReporter(o.Stdout, o.Stderr)
+	}
+}
+
 // reporter returns the configured reporter, defaulting to a PlainReporter that
-// reproduces the historical stdout/stderr output.
+// reproduces the historical stdout/stderr output. Callers reach it after
+// ensureReporter has populated Reporter, so concurrent callers share one instance.
 func (o *Options) reporter() Reporter {
 	if o.Reporter != nil {
 		return o.Reporter
 	}
-	return PlainReporter{Stdout: o.Stdout, Stderr: o.Stderr}
+	return NewPlainReporter(o.Stdout, o.Stderr)
 }
 
 // header snapshots the run metadata every results entry records.

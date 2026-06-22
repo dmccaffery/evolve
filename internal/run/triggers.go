@@ -36,6 +36,7 @@ func Triggers(ctx context.Context, opts TriggerOptions) (failed bool, err error)
 		attribute.Int("model_count", len(opts.Selected)),
 	))
 	defer func() { endSpan(span, err) }()
+	opts.ensureReporter()
 
 	sets, err := opts.Repo.EvalSets()
 	if err != nil {

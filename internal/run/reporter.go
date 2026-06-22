@@ -6,6 +6,7 @@ package run
 import (
 	"fmt"
 	"io"
+	"sync"
 )
 
 // Kind distinguishes the two eval tiers a unit belongs to.
@@ -129,6 +130,28 @@ type Reporter interface {
 type PlainReporter struct {
 	Stdout io.Writer
 	Stderr io.Writer
+}
+
+// NewPlainReporter builds a PlainReporter whose writes are serialized so it meets
+// the Reporter contract that implementations be safe for concurrent use: the
+// parallel agent-run goroutines call ItemDone and Warn at once, and each fmt
+// call emits exactly one Write, so a single mutex shared by both writers keeps
+// every line atomic — even when Stdout and Stderr target the same sink.
+func NewPlainReporter(stdout, stderr io.Writer) PlainReporter {
+	mu := new(sync.Mutex)
+	return PlainReporter{Stdout: lockedWriter{mu, stdout}, Stderr: lockedWriter{mu, stderr}}
+}
+
+// lockedWriter serializes writes to an underlying writer through a shared mutex.
+type lockedWriter struct {
+	mu *sync.Mutex
+	w  io.Writer
+}
+
+func (l lockedWriter) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(p)
 }
 
 func (r PlainReporter) UnitStarted(u UnitRef, total, runs int, mode Mode) {

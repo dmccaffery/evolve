@@ -52,6 +52,12 @@ linters:
       - linters:
           - dupl
         path: cmd/
+      # The tier engine entry points (Evals/Triggers/Sweep) share the same
+      # span -> ensureReporter -> iterate-sets -> dispatch preamble by design.
+      - linters:
+          - dupl
+        path: internal/run/
+        source: "^func (Evals|Triggers|Sweep)\\("
       # Deferred Close/cleanup calls have nowhere useful to send an error.
       - linters:
           - errcheck

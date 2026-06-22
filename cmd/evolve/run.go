@@ -176,7 +176,7 @@ func (f *SweepFlags) sweepOptionsW(cmd *cobra.Command, counterOut io.Writer) (ru
 		// from the reporter's events; when off it returns the PlainReporter
 		// unchanged, so plain-mode output is byte-for-byte what it was. The TUI
 		// path overrides Reporter in uiRun with its own wrapped reporter.
-		Reporter: telemetry.WrapReporter(run.PlainReporter{Stdout: stdout, Stderr: stderr}),
+		Reporter: telemetry.WrapReporter(run.NewPlainReporter(stdout, stderr)),
 	}, nil
 }
 
