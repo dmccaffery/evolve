@@ -10,8 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -29,7 +29,7 @@ func sharedSelDashboard(t *testing.T) dashboardModel {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 	d.apply(unitStartedMsg{ref: tr, total: 2, mode: plan.ModeRun})
 	for _, q := range []string{"q1", "q2"} {
@@ -120,7 +120,7 @@ func TestRunsPreloadsPendingExecutions(t *testing.T) {
 	key := m1.Key()
 	tr := plan.UnitRef{Skill: "solo-skill", Key: key, Kind: plan.KindTriggers}
 	ev := plan.UnitRef{Skill: "solo-skill", Key: key, Kind: plan.KindEvals}
-	d := dashFromFilter(cat, []provider.Selection{m1}, nil, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, nil, plan.PriorMetrics{})
 	d.w, d.h = 100, 30
 
 	// Every planned execution is listed before anything starts, in plan order.
@@ -168,7 +168,7 @@ func TestRunsFollowPause(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 100, 30
 
 	d.apply(unitStartedMsg{ref: ev, total: 2, mode: plan.ModeRun})
@@ -211,7 +211,7 @@ func TestRunsPaneCentersSelection(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40 // tall enough that the Runs window hits its 7-row cap
 
 	const n = 15

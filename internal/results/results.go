@@ -45,9 +45,13 @@ type File struct {
 
 // Header is the run metadata common to both entry kinds.
 type Header struct {
-	Provider    string `json:"provider"`
-	Model       string `json:"model"`
-	Display     string `json:"display"`
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	Display  string `json:"display"`
+	// Harness names the agent CLI that executed this entry (claude, copilot, …).
+	// Additive: empty on entries written before the harness split, when the
+	// provider implied its driver.
+	Harness     string `json:"harness,omitempty"`
 	ToolVersion string `json:"tool_version"`
 	RanAt       string `json:"ran_at"` // RFC3339 UTC, second precision
 	Executed    bool   `json:"executed"`

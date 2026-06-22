@@ -5,7 +5,7 @@ package plan
 
 import (
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 )
 
 // Build resolves a Selection into the ordered Plan the sweep will execute. The
@@ -15,7 +15,7 @@ import (
 // case applicable to a model appears; Queued marks the ones that run this session,
 // and each case carries its prior committed result. cat is expected in repository
 // order (Catalog returns it plugin-grouped, skill within).
-func Build(cat []SkillCatalog, models []provider.Selection, sel Selection, prior PriorMetrics) Plan {
+func Build(cat []SkillCatalog, models []harness.Selection, sel Selection, prior PriorMetrics) Plan {
 	var p Plan
 	for _, sc := range cat {
 		sk := buildSkill(sc, models, sel, prior)
@@ -33,10 +33,10 @@ func Build(cat []SkillCatalog, models []provider.Selection, sel Selection, prior
 
 // buildSkill builds one skill's models, each with its trigger unit then eval unit
 // (whichever has applicable cases), in the given model order.
-func buildSkill(sc SkillCatalog, models []provider.Selection, sel Selection, prior PriorMetrics) Skill {
+func buildSkill(sc SkillCatalog, models []harness.Selection, sel Selection, prior PriorMetrics) Skill {
 	sk := Skill{Skill: sc.Skill, Title: sc.Title}
 	for _, m := range models {
-		key, prov := m.Key(), m.Provider.Name()
+		key, prov := m.Key(), m.Model.ProviderID
 		var units []Unit
 		if trig := ApplicableTriggers(sc.Triggers, prov, sc.Skill, nil); len(trig) > 0 {
 			ref := UnitRef{Skill: sc.Skill, Key: key, Kind: KindTriggers}
@@ -61,9 +61,9 @@ func buildSkill(sc SkillCatalog, models []provider.Selection, sel Selection, pri
 	return sk
 }
 
-func modelDisplay(m provider.Selection) string {
-	if m.Model.Display != "" {
-		return m.Model.Display
+func modelDisplay(m harness.Selection) string {
+	if m.Model.Name != "" {
+		return m.Model.Name
 	}
 	return m.Model.ID
 }

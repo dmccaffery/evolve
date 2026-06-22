@@ -12,18 +12,19 @@ evolve run triggers [flags]
       --baseline               benchmark each eval without the skill (its lift), recomputed only when the eval or its fixtures change (disable with --baseline=false; config: baseline) (default true)
       --count-only             skip agent runs; only compute token usage per model
       --failed                 only run evals that did not pass on a previous run (combine with --new to also rerun missing ones)
+      --harness strings        only drive models with these harnesses: claude, codex, gemini, cursor, copilot, antigravity (repeatable / comma-separated; alias: --harnesses; filters within config harnesses)
   -h, --help                   help for triggers
       --jobs int               concurrent agent runs (default: ceil(cpus/2)) (default 4)
       --keep-workspaces        keep throwaway workspaces for debugging
       --max-turns int          max agent turns per eval (config: max_turns; a per-eval max_turns overrides both) (default 20)
-      --model strings          provider names / model ids, or "all" (repeatable / comma-separated; alias: --models; default: config default_models or "anthropic")
+      --model strings          provider ids / canonical model ids, or "all" (repeatable / comma-separated; alias: --models; filters within config models)
       --modified               only run evals whose authored skill content or case definition changed since their stored results
       --new                    only run evals whose stored results are missing values a rerun could fill
       --no-tui                 disable the interactive TUI even on a terminal (also: EVOLVE_NO_TUI=1)
       --plugin strings         only run evals for these plugins (repeatable / comma-separated; alias: --plugins)
       --runs int               runs per query (default 3)
       --skill strings          only run evals for these skills (repeatable / comma-separated; alias: --skills)
-      --stale-results string   keep|drop stored results for models outside default_models (default: prompt on a terminal, else keep)
+      --stale-results string   keep|drop stored results for models outside the models restriction (default: prompt on a terminal, else keep)
       --timeout int            seconds per agent run (default 120)
 ```
 

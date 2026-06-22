@@ -10,8 +10,9 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 // formAction is what a key press resolved to on the selection screen.
@@ -39,14 +40,14 @@ type formModel struct {
 	triggers tree // plugin -> skills -> triggers
 	evals    tree // plugin -> skills -> evals
 	cat      []plan.SkillCatalog
-	sels     []provider.Selection
+	sels     []harness.Selection
 	needs    map[string]map[plan.CaseRef]bool // resolved model key -> case -> needs run
 	focus    int
 	w, h     int
 }
 
 func newForm(
-	cat []plan.SkillCatalog, sels []provider.Selection,
+	cat []plan.SkillCatalog, sels []harness.Selection,
 	needs map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string, evalFilter string,
 ) formModel {
 	st := deriveStates(needs)
@@ -130,17 +131,21 @@ func deriveStates(needs map[string]map[plan.CaseRef]bool) formStates {
 // buildProviderTree lists every available provider/model; the derived states
 // decide which start on/partial/off, so the config/flags (and --new) preselect
 // a subset of the full matrix — the same semantics as the case trees.
-func buildProviderTree(sels []provider.Selection, st formStates) tree {
+func buildProviderTree(sels []harness.Selection, st formStates) tree {
 	var t tree
 	group := map[string]int{}
 	for i, sel := range sels {
-		name := sel.Provider.Name()
+		name := sel.Model.ProviderID
 		pidx, ok := group[name]
 		if !ok {
-			pidx = t.add(treeNode{label: sel.Provider.Display(), parent: -1, expanded: true, selIdx: -1})
+			display := name
+			if p, ok := model.ProviderByID(name); ok {
+				display = p.Name
+			}
+			pidx = t.add(treeNode{label: display, parent: -1, expanded: true, selIdx: -1})
 			group[name] = pidx
 		}
-		label := sel.Model.Display
+		label := sel.Model.Name
 		if label == "" {
 			label = sel.Model.ID
 		}
@@ -323,8 +328,8 @@ func (f formModel) selection() plan.Selection {
 }
 
 // enabledModels is the selections whose model leaf is not off, in display order.
-func (f formModel) enabledModels() []provider.Selection {
-	var out []provider.Selection
+func (f formModel) enabledModels() []harness.Selection {
+	var out []harness.Selection
 	for _, mn := range f.left.nodes {
 		if mn.leaf && planState(mn.state) != plan.Off {
 			out = append(out, f.sels[mn.selIdx])

@@ -1,6 +1,6 @@
 ## evolve doctor
 
-Check each provider: runner CLI on PATH, credential set, counting API reachable
+Check each harness (CLI on PATH, credential) and each vendor's counting API
 
 ```
 evolve doctor [flags]

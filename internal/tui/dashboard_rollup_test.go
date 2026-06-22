@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -27,7 +27,7 @@ func TestDashboardLiveFeedback(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Triggers complete.
@@ -121,7 +121,7 @@ func TestRollupImprovementsBaselineBasis(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Without the skill both evals failed; with it, e1 passes (1/2).

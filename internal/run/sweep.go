@@ -14,9 +14,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/workspace"
 )
@@ -186,7 +186,7 @@ type sweepUnit struct {
 
 // runSweepModel runs one model's triggers then evals within a sweep set. A nil
 // per-model filter (the model is already complete under --new) skips it cleanly.
-func runSweepModel(ctx context.Context, u sweepUnit, sel provider.Selection) (failed bool, err error) {
+func runSweepModel(ctx context.Context, u sweepUnit, sel harness.Selection) (failed bool, err error) {
 	filter := u.opts.Filter
 	if u.opts.Filters != nil {
 		filter = u.opts.Filters[sel.Key()]

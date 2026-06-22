@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
 )
 
@@ -48,8 +48,8 @@ func TestCountTokens(t *testing.T) {
 
 	t.Run("counting provider maps positionally", func(t *testing.T) {
 		p := &countingTriggerProvider{}
-		opts := Options{Counter: newCounter(), Jobs: 3} // fewer workers than texts
-		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		opts := Options{Counter: newCounter(), CounterFor: fakeCounterFor(p), Jobs: 3} // fewer workers than texts
+		sel := harness.Selection{Model: p.canonicalModel(), Harness: p}
 		got := opts.countTokens(context.Background(), sel, texts)
 		if len(got) != len(texts) {
 			t.Fatalf("got %d counts, want %d", len(got), len(texts))
@@ -66,7 +66,7 @@ func TestCountTokens(t *testing.T) {
 	t.Run("non-counting provider yields nils", func(t *testing.T) {
 		p := &fakeTriggerProvider{} // no TokenCounter capability (cursor-like)
 		opts := Options{Counter: newCounter(), Jobs: 4}
-		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		sel := harness.Selection{Model: p.canonicalModel(), Harness: p}
 		for i, c := range opts.countTokens(context.Background(), sel, texts) {
 			if c != nil {
 				t.Errorf("count[%d] = %d, want nil", i, *c)
@@ -76,8 +76,8 @@ func TestCountTokens(t *testing.T) {
 
 	t.Run("non-positive jobs does not deadlock", func(t *testing.T) {
 		p := &countingTriggerProvider{}
-		opts := Options{Counter: newCounter(), Jobs: 0} // clamps to 1, not SetLimit(0)
-		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		opts := Options{Counter: newCounter(), CounterFor: fakeCounterFor(p), Jobs: 0} // clamps to 1, not SetLimit(0)
+		sel := harness.Selection{Model: p.canonicalModel(), Harness: p}
 		if got := opts.countTokens(context.Background(), sel, texts); len(got) != len(texts) {
 			t.Fatalf("got %d counts, want %d", len(got), len(texts))
 		}
@@ -85,8 +85,8 @@ func TestCountTokens(t *testing.T) {
 
 	t.Run("empty input returns empty", func(t *testing.T) {
 		p := &countingTriggerProvider{}
-		opts := Options{Counter: newCounter(), Jobs: 4}
-		sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+		opts := Options{Counter: newCounter(), CounterFor: fakeCounterFor(p), Jobs: 4}
+		sel := harness.Selection{Model: p.canonicalModel(), Harness: p}
 		if got := opts.countTokens(context.Background(), sel, nil); len(got) != 0 {
 			t.Errorf("got %d counts for empty input, want 0", len(got))
 		}

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 // planRepoFixture builds a single-plugin repo whose one skill has both triggers
@@ -78,7 +78,7 @@ func TestPlanEnumeratesUnits(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := &fakeTriggerProvider{}
-	sels := []provider.Selection{{Provider: p, Model: p.Models()[0]}}
+	sels := []harness.Selection{{Model: p.canonicalModel(), Harness: p}}
 
 	both := Plan(cat, sels, nil, plan.Tiers{Triggers: true, Evals: true})
 	if len(both) != 2 {
@@ -127,7 +127,7 @@ func TestNeedsDefaultsAndFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := &fakeTriggerProvider{}
-	sels := []provider.Selection{{Provider: p, Model: p.Models()[0]}}
+	sels := []harness.Selection{{Model: p.canonicalModel(), Harness: p}}
 	base := Options{Repo: repo, Selected: sels}
 	key := sels[0].Key()
 	tc := plan.CaseRef{Skill: "solo-skill", Kind: plan.KindTriggers, Case: "q1"}

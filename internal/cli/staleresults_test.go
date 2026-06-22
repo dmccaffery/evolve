@@ -40,7 +40,7 @@ func TestActiveModelKeys(t *testing.T) {
 		t.Fatalf("unconfigured: configured=%v err=%v, want false/nil", configured, err)
 	}
 
-	o.Viper.Set("default_models", []string{"anthropic/claude-haiku-4-5"})
+	o.Viper.Set("models", []string{"anthropic/claude-haiku-4-5"})
 	keys, configured, err := o.ActiveModelKeys()
 	if err != nil || !configured {
 		t.Fatalf("configured: configured=%v err=%v, want true/nil", configured, err)

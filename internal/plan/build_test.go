@@ -7,24 +7,32 @@ import (
 	"testing"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/harness"
+	"github.com/bitwise-media-group/evolve/internal/model"
 )
 
-type fakeProv struct{ name string }
+// fakeHarness is a minimal harness.Harness. Build never invokes its methods —
+// it reads only the model — so the bodies are inert stubs.
+type fakeHarness struct{ id string }
 
-func (p fakeProv) Name() string                         { return p.name }
-func (p fakeProv) Display() string                      { return p.name }
-func (fakeProv) Models() []provider.Model               { return nil }
-func (fakeProv) CLI() []string                          { return []string{"sh"} }
-func (fakeProv) EnvKeys() []string                      { return []string{"K"} }
-func (fakeProv) SkillDirs() []string                    { return []string{".fake/skills"} }
-func (fakeProv) ScanLine([]byte, string) (bool, string) { return false, "" }
-func (fakeProv) TriggerSpec(ws, _, _ string, _ bool) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"x"}, Dir: ws}
+func (h fakeHarness) ID() string                           { return h.id }
+func (fakeHarness) Name() string                           { return "Fake" }
+func (fakeHarness) CLI() []string                          { return []string{"sh"} }
+func (fakeHarness) EnvKeys() []string                      { return []string{"K"} }
+func (fakeHarness) SkillDirs() []string                    { return []string{".fake/skills"} }
+func (fakeHarness) ScanLine([]byte, string) (bool, string) { return false, "" }
+func (fakeHarness) TriggerSpec(ws, _, _ string, _ bool) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"x"}, Dir: ws}
 }
 
-func sel(prov, model string) provider.Selection {
-	return provider.Selection{Provider: fakeProv{prov}, Model: provider.Model{ID: model, Display: model}}
+func sel(prov, id string) harness.Selection {
+	return harness.Selection{
+		Harness: fakeHarness{prov},
+		Model: model.Model{
+			ID: prov + "/" + id, ProviderID: prov, Name: id,
+			Supported: map[string]string{prov: id}, Preferred: prov,
+		},
+	}
 }
 
 // twoModelCatalog is one plugin/skill with two triggers (q1 should-fire, q2 not)
@@ -53,7 +61,7 @@ func partialSelection(models ...string) Selection {
 // model (given order) → all triggers (authored) then all evals (authored).
 func TestBuildOrder(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("fake", "m1"), sel("fake", "m2")}
+	models := []harness.Selection{sel("fake", "m1"), sel("fake", "m2")}
 	p := Build(cat, models, partialSelection("fake/m1", "fake/m2"), PriorMetrics{})
 
 	if len(p.Plugins) != 1 || p.Plugins[0].Name != "p" {
@@ -102,7 +110,7 @@ func queuedSet(p Plan) map[[2]string]bool {
 // queued for m1, never for m2 — the resolution is per model.
 func TestBuildQueuedPerModel(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("fake", "m1"), sel("fake", "m2")}
+	models := []harness.Selection{sel("fake", "m1"), sel("fake", "m2")}
 	s := partialSelection("fake/m1", "fake/m2")
 	e1 := CaseRef{Skill: "s", Kind: KindEvals, Case: "e1"}
 	s.Needs["fake/m1"][e1] = true // e1 failed only for m1 last run
@@ -123,7 +131,7 @@ func TestBuildQueuedPerModel(t *testing.T) {
 // case unqueues that case everywhere.
 func TestBuildCascade(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("fake", "m1"), sel("fake", "m2")}
+	models := []harness.Selection{sel("fake", "m1"), sel("fake", "m2")}
 	s := partialSelection("fake/m1", "fake/m2")
 	e1 := CaseRef{Skill: "s", Kind: KindEvals, Case: "e1"}
 	s.Needs["fake/m1"][e1] = true
@@ -138,7 +146,7 @@ func TestBuildCascade(t *testing.T) {
 // regardless of the needs baseline.
 func TestBuildWiden(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("fake", "m1"), sel("fake", "m2")}
+	models := []harness.Selection{sel("fake", "m1"), sel("fake", "m2")}
 	s := partialSelection("fake/m1", "fake/m2")
 	s.Cases[CaseRef{Skill: "s", Kind: KindEvals, Case: "e2"}] = On
 
@@ -151,7 +159,7 @@ func TestBuildWiden(t *testing.T) {
 // TestBuildSkipProvider: a case the provider skips never appears in the plan.
 func TestBuildSkipProvider(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("skipped", "m1")}
+	models := []harness.Selection{sel("skipped", "m1")}
 	s := partialSelection("skipped/m1")
 	p := Build(cat, models, s, PriorMetrics{})
 	for _, c := range p.Plugins[0].Skills[0].Models[0].Units[0].Cases {
@@ -161,11 +169,16 @@ func TestBuildSkipProvider(t *testing.T) {
 	}
 }
 
-// TestFiltersFromQueued: the per-model execution filter contains exactly the
-// queued cases.
+// TestFiltersFromQueued: the per-model execution filter admits exactly the queued
+// cases. Assertions go through the inclusion predicates the engine actually calls
+// (ApplicableTriggers/ApplicableEvals -> triggerIncluded/evalIncluded), not raw
+// map membership: a skill that is included via one tier (eval e1) but queues
+// nothing in the other (triggers) must still run no triggers. Indexing the map
+// directly would mask that — a missing skill key reads as the zero value there
+// but as "unrestricted" in the predicate.
 func TestFiltersFromQueued(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []provider.Selection{sel("fake", "m1"), sel("fake", "m2")}
+	models := []harness.Selection{sel("fake", "m1"), sel("fake", "m2")}
 	s := partialSelection("fake/m1", "fake/m2")
 	s.Needs["fake/m1"][CaseRef{Skill: "s", Kind: KindEvals, Case: "e1"}] = true
 
@@ -174,7 +187,17 @@ func TestFiltersFromQueued(t *testing.T) {
 		t.Error("m2 has no queued case; it must be omitted from the filters")
 	}
 	m1 := f["fake/m1"]
-	if m1 == nil || !m1.Evals["s"]["e1"] || m1.Triggers["s"]["q1"] {
-		t.Errorf("m1 filter = %+v, want only eval e1 selected", m1)
+	if m1 == nil {
+		t.Fatal("m1 has a queued case; it must have a filter")
+	}
+	if !m1.evalIncluded("s", "e1") {
+		t.Error("eval e1 was queued; it must be included")
+	}
+	if m1.evalIncluded("s", "e2") {
+		t.Error("eval e2 was not queued; it must be excluded")
+	}
+	// No trigger was queued for s, so the eval-only skill must run no triggers.
+	if m1.triggerIncluded("s", "q1") || m1.triggerIncluded("s", "q2") {
+		t.Error("no trigger was queued for s; every trigger must be excluded")
 	}
 }

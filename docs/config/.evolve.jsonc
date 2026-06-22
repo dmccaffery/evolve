@@ -6,9 +6,16 @@
   // Repository layout: auto, marketplace, multi, or single.
   "layout": "auto",
 
-  // Model spec used when --models is omitted: provider names, model ids,
-  // provider-qualified ids (cursor/composer-2.5), or all.
-  "default_models": ["anthropic"],
+  // Restriction on which models exist: provider ids, canonical model ids
+  // (anthropic/claude-sonnet-4-6), or all. Unlisted models are unavailable.
+  // --model filters within it.
+  // Default: unset — every model runnable by an available harness.
+  // "models": ["anthropic/claude-sonnet-4-6"],
+
+  // Restriction on which agent CLIs (claude, codex, gemini, cursor, copilot,
+  // antigravity) may drive models. --harness filters within it.
+  // Default: unset — every harness found on PATH.
+  // "harnesses": ["claude","copilot"],
 
   // Directory holding the token-count cache.
   // Default: unset — the OS user cache dir.
@@ -35,8 +42,8 @@
   // overrides for one run.
   "baseline": true,
 
-  // How run/report treat stored results for models outside default_models:
-  // keep or drop. --stale-results overrides.
+  // How run/report treat stored results for models outside the `models`
+  // restriction: keep or drop. --stale-results overrides.
   // Default: unset — prompt on a terminal, otherwise keep.
   // "stale_results": "keep",
 

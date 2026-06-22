@@ -29,7 +29,7 @@ func (o *Options) RegenerateReports() error {
 	if err != nil {
 		return err
 	}
-	providers, _, err := o.Providers()
+	models, err := o.AvailableModels()
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (o *Options) RegenerateReports() error {
 	_, err = report.Generate(report.Options{
 		Repo:         repo,
 		ToolVersion:  version.Version,
-		Providers:    providers,
+		Models:       models,
 		Format:       o.ResultsFormat,
 		ActiveModels: active,
 	})

@@ -26,6 +26,10 @@ Run Tier 1 trigger-accuracy evals through headless agent sessions
 	only run evals that did not pass on a previous run (combine with --new to also rerun missing ones)
 
 .PP
+\fB--harness\fP=[]
+	only drive models with these harnesses: claude, codex, gemini, cursor, copilot, antigravity (repeatable / comma-separated; alias: --harnesses; filters within config harnesses)
+
+.PP
 \fB-h\fP, \fB--help\fP[=false]
 	help for triggers
 
@@ -43,7 +47,7 @@ Run Tier 1 trigger-accuracy evals through headless agent sessions
 
 .PP
 \fB--model\fP=[]
-	provider names / model ids, or "all" (repeatable / comma-separated; alias: --models; default: config default_models or "anthropic")
+	provider ids / canonical model ids, or "all" (repeatable / comma-separated; alias: --models; filters within config models)
 
 .PP
 \fB--modified\fP[=false]
@@ -71,7 +75,7 @@ Run Tier 1 trigger-accuracy evals through headless agent sessions
 
 .PP
 \fB--stale-results\fP=""
-	keep|drop stored results for models outside default_models (default: prompt on a terminal, else keep)
+	keep|drop stored results for models outside the models restriction (default: prompt on a terminal, else keep)
 
 .PP
 \fB--timeout\fP=120

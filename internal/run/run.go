@@ -12,9 +12,10 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
@@ -23,7 +24,7 @@ import (
 // Runner abstracts agent execution so tests inject fakes; runner.Exec is the
 // real implementation.
 type Runner interface {
-	Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration,
+	Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration,
 		onLine func([]byte) bool) (runner.Result, error)
 }
 
@@ -31,9 +32,12 @@ type Runner interface {
 // TriggerOptions and EvalOptions embed it and add their engine's knobs.
 type Options struct {
 	Repo     *layout.Repo
-	Selected []provider.Selection
+	Selected []harness.Selection
 	Counter  *tokencount.Counter
-	Runner   Runner
+	// CounterFor resolves a vendor's token counter by provider id. Nil uses
+	// model.CounterFor (the real vendor clients); tests inject a fake.
+	CounterFor func(providerID string) (model.TokenCounter, bool)
+	Runner     Runner
 	// PluginFilter and SkillFilter narrow the sweep to the named plugins and
 	// skills. An empty list imposes no restriction; a non-empty one keeps only
 	// eval sets whose plugin (resp. skill) is listed. The two compose with AND.
@@ -41,7 +45,7 @@ type Options struct {
 	SkillFilter  []string
 	Timeout      time.Duration
 	Jobs         int
-	MaxTurns     int // agent-turn ceiling per eval; 0 = provider.DefaultMaxTurns. A per-eval max_turns overrides it.
+	MaxTurns     int // agent-turn ceiling per eval; 0 = model.DefaultMaxTurns. A per-eval max_turns overrides it.
 	CountOnly    bool
 	// Baseline runs each executed eval a second time with the skill absent, so the
 	// report and dashboard can show the skill's lift over no skill at all. The
@@ -63,7 +67,7 @@ type Options struct {
 	Modified       bool
 	KeepWorkspaces bool
 	// HostSandboxed reports that Runner wraps each agent in evolve's own OS
-	// sandbox, so providers must disable the agent CLI's own sandbox to avoid
+	// sandbox, so harnesses must disable the agent CLI's own sandbox to avoid
 	// illegal nesting (threaded into TriggerSpec/EvalSpec). It mirrors the
 	// runner's Sandbox.Enabled; the CLI sets both together.
 	HostSandboxed bool
@@ -158,12 +162,16 @@ func (o *Options) reporter() Reporter {
 	return NewPlainReporter(o.Stdout, o.Stderr)
 }
 
-// header snapshots the run metadata every results entry records.
-func (o *Options) header(sel provider.Selection, executed bool) results.Header {
+// header snapshots the run metadata every results entry records. Provider and
+// Model carry the vendor id and the vendor's own (un-prefixed) model id, so the
+// recorded bytes stay stable across the harness split; the executing harness is
+// recorded separately.
+func (o *Options) header(sel harness.Selection, executed bool) results.Header {
 	return results.Header{
-		Provider:       sel.Provider.Name(),
-		Model:          sel.Model.ID,
-		Display:        sel.Model.Display,
+		Provider:       sel.Model.ProviderID,
+		Model:          sel.Model.BareID(),
+		Display:        sel.Model.Name,
+		Harness:        sel.Harness.ID(),
 		ToolVersion:    o.ToolVersion,
 		RanAt:          o.Now().UTC().Format(time.RFC3339),
 		Executed:       executed,
@@ -188,14 +196,19 @@ func payload(skillMD []byte, prompt string) string {
 // rewrite. Fanning the calls out over the same opts.Jobs budget the agent runs
 // use collapses that to roughly a single round-trip; Counter is safe for
 // concurrent use.
-func (o *Options) countTokens(ctx context.Context, sel provider.Selection, texts []string) []*int {
+func (o *Options) countTokens(ctx context.Context, sel harness.Selection, texts []string) []*int {
 	out := make([]*int, len(texts))
+	lookup := o.CounterFor
+	if lookup == nil {
+		lookup = model.CounterFor
+	}
+	tc, _ := lookup(sel.Model.ProviderID)
 	limit := max(o.Jobs, 1)
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(limit)
 	for i, text := range texts {
 		g.Go(func() error {
-			out[i] = o.Counter.Count(gctx, sel.Provider, sel.Model.ID, text)
+			out[i] = o.Counter.Count(gctx, tc, sel.Model.ProviderID, sel.Model.BareID(), text)
 			return nil
 		})
 	}
@@ -212,11 +225,11 @@ func warnSkillName(opts *Options, set layout.EvalSet, path, authored string) {
 	}
 }
 
-func unionSkillDirs(selected []provider.Selection) []string {
+func unionSkillDirs(selected []harness.Selection) []string {
 	seen := map[string]bool{}
 	var dirs []string
 	for _, sel := range selected {
-		for _, d := range sel.Provider.SkillDirs() {
+		for _, d := range sel.Harness.SkillDirs() {
 			if !seen[d] {
 				seen[d] = true
 				dirs = append(dirs, d)

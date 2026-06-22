@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/bitwise-media-group/evolve/internal/cli"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/run"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 	"github.com/bitwise-media-group/evolve/internal/telemetry"
@@ -57,6 +57,7 @@ type SweepFlags struct {
 	Plugin         []string
 	Skill          []string
 	Models         []string
+	Harness        []string
 	Timeout        int
 	Jobs           int
 	MaxTurns       int
@@ -75,11 +76,14 @@ func (f *SweepFlags) register(cmd *cobra.Command, defaultTimeout int) {
 	cmd.Flags().StringSliceVar(&f.Skill, "skill", nil,
 		"only run evals for these skills (repeatable / comma-separated; alias: --skills)")
 	cmd.Flags().StringSliceVar(&f.Models, "model", nil,
-		`provider names / model ids, or "all" (repeatable / comma-separated; alias: --models; `+
-			`default: config default_models or "anthropic")`)
+		`provider ids / canonical model ids, or "all" (repeatable / comma-separated; alias: --models; `+
+			`filters within config models)`)
+	cmd.Flags().StringSliceVar(&f.Harness, "harness", nil,
+		"only drive models with these harnesses: claude, codex, gemini, cursor, copilot, antigravity "+
+			"(repeatable / comma-separated; alias: --harnesses; filters within config harnesses)")
 	cmd.Flags().IntVar(&f.Timeout, "timeout", defaultTimeout, "seconds per agent run")
-	cmd.Flags().IntVar(&f.Jobs, "jobs", provider.DefaultJobs(), "concurrent agent runs (default: ceil(cpus/2))")
-	cmd.Flags().IntVar(&f.MaxTurns, "max-turns", provider.DefaultMaxTurns,
+	cmd.Flags().IntVar(&f.Jobs, "jobs", model.DefaultJobs(), "concurrent agent runs (default: ceil(cpus/2))")
+	cmd.Flags().IntVar(&f.MaxTurns, "max-turns", model.DefaultMaxTurns,
 		"max agent turns per eval (config: max_turns; a per-eval max_turns overrides both)")
 	cmd.Flags().BoolVar(&f.CountOnly, "count-only", false, "skip agent runs; only compute token usage per model")
 	cmd.Flags().BoolVar(&f.Baseline, "baseline", true,
@@ -93,7 +97,7 @@ func (f *SweepFlags) register(cmd *cobra.Command, defaultTimeout int) {
 		"only run evals whose authored skill content or case definition changed since their stored results")
 	cmd.Flags().BoolVar(&f.KeepWorkspaces, "keep-workspaces", false, "keep throwaway workspaces for debugging")
 	cmd.Flags().String("stale-results", "",
-		"keep|drop stored results for models outside default_models (default: prompt on a terminal, else keep)")
+		"keep|drop stored results for models outside the models restriction (default: prompt on a terminal, else keep)")
 	cmd.Flags().BoolVar(&f.NoTUI, "no-tui", false,
 		"disable the interactive TUI even on a terminal (also: EVOLVE_NO_TUI=1)")
 	cmd.Flags().SetNormalizeFunc(sweepFlagAliases)
@@ -110,6 +114,8 @@ func sweepFlagAliases(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 		name = "skill"
 	case "models":
 		name = "model"
+	case "harnesses":
+		name = "harness"
 	}
 	return pflag.NormalizedName(name)
 }
@@ -131,9 +137,21 @@ func (f *SweepFlags) sweepOptionsW(cmd *cobra.Command, counterOut io.Writer) (ru
 	if err != nil {
 		return run.Options{}, err
 	}
-	selected, err := opts.Selections(strings.Join(f.Models, ","))
+	// A --harness/--model filter may only narrow the configured restriction; a
+	// value outside it is a hard error, before any work begins.
+	if err := opts.ValidateFilterRestrictions(f.Harness, f.Models); err != nil {
+		return run.Options{}, err
+	}
+	selected, err := opts.RunnableSelections(strings.Join(f.Models, ","), strings.Join(f.Harness, ","))
 	if err != nil {
 		return run.Options{}, err
+	}
+	warnings, err := opts.UnsupportedModelWarnings()
+	if err != nil {
+		return run.Options{}, err
+	}
+	for _, w := range warnings {
+		fmt.Fprintf(counterOut, "WARN: %s\n", w)
 	}
 	counter, err := opts.Counter(counterOut)
 	if err != nil {

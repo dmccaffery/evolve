@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 )
 
 // scopeName is this package's OpenTelemetry instrumentation scope.
@@ -66,21 +66,23 @@ func New(path string, stderr io.Writer) *Counter {
 	return c
 }
 
-// Count returns the provider-reported input-token count for text, or nil when
-// the provider has no counting API, no credential is set, or the call fails.
-func (c *Counter) Count(ctx context.Context, p provider.Provider, modelID, text string) *int {
-	tc, ok := p.(provider.TokenCounter)
-	if !ok {
+// Count returns the vendor-reported input-token count for text, or nil when the
+// vendor has no counting API (tc is nil), no credential is set, or the call
+// fails. providerID names the vendor (model.Model.ProviderID) for the cache key
+// and warnings, and modelID is the vendor's own model id (model.Model.BareID)
+// the counting API expects.
+func (c *Counter) Count(ctx context.Context, tc model.TokenCounter, providerID, modelID, text string) *int {
+	if tc == nil {
 		return nil // capability absent (e.g. cursor) — expected, no warning
 	}
 
 	ctx, span := tracer().Start(ctx, "evolve.tokencount", trace.WithAttributes(
-		attribute.String("provider", p.Name()),
+		attribute.String("provider", providerID),
 		attribute.String("model", modelID),
 	))
 	defer span.End()
 
-	digest := sha256.Sum256([]byte(p.Name() + "\x00" + modelID + "\x00" + text))
+	digest := sha256.Sum256([]byte(providerID + "\x00" + modelID + "\x00" + text))
 	key := hex.EncodeToString(digest[:])
 	c.mu.Lock()
 	cached, hit := c.cache[key]
@@ -93,19 +95,19 @@ func (c *Counter) Count(ctx context.Context, p provider.Provider, modelID, text 
 
 	tokens, err := tc.CountTokens(ctx, modelID, text)
 	switch {
-	case errors.Is(err, provider.ErrNoCredential):
+	case errors.Is(err, model.ErrNoCredential):
 		slog.DebugContext(ctx, "token count skipped: no credential",
-			slog.String("provider", p.Name()),
+			slog.String("provider", providerID),
 			slog.String("model", modelID))
-		c.warn(p.Name(), "no API key or OAuth token set; token counts omitted")
+		c.warn(providerID, "no API key or OAuth token set; token counts omitted")
 		return nil
 	case err != nil:
 		slog.DebugContext(ctx, "token count failed",
-			slog.String("provider", p.Name()),
+			slog.String("provider", providerID),
 			slog.String("model", modelID),
 			slog.Any("error", err))
 		recordSpanErr(span, err)
-		c.warn(p.Name()+"/"+modelID, fmt.Sprintf("count_tokens failed: %v", err))
+		c.warn(providerID+"/"+modelID, fmt.Sprintf("count_tokens failed: %v", err))
 		return nil
 	}
 

@@ -19,9 +19,10 @@ import (
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
 	"github.com/bitwise-media-group/evolve/internal/grade"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/workspace"
 )
@@ -108,13 +109,13 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 // and skill payload. allEvals is the skill's eval list after any --eval narrowing;
 // per-provider skips and the selection filter are applied here. A unit with no
 // applicable evals reports nothing and returns cleanly.
-func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection,
+func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel harness.Selection,
 	file *results.File, skillMD []byte, contentHash string, allEvals []evalspec.Eval,
 ) (failed bool, err error) {
 	rep := opts.reporter()
-	provName := sel.Provider.Name()
-	evalRunner, _ := sel.Provider.(provider.EvalRunner)
-	cli, _ := provider.ResolveCLI(sel.Provider)
+	provName := sel.Model.ProviderID
+	evalRunner, _ := sel.Harness.(harness.EvalRunner)
+	cli, _ := harness.Available(sel.Harness)
 	execute, reportsUsage, priced := evalCapabilities(opts.Options, sel)
 
 	// modelApplicable is every eval valid for this model (skip_providers + skill
@@ -241,8 +242,8 @@ const (
 // before its own run rather than as a silent post-pass at the end of the unit.
 // priorBaseline is the entry's stored baseline (the staleness reference); the
 // returned map holds the baselines that re-ran this round, keyed by eval id.
-func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel provider.Selection, ref plan.UnitRef,
-	evalRunner provider.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult,
+func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel harness.Selection, ref plan.UnitRef,
+	evalRunner harness.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult,
 	priorBaseline *results.EvalSnapshot,
 ) (bool, map[string]results.EvalCaseMetrics, error) {
 	var failedAny bool
@@ -306,7 +307,7 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel pro
 // form preselects on, so CLI and TUI run an identical set. A missing/stale
 // baseline is its own gap, so --baseline adds the eval here too — composing with
 // --new rather than being overridden by it.
-func evalRunSet(file *results.File, sel provider.Selection, contentHash string, evals []evalspec.Eval,
+func evalRunSet(file *results.File, sel harness.Selection, contentHash string, evals []evalspec.Eval,
 	execute, reportsUsage, priced bool, opts EvalOptions,
 ) []evalspec.Eval {
 	var runSet []evalspec.Eval
@@ -383,8 +384,8 @@ func mergeBaseline(old *results.EvalSnapshot, fresh map[string]results.EvalCaseM
 	return snap
 }
 
-func runEval(ctx context.Context, opts EvalOptions, sel provider.Selection, ref plan.UnitRef,
-	evalRunner provider.EvalRunner, cli string, c evalspec.Eval, index int, skills []string, baseline bool,
+func runEval(ctx context.Context, opts EvalOptions, sel harness.Selection, ref plan.UnitRef,
+	evalRunner harness.EvalRunner, cli string, c evalspec.Eval, index int, skills []string, baseline bool,
 ) (evalOutcome, results.EvalResult, error) {
 	ctx, span := tracer().Start(ctx, "evolve.case", trace.WithAttributes(
 		attribute.String("skill", ref.Skill),
@@ -433,17 +434,18 @@ func runEval(ctx context.Context, opts EvalOptions, sel provider.Selection, ref 
 		timeout = time.Duration(c.TimeoutSeconds) * time.Second
 	}
 	// Precedence: a per-eval max_turns wins; otherwise the run-level setting
-	// (CLI flag or config); otherwise the provider's DefaultMaxTurns (0 here).
+	// (CLI flag or config); otherwise the harness's DefaultMaxTurns (0 here).
 	maxTurns := c.MaxTurns
 	if maxTurns == 0 {
 		maxTurns = opts.MaxTurns
 	}
-	spec := evalRunner.EvalSpec(ws, provider.EvalInput{
+	cliModelID, _ := sel.Model.CLIModelID(sel.Harness.ID())
+	spec := evalRunner.EvalSpec(ws, model.EvalInput{
 		Prompt:        c.Prompt,
 		MaxTurns:      maxTurns,
 		AllowedTools:  c.AllowedTools,
 		HostSandboxed: opts.HostSandboxed,
-	}, sel.Model.ID)
+	}, cliModelID)
 	spec.Argv[0] = cli
 
 	res, err := opts.Runner.Run(ctx, spec, timeout, nil)
@@ -656,13 +658,13 @@ func errorDetail(reason, stderrTail string) string {
 
 // measured converts harness-reported usage, computing the cost from the
 // model's pricing when the CLI does not report one (codex).
-func measured(model provider.Model, usage *provider.Usage) *results.Measured {
+func measured(m model.Model, usage *model.Usage) *results.Measured {
 	if usage == nil {
 		return nil
 	}
 	cost := usage.CostUSD
 	if cost == nil {
-		cost = provider.UsageCostUSD(model, *usage)
+		cost = model.UsageCostUSD(m, *usage)
 	}
 	if cost != nil {
 		rounded := results.Round6(*cost)
@@ -677,7 +679,7 @@ func measured(model provider.Model, usage *provider.Usage) *results.Measured {
 	}
 }
 
-func buildEvalEntry(opts EvalOptions, sel provider.Selection, executed bool,
+func buildEvalEntry(opts EvalOptions, sel harness.Selection, executed bool,
 	contentHash string, entryResults []results.EvalResult, old *results.EvalEntry,
 	freshBaseline map[string]results.EvalCaseMetrics,
 ) *results.EvalEntry {

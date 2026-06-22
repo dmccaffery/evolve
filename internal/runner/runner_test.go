@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 )
 
-func sh(script string) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"/bin/sh", "-c", script}}
+func sh(script string) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"/bin/sh", "-c", script}}
 }
 
 func TestRunCollectsStdout(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRunParentCancelPropagates(t *testing.T) {
 }
 
 func TestRunMissingBinary(t *testing.T) {
-	spec := provider.CommandSpec{Argv: []string{"/nonexistent/definitely-missing"}}
+	spec := model.CommandSpec{Argv: []string{"/nonexistent/definitely-missing"}}
 	if _, err := (&Exec{}).Run(context.Background(), spec, time.Second, nil); err == nil {
 		t.Error("want error for missing binary")
 	}

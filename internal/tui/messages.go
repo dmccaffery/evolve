@@ -4,8 +4,8 @@
 package tui
 
 import (
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -58,6 +58,6 @@ type (
 // these via plan.Build — the single resolver the form preview also uses — so what
 // runs cannot drift from what the form showed.
 type RunRequest struct {
-	Models    []provider.Selection
+	Models    []harness.Selection
 	Selection plan.Selection
 }

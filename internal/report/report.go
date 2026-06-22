@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/results"
 )
 
@@ -28,13 +29,13 @@ reporting, or no published pricing).`
 type Options struct {
 	Repo        *layout.Repo
 	ToolVersion string
-	Providers   []provider.Provider // effective registry: display names + capabilities
-	Format      string              // rollup format: json, jsonc, or yaml ("" = json)
+	Models      []model.Model // effective registry: display names + capabilities
+	Format      string        // rollup format: json, jsonc, or yaml ("" = json)
 
 	// ActiveModels, when non-nil, restricts the report to these "provider/model-id"
-	// keys (a configured default_models). Entries for any other model are dropped
-	// from the tables and listed in the "Excluded models" note. Nil means no
-	// filtering — every model with stored results is reported.
+	// keys (a configured `models` restriction). Entries for any other model are
+	// dropped from the tables and listed in the "Excluded models" note. Nil means
+	// no filtering — every model with stored results is reported.
 	ActiveModels map[string]bool
 }
 
@@ -112,14 +113,14 @@ func Generate(opts Options) (*Summary, error) {
 	if err != nil {
 		return nil, err
 	}
-	caps := capabilities(opts.Providers)
+	caps := capabilities(opts.Models)
 
-	// When default_models is configured, drop non-active models from the tables
-	// and surface the excluded set in a note at the top of the report.
+	// When `models` is configured, drop non-active models from the tables and
+	// surface the excluded set in a note at the top of the report.
 	var excluded []excludedProvider
 	if opts.ActiveModels != nil {
 		filterActive(loaded, opts.ActiveModels)
-		excluded = excludedModels(opts.Providers, opts.ActiveModels)
+		excluded = excludedModels(opts.Models, opts.ActiveModels)
 	}
 
 	summary := &Summary{Schema: 3, ToolVersion: opts.ToolVersion, Plugins: map[string]*PluginSummary{}}
@@ -279,22 +280,30 @@ type excludedProvider struct {
 // excludedModels lists, per provider, the catalog models absent from active.
 // It is catalog-driven (not results-driven) so the note stays stable whether or
 // not stale results were dropped.
-func excludedModels(providers []provider.Provider, active map[string]bool) []excludedProvider {
+func excludedModels(models []model.Model, active map[string]bool) []excludedProvider {
+	byProvider := map[string][]model.Model{}
+	var order []string
+	for _, m := range models {
+		if _, seen := byProvider[m.ProviderID]; !seen {
+			order = append(order, m.ProviderID)
+		}
+		byProvider[m.ProviderID] = append(byProvider[m.ProviderID], m)
+	}
 	var out []excludedProvider
-	for _, p := range providers {
+	for _, pid := range order {
 		var excl []string
 		total := 0
-		for _, m := range p.Models() {
+		for _, m := range byProvider[pid] {
 			total++
-			if !active[p.Name()+"/"+m.ID] {
-				excl = append(excl, m.ID)
+			if !active[m.Key()] {
+				excl = append(excl, m.BareID())
 			}
 		}
 		if len(excl) == 0 {
 			continue
 		}
 		sort.Strings(excl)
-		out = append(out, excludedProvider{display: p.Display(), all: len(excl) == total, models: excl})
+		out = append(out, excludedProvider{display: providerDisplayName(pid), all: len(excl) == total, models: excl})
 	}
 	return out
 }
@@ -305,16 +314,30 @@ type capabilityMap struct {
 	display map[string]string
 }
 
-func capabilities(providers []provider.Provider) capabilityMap {
+// capabilities derives, per provider id, whether the vendor has a token-counting
+// API (counts) and whether any of its models is driven by a usage-reporting
+// harness (usage), plus the vendor display name.
+func capabilities(models []model.Model) capabilityMap {
 	caps := capabilityMap{counts: map[string]bool{}, usage: map[string]bool{}, display: map[string]string{}}
-	for _, p := range providers {
-		_, caps.counts[p.Name()] = p.(provider.TokenCounter)
-		if cr, ok := p.(provider.EvalRunner); ok {
-			caps.usage[p.Name()] = cr.ReportsUsage()
+	for _, m := range models {
+		pid := m.ProviderID
+		_, caps.counts[pid] = model.CounterFor(pid)
+		if h, ok := harness.ByID(m.Preferred); ok {
+			if er, ok := h.(harness.EvalRunner); ok && er.ReportsUsage() {
+				caps.usage[pid] = true
+			}
 		}
-		caps.display[p.Name()] = p.Display()
+		caps.display[pid] = providerDisplayName(pid)
 	}
 	return caps
+}
+
+// providerDisplayName returns a vendor's human name, or its id when unknown.
+func providerDisplayName(id string) string {
+	if p, ok := model.ProviderByID(id); ok {
+		return p.Name
+	}
+	return id
 }
 
 func (c capabilityMap) providerDisplay(name string) string {

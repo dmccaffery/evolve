@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/bitwise-media-group/evolve/internal/layout"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/results"
 )
 
@@ -173,7 +173,7 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 
 func TestGenerateGolden(t *testing.T) {
 	repo := fixtureRepo(t)
-	summary, err := Generate(Options{Repo: repo, ToolVersion: "test", Providers: provider.All(nil)})
+	summary, err := Generate(Options{Repo: repo, ToolVersion: "test", Models: model.AllModels(nil)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +221,7 @@ func TestGenerateFiltersToActive(t *testing.T) {
 		"cursor/composer-2.5":      true,
 	}
 	if _, err := Generate(Options{
-		Repo: repo, ToolVersion: "test", Providers: provider.All(nil), ActiveModels: active,
+		Repo: repo, ToolVersion: "test", Models: model.AllModels(nil), ActiveModels: active,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestGenerateFiltersToActive(t *testing.T) {
 
 func TestRenderingRules(t *testing.T) {
 	repo := fixtureRepo(t)
-	if _, err := Generate(Options{Repo: repo, ToolVersion: "test", Providers: provider.All(nil)}); err != nil {
+	if _, err := Generate(Options{Repo: repo, ToolVersion: "test", Models: model.AllModels(nil)}); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(filepath.Join(repo.Root, "EVALUATION.md"))
@@ -288,7 +288,7 @@ func TestRenderingRules(t *testing.T) {
 
 func TestCheckThresholds(t *testing.T) {
 	repo := fixtureRepo(t)
-	summary, err := Generate(Options{Repo: repo, ToolVersion: "test", Providers: provider.All(nil)})
+	summary, err := Generate(Options{Repo: repo, ToolVersion: "test", Models: model.AllModels(nil)})
 	if err != nil {
 		t.Fatal(err)
 	}

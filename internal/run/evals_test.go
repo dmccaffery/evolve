@@ -13,9 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
@@ -51,39 +52,43 @@ func (r *captureReporter) BaselineDone(_ plan.UnitRef, item ItemResult) {
 func (r *captureReporter) UnitFinished(plan.UnitRef, UnitSummary, string) {}
 func (r *captureReporter) Warn(string, ...any)                            {}
 
-// fakeEvalProvider implements Provider + EvalRunner (+ TokenCounter when
-// counting). reportsUsage=false models a cursor-like provider.
+// fakeEvalProvider is a harness implementing harness.Harness + EvalRunner
+// (+ model.TokenCounter when counting). reportsUsage=false models a cursor-like
+// harness that reports no usage.
 type fakeEvalProvider struct {
 	reportsUsage bool
 	priced       bool
 }
 
-func (f *fakeEvalProvider) Name() string    { return "fake" }
-func (f *fakeEvalProvider) Display() string { return "Fake" }
-func (f *fakeEvalProvider) Models() []provider.Model {
-	m := provider.Model{ID: "model-1", Display: "Fake Model 1"}
+func (f *fakeEvalProvider) ID() string          { return "fake" }
+func (f *fakeEvalProvider) Name() string        { return "Fake" }
+func (f *fakeEvalProvider) CLI() []string       { return []string{"sh"} }
+func (f *fakeEvalProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
+func (f *fakeEvalProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
+func (f *fakeEvalProvider) canonicalModel() model.Model {
+	m := model.Model{
+		ID: "fake/model-1", ProviderID: "fake", Name: "Fake Model 1",
+		Supported: map[string]string{"fake": "model-1"}, Preferred: "fake",
+	}
 	if f.priced {
 		in, out := 2.0, 10.0
 		m.InputUSD, m.OutputUSD = &in, &out
 	}
-	return []provider.Model{m}
+	return m
 }
-func (f *fakeEvalProvider) CLI() []string       { return []string{"sh"} }
-func (f *fakeEvalProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
-func (f *fakeEvalProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
-func (f *fakeEvalProvider) TriggerSpec(ws, query, model string, _ bool) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
+func (f *fakeEvalProvider) TriggerSpec(ws, query, cliModelID string, _ bool) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
 }
 func (f *fakeEvalProvider) ScanLine([]byte, string) (bool, string) { return false, "" }
-func (f *fakeEvalProvider) EvalSpec(ws string, c provider.EvalInput, model string) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"agent-cli", "AGENT", c.Prompt}, Dir: ws}
+func (f *fakeEvalProvider) EvalSpec(ws string, c model.EvalInput, cliModelID string) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"agent-cli", "AGENT", c.Prompt}, Dir: ws}
 }
-func (f *fakeEvalProvider) ParseEvalOutput(stdout []byte) (string, *provider.Usage) {
+func (f *fakeEvalProvider) ParseEvalOutput(stdout []byte) (string, *model.Usage) {
 	if !f.reportsUsage {
 		return string(stdout), nil
 	}
 	in, out := 100, 10
-	return string(stdout), &provider.Usage{InputTokens: &in, OutputTokens: &out}
+	return string(stdout), &model.Usage{InputTokens: &in, OutputTokens: &out}
 }
 func (f *fakeEvalProvider) ReportsUsage() bool { return f.reportsUsage }
 func (f *fakeEvalProvider) RuntimeError(stdout []byte, _ int, _ bool) string {
@@ -106,7 +111,7 @@ type fakeEvalRunner struct {
 	agentFails bool // when set, the agent run produces no output and exits non-zero
 }
 
-func (f *fakeEvalRunner) Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
+func (f *fakeEvalRunner) Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
 	switch {
 	case len(spec.Argv) > 1 && spec.Argv[1] == "AGENT":
 		if f.agentFails {
@@ -158,13 +163,14 @@ func evalRepoFixture(t *testing.T) *layout.Repo {
 	return repo
 }
 
-func evalOptions(t *testing.T, repo *layout.Repo, p provider.Provider) EvalOptions {
+func evalOptions(t *testing.T, repo *layout.Repo, p fakeHarness) EvalOptions {
 	t.Helper()
 	return EvalOptions{
 		Options: Options{
 			Repo:        repo,
-			Selected:    []provider.Selection{{Provider: p, Model: p.Models()[0]}},
+			Selected:    []harness.Selection{{Model: p.canonicalModel(), Harness: p}},
 			Counter:     tokencount.New(filepath.Join(t.TempDir(), "c.json"), os.Stderr),
+			CounterFor:  fakeCounterFor(p),
 			Runner:      &fakeEvalRunner{},
 			Timeout:     30 * time.Second,
 			Jobs:        2,
@@ -568,7 +574,7 @@ type baselineRunner struct {
 	agentRuns []bool // true when the skill under test was symlinked in
 }
 
-func (r *baselineRunner) Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
+func (r *baselineRunner) Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
 	if len(spec.Argv) > 1 && spec.Argv[1] == "AGENT" {
 		_, err := os.Stat(filepath.Join(spec.Dir, ".fake", "skills", "solo-skill", "SKILL.md"))
 		r.mu.Lock()

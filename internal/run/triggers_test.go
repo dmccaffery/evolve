@@ -15,40 +15,52 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
 )
 
-// fakeTriggerProvider triggers on queries containing "please trigger".
+// fakeHarness is a test harness that also yields the canonical model the
+// selection runs, and optionally the vendor token counter (model.TokenCounter).
+type fakeHarness interface {
+	harness.Harness
+	canonicalModel() model.Model
+}
+
+// fakeTriggerProvider is a harness that triggers on queries containing "please
+// trigger". Its CLI is `sh`, so harness.Available always finds it on PATH.
 type fakeTriggerProvider struct {
 	priced bool
 }
 
-func (f *fakeTriggerProvider) Name() string    { return "fake" }
-func (f *fakeTriggerProvider) Display() string { return "Fake" }
-func (f *fakeTriggerProvider) Models() []provider.Model {
-	m := provider.Model{ID: "model-1", Display: "Fake Model 1"}
+func (f *fakeTriggerProvider) ID() string          { return "fake" }
+func (f *fakeTriggerProvider) Name() string        { return "Fake" }
+func (f *fakeTriggerProvider) CLI() []string       { return []string{"sh"} } // always on PATH
+func (f *fakeTriggerProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
+func (f *fakeTriggerProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
+func (f *fakeTriggerProvider) canonicalModel() model.Model {
+	m := model.Model{
+		ID: "fake/model-1", ProviderID: "fake", Name: "Fake Model 1",
+		Supported: map[string]string{"fake": "model-1"}, Preferred: "fake",
+	}
 	if f.priced {
 		in, out := 2.0, 10.0
 		m.InputUSD, m.OutputUSD = &in, &out
 	}
-	return []provider.Model{m}
+	return m
 }
-func (f *fakeTriggerProvider) CLI() []string       { return []string{"sh"} } // always on PATH
-func (f *fakeTriggerProvider) EnvKeys() []string   { return []string{"FAKE_KEY"} }
-func (f *fakeTriggerProvider) SkillDirs() []string { return []string{filepath.Join(".fake", "skills")} }
-func (f *fakeTriggerProvider) TriggerSpec(ws, query, model string, _ bool) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
+func (f *fakeTriggerProvider) TriggerSpec(ws, query, cliModelID string, _ bool) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"fake-cli", query}, Dir: ws}
 }
 func (f *fakeTriggerProvider) ScanLine(line []byte, skill string) (bool, string) {
 	return bytes.Contains(line, []byte("ACTIVATE:"+skill)), ""
 }
 
-// countingTriggerProvider adds the TokenCounter capability.
+// countingTriggerProvider adds the vendor token-counting capability.
 type countingTriggerProvider struct{ fakeTriggerProvider }
 
 func (c *countingTriggerProvider) CountTokens(_ context.Context, _, text string) (int, error) {
@@ -63,11 +75,28 @@ func (*failCountProvider) CountTokens(context.Context, string, string) (int, err
 	return 0, errors.New("counting unavailable")
 }
 
+// fakeCounterFor exposes a fake harness's optional CountTokens through
+// run.Options.CounterFor, scoped to its own provider id. Returns nil when the
+// fake has no counting capability (so run falls back to no counts).
+func fakeCounterFor(h fakeHarness) func(string) (model.TokenCounter, bool) {
+	tc, ok := any(h).(model.TokenCounter)
+	if !ok {
+		return nil
+	}
+	pid := h.canonicalModel().ProviderID
+	return func(providerID string) (model.TokenCounter, bool) {
+		if providerID == pid {
+			return tc, true
+		}
+		return nil, false
+	}
+}
+
 // fakeTriggerRunner emits an activation line for queries containing "please
 // trigger".
 type fakeTriggerRunner struct{}
 
-func (fakeTriggerRunner) Run(_ context.Context, spec provider.CommandSpec, _ time.Duration, onLine func([]byte) bool) (runner.Result, error) {
+func (fakeTriggerRunner) Run(_ context.Context, spec model.CommandSpec, _ time.Duration, onLine func([]byte) bool) (runner.Result, error) {
 	query := spec.Argv[1]
 	line := "noise"
 	if strings.Contains(query, "please trigger") {
@@ -106,14 +135,15 @@ func triggerRepoFixture(t *testing.T) *layout.Repo {
 	return repo
 }
 
-func triggerOptions(t *testing.T, repo *layout.Repo, p provider.Provider) TriggerOptions {
+func triggerOptions(t *testing.T, repo *layout.Repo, p fakeHarness) TriggerOptions {
 	t.Helper()
-	sel := provider.Selection{Provider: p, Model: p.Models()[0]}
+	sel := harness.Selection{Model: p.canonicalModel(), Harness: p}
 	return TriggerOptions{
 		Options: Options{
 			Repo:        repo,
-			Selected:    []provider.Selection{sel},
+			Selected:    []harness.Selection{sel},
 			Counter:     tokencount.New(filepath.Join(t.TempDir(), "c.json"), os.Stderr),
+			CounterFor:  fakeCounterFor(p),
 			Runner:      fakeTriggerRunner{},
 			Timeout:     30 * time.Second,
 			Jobs:        2,

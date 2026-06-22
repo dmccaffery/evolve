@@ -1,6 +1,6 @@
 ## evolve models
 
-Print the effective provider/model matrix with pricing and provenance
+Print the effective model matrix with pricing, harnesses, and provenance
 
 ```
 evolve models [flags]

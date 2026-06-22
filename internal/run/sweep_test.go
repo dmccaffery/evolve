@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/tokencount"
 )
 
@@ -79,7 +79,7 @@ func TestSweepInterleavesTiersPerSkill(t *testing.T) {
 	opts := SweepOptions{
 		Options: Options{
 			Repo:        repo,
-			Selected:    []provider.Selection{{Provider: p, Model: p.Models()[0]}},
+			Selected:    []harness.Selection{{Model: p.canonicalModel(), Harness: p}},
 			Counter:     tokencount.New(filepath.Join(t.TempDir(), "c.json"), os.Stderr),
 			Timeout:     30 * time.Second,
 			Jobs:        2,

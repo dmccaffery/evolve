@@ -10,8 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 func TestFormRendersAndPreselects(t *testing.T) {
@@ -39,8 +39,8 @@ func TestFormRendersAndPreselects(t *testing.T) {
 	}
 
 	req := m.form.request()
-	if len(req.Models) != 1 || req.Models[0].Model.ID != "m1" {
-		t.Fatalf("models = %+v, want only m1", req.Models)
+	if len(req.Models) != 1 || req.Models[0].Model.ID != "fake/m1" {
+		t.Fatalf("models = %+v, want only fake/m1", req.Models)
 	}
 	f := plan.Build(m.cat, req.Models, req.Selection, plan.PriorMetrics{}).Filters()[req.Models[0].Key()]
 	if f == nil || !f.Triggers["solo-skill"]["q1"] || !f.Evals["solo-skill"]["e1"] {
@@ -78,8 +78,8 @@ func TestFormShowsPreselectionReasons(t *testing.T) {
 // cases must run for only those, not the full cross-product.
 func TestPartialSelection(t *testing.T) {
 	p := fakeProv{}
-	m1 := provider.Selection{Provider: p, Model: provider.Model{ID: "m1"}}
-	m2 := provider.Selection{Provider: p, Model: provider.Model{ID: "m2"}}
+	m1 := harness.Selection{Harness: p, Model: fakeModel("m1", "m1")}
+	m2 := harness.Selection{Harness: p, Model: fakeModel("m2", "m2")}
 	cat := []plan.SkillCatalog{
 		{Plugin: "pl", Skill: "A", Triggers: []evalspec.Trigger{{Query: "a"}}},
 		{Plugin: "pl", Skill: "B", Triggers: []evalspec.Trigger{{Query: "b"}}},
@@ -90,7 +90,7 @@ func TestPartialSelection(t *testing.T) {
 		m1.Key(): {cA: true, cB: true},  // m1 needs both
 		m2.Key(): {cA: true, cB: false}, // m2 needs only A
 	}
-	f := newForm(cat, []provider.Selection{m1, m2}, needs, nil, "")
+	f := newForm(cat, []harness.Selection{m1, m2}, needs, nil, "")
 
 	// Model states: m1 fully on, m2 partial.
 	modelState := map[string]nodeState{}
@@ -134,8 +134,8 @@ func TestPartialSelection(t *testing.T) {
 // form re-resolves the plan, so its checkboxes show exactly what will run.
 func TestFormCascadeOnModelToggle(t *testing.T) {
 	p := fakeProv{}
-	m1 := provider.Selection{Provider: p, Model: provider.Model{ID: "m1"}}
-	m2 := provider.Selection{Provider: p, Model: provider.Model{ID: "m2"}}
+	m1 := harness.Selection{Harness: p, Model: fakeModel("m1", "m1")}
+	m2 := harness.Selection{Harness: p, Model: fakeModel("m2", "m2")}
 	cat := []plan.SkillCatalog{
 		{Plugin: "pl", Skill: "A", Evals: []evalspec.Eval{{ID: "e"}, {ID: "e2"}}},
 	}
@@ -145,7 +145,7 @@ func TestFormCascadeOnModelToggle(t *testing.T) {
 		m1.Key(): {e: true, e2: false}, // e failed only for m1
 		m2.Key(): {e: false, e2: true},
 	}
-	f := newForm(cat, []provider.Selection{m1, m2}, needs, nil, "")
+	f := newForm(cat, []harness.Selection{m1, m2}, needs, nil, "")
 
 	leaf := func(id string) int {
 		for i, n := range f.evals.nodes {
@@ -183,8 +183,8 @@ func TestFormCascadeOnModelToggle(t *testing.T) {
 // every selected case.
 func TestSelectingPartialModelRunsAll(t *testing.T) {
 	p := fakeProv{}
-	m1 := provider.Selection{Provider: p, Model: provider.Model{ID: "m1"}}
-	m2 := provider.Selection{Provider: p, Model: provider.Model{ID: "m2"}}
+	m1 := harness.Selection{Harness: p, Model: fakeModel("m1", "m1")}
+	m2 := harness.Selection{Harness: p, Model: fakeModel("m2", "m2")}
 	cat := []plan.SkillCatalog{
 		{Plugin: "pl", Skill: "A", Triggers: []evalspec.Trigger{{Query: "a"}}},
 		{Plugin: "pl", Skill: "B", Triggers: []evalspec.Trigger{{Query: "b"}}},
@@ -195,7 +195,7 @@ func TestSelectingPartialModelRunsAll(t *testing.T) {
 		m1.Key(): {cA: true, cB: true},
 		m2.Key(): {cA: true, cB: false},
 	}
-	f := newForm(cat, []provider.Selection{m1, m2}, needs, nil, "")
+	f := newForm(cat, []harness.Selection{m1, m2}, needs, nil, "")
 
 	// Toggle the m2 leaf on.
 	for i := range f.left.nodes {

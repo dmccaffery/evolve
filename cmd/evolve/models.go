@@ -5,43 +5,55 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/version"
 )
 
 var modelsCmd = &cobra.Command{
 	Use:   "models",
-	Short: "Print the effective provider/model matrix with pricing and provenance",
+	Short: "Print the effective model matrix with pricing, harnesses, and provenance",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		providers, overridden, err := opts.Providers()
+		models, err := opts.ConfiguredModels()
 		if err != nil {
 			return err
 		}
+		_, overridden, err := opts.ModelOverrides()
+		if err != nil {
+			return err
+		}
+		available, err := opts.AvailableHarnesses()
+		if err != nil {
+			return err
+		}
+		avail := map[string]bool{}
+		for _, h := range available {
+			avail[h.ID()] = true
+		}
+
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 2, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "MODEL\tDISPLAY\tINPUT $/MTOK\tOUTPUT $/MTOK\tCAPABILITIES\tSOURCE")
-		for _, p := range providers {
+		fmt.Fprintln(w, "MODEL\tNAME\tINPUT $/MTOK\tOUTPUT $/MTOK\tHARNESSES\tPREFERRED\tSTATUS\tSOURCE")
+		for _, m := range models {
 			source := "builtin@" + version.Version
-			if overridden[p.Name()] {
+			if overridden[m.ProviderID] {
 				if source = opts.ConfigFileName(); source == "" {
 					source = "config"
 				}
 			}
-			caps := "triggers"
-			if _, ok := p.(provider.EvalRunner); ok {
-				caps += "+evals"
+			status := "no harness on PATH"
+			for id := range m.Supported {
+				if avail[id] {
+					status = "runnable"
+					break
+				}
 			}
-			if _, ok := p.(provider.TokenCounter); ok {
-				caps += "+counting"
-			}
-			for _, m := range p.Models() {
-				fmt.Fprintf(w, "%s/%s\t%s\t%s\t%s\t%s\t%s\n",
-					p.Name(), m.ID, m.Display, fmtPrice(m.InputUSD), fmtPrice(m.OutputUSD), caps, source)
-			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				m.ID, m.Name, fmtPrice(m.InputUSD), fmtPrice(m.OutputUSD),
+				strings.Join(m.SupportedHarnessIDs(), ","), m.Preferred, status, source)
 		}
 		return w.Flush()
 	},

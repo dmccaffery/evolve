@@ -11,8 +11,8 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 type screen int
@@ -40,7 +40,7 @@ type Model struct {
 // per-case preselection reasons shown beside each case; evalFilter forces
 // non-matching evals off. The chosen RunRequest is sent on runReq when the user
 // runs; the channel is closed by the caller if they cancel.
-func New(cat []plan.SkillCatalog, sels []provider.Selection, needs map[string]map[plan.CaseRef]bool,
+func New(cat []plan.SkillCatalog, sels []harness.Selection, needs map[string]map[plan.CaseRef]bool,
 	notes map[plan.CaseRef]string, evalFilter string, prior plan.PriorMetrics, runReq chan<- RunRequest) Model {
 	return Model{
 		screen: screenForm,

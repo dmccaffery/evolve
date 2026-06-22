@@ -19,7 +19,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 )
 
@@ -45,7 +45,7 @@ const DefaultJudgeModel = "claude-sonnet-4-6"
 
 // Runner runs grading subprocesses (shell commands and the judge CLI).
 type Runner interface {
-	Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration,
+	Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration,
 		onLine func([]byte) bool) (runner.Result, error)
 }
 
@@ -126,7 +126,7 @@ func Assertion(ctx context.Context, a evalspec.Assertion, opts Options) (passed 
 		if a.Cwd != "" {
 			cwd = filepath.Join(opts.Workspace, a.Cwd)
 		}
-		res, err := opts.Runner.Run(ctx, provider.CommandSpec{
+		res, err := opts.Runner.Run(ctx, model.CommandSpec{
 			Argv: []string{"/bin/sh", "-c", a.Run},
 			Dir:  cwd,
 		}, opts.Timeout, nil)
@@ -157,9 +157,9 @@ func Assertion(ctx context.Context, a evalspec.Assertion, opts Options) (passed 
 // judge asks the claude CLI for a verdict; any failure to obtain a parseable
 // one fails the assertion loudly.
 func judge(ctx context.Context, assertion string, opts Options) (bool, string) {
-	model := opts.JudgeModel
-	if model == "" {
-		model = DefaultJudgeModel
+	judgeModel := opts.JudgeModel
+	if judgeModel == "" {
+		judgeModel = DefaultJudgeModel
 	}
 	expected := "\n"
 	if opts.ExpectedOutput != "" {
@@ -167,9 +167,9 @@ func judge(ctx context.Context, assertion string, opts Options) (bool, string) {
 			"separate assertion):\n---\n" + truncate(opts.ExpectedOutput, 2000) + "\n---\n\n"
 	}
 	prompt := fmt.Sprintf(judgePrompt, assertion, expected, truncate(opts.Output, 8000), opts.Workspace)
-	res, err := opts.Runner.Run(ctx, provider.CommandSpec{
+	res, err := opts.Runner.Run(ctx, model.CommandSpec{
 		Argv: []string{"claude", "-p", prompt,
-			"--model", model,
+			"--model", judgeModel,
 			"--output-format", "json",
 			"--max-turns", "4",
 			"--allowedTools", "Read Glob Grep"},
@@ -177,12 +177,12 @@ func judge(ctx context.Context, assertion string, opts Options) (bool, string) {
 	}, opts.Timeout, nil)
 	if err != nil {
 		slog.DebugContext(ctx, "judge error",
-			slog.String("model", model),
+			slog.String("model", judgeModel),
 			slog.Any("error", err))
 		return false, fmt.Sprintf("judge error: %v", err)
 	}
 	if res.TimedOut {
-		slog.DebugContext(ctx, "judge timed out", slog.String("model", model))
+		slog.DebugContext(ctx, "judge timed out", slog.String("model", judgeModel))
 		return false, "judge error: timed out"
 	}
 

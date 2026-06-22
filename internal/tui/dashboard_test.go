@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -45,7 +45,7 @@ func TestDashboardSeedsPriorAndQueuedCases(t *testing.T) {
 		Skills:   map[string]bool{"solo-skill": true},
 		Triggers: map[string]map[string]bool{"solo-skill": {"q2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, prior)
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, prior)
 
 	tr := plan.UnitRef{Skill: "solo-skill", Key: m1.Key(), Kind: plan.KindTriggers}
 	ev := plan.UnitRef{Skill: "solo-skill", Key: m1.Key(), Kind: plan.KindEvals}
@@ -109,7 +109,7 @@ func TestQueuedCaseShowsPriorUntilLive(t *testing.T) {
 		Skills:   map[string]bool{"solo-skill": true},
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, prior)
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, prior)
 
 	q1 := d.unit(tr).byLabel["q1"]
 	if q1.status != stPass || q1.prior || q1.liveDone {
@@ -154,7 +154,7 @@ func TestBaselineRunningLifecycle(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 	d.apply(unitStartedMsg{ref: ev, total: 1, mode: plan.ModeRun})
 

@@ -32,7 +32,7 @@ const (
 // UnitRef identifies one execution unit: a (skill, provider/model, tier) triple.
 type UnitRef struct {
 	Skill string
-	Key   string // provider.Selection.Key(): "provider/model"
+	Key   string // harness.Selection.Key(): "provider/model"
 	Kind  Kind
 }
 

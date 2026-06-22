@@ -9,29 +9,37 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 type fakeProv struct{}
 
-func (fakeProv) Name() string                           { return "fake" }
-func (fakeProv) Display() string                        { return "Fake" }
-func (fakeProv) Models() []provider.Model               { return []provider.Model{{ID: "m1", Display: "Model 1"}} }
+func (fakeProv) ID() string                             { return "fake" }
+func (fakeProv) Name() string                           { return "Fake" }
 func (fakeProv) CLI() []string                          { return []string{"sh"} }
 func (fakeProv) EnvKeys() []string                      { return []string{"K"} }
 func (fakeProv) SkillDirs() []string                    { return []string{".fake/skills"} }
 func (fakeProv) ScanLine([]byte, string) (bool, string) { return false, "" }
-func (fakeProv) TriggerSpec(ws, query, model string, _ bool) provider.CommandSpec {
-	return provider.CommandSpec{Argv: []string{"x"}, Dir: ws}
+func (fakeProv) TriggerSpec(ws, query, cliModelID string, _ bool) model.CommandSpec {
+	return model.CommandSpec{Argv: []string{"x"}, Dir: ws}
+}
+
+// fakeModel builds a canonical model driven by the fake harness.
+func fakeModel(id, name string) model.Model {
+	return model.Model{
+		ID: "fake/" + id, ProviderID: "fake", Name: name,
+		Supported: map[string]string{"fake": id}, Preferred: "fake",
+	}
 }
 
 // soloModels returns two models of which only the first is flag-resolved.
-func soloModels() (sels []provider.Selection, resolved provider.Selection) {
+func soloModels() (sels []harness.Selection, resolved harness.Selection) {
 	p := fakeProv{}
-	sels = []provider.Selection{
-		{Provider: p, Model: provider.Model{ID: "m1", Display: "Model 1"}},
-		{Provider: p, Model: provider.Model{ID: "m2", Display: "Model 2"}},
+	sels = []harness.Selection{
+		{Harness: p, Model: fakeModel("m1", "Model 1")},
+		{Harness: p, Model: fakeModel("m2", "Model 2")},
 	}
 	return sels, sels[0]
 }
@@ -80,7 +88,7 @@ func testModel(t *testing.T) Model {
 // the given models and case filter: a nil filter widens every model (run all
 // applicable cases), otherwise each model's needs baseline is the filter's
 // selected cases. It mirrors what the form's request() produces.
-func selectionFromFilter(models []provider.Selection, filter *plan.Filter) plan.Selection {
+func selectionFromFilter(models []harness.Selection, filter *plan.Filter) plan.Selection {
 	sel := plan.Selection{
 		Models: map[string]plan.State{},
 		Cases:  map[plan.CaseRef]plan.State{},
@@ -115,7 +123,7 @@ func selectionFromFilter(models []provider.Selection, filter *plan.Filter) plan.
 
 // dashFromFilter builds a dashboard the way the app does: resolve the models and
 // case filter into a plan via plan.Build, then project it.
-func dashFromFilter(cat []plan.SkillCatalog, models []provider.Selection, filter *plan.Filter, prior plan.PriorMetrics) dashboardModel {
+func dashFromFilter(cat []plan.SkillCatalog, models []harness.Selection, filter *plan.Filter, prior plan.PriorMetrics) dashboardModel {
 	p := plan.Build(cat, models, selectionFromFilter(models, filter), prior)
 	return newDashboard(p, cat, prior)
 }

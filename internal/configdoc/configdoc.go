@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -33,9 +33,16 @@ func Schema() []Option {
 			Doc: "Repository layout: auto, marketplace, multi, or single.",
 		},
 		{
-			Key: "default_models", Type: "list of strings", Value: []string{"anthropic"},
-			Doc: "Model spec used when --models is omitted: provider names, model ids, " +
-				"provider-qualified ids (cursor/composer-2.5), or all.",
+			Key: "models", Type: "list of strings", Example: []string{"anthropic/claude-sonnet-4-6"},
+			Fallback: "every model runnable by an available harness",
+			Doc: "Restriction on which models exist: provider ids, canonical model ids " +
+				"(anthropic/claude-sonnet-4-6), or all. Unlisted models are unavailable. --model filters within it.",
+		},
+		{
+			Key: "harnesses", Type: "list of strings", Example: []string{"claude", "copilot"},
+			Fallback: "every harness found on PATH",
+			Doc: "Restriction on which agent CLIs (claude, codex, gemini, cursor, copilot, antigravity) " +
+				"may drive models. --harness filters within it.",
 		},
 		{
 			Key: "cache_dir", Type: "string", Example: "~/.cache/evolve",
@@ -53,7 +60,7 @@ func Schema() []Option {
 				"the --telemetry-dir flag overrides it and both win over OTEL_* env vars.",
 		},
 		{
-			Key: "max_turns", Type: "int", Value: provider.DefaultMaxTurns,
+			Key: "max_turns", Type: "int", Value: model.DefaultMaxTurns,
 			Doc: "Default maximum agent turns per behavioral eval; --max-turns and a per-eval max_turns override it.",
 		},
 		{
@@ -64,7 +71,7 @@ func Schema() []Option {
 		{
 			Key: "stale_results", Type: "string", Example: "keep",
 			Fallback: "prompt on a terminal, otherwise keep",
-			Doc: "How run/report treat stored results for models outside default_models: keep or drop. " +
+			Doc: "How run/report treat stored results for models outside the `models` restriction: keep or drop. " +
 				"--stale-results overrides.",
 		},
 		{

@@ -31,7 +31,7 @@ var reportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		providers, _, err := opts.Providers()
+		models, err := opts.AvailableModels()
 		if err != nil {
 			return err
 		}
@@ -45,7 +45,7 @@ var reportCmd = &cobra.Command{
 		summary, err := report.Generate(report.Options{
 			Repo:         repo,
 			ToolVersion:  version.Version,
-			Providers:    providers,
+			Models:       models,
 			Format:       opts.ResultsFormat,
 			ActiveModels: active,
 		})

@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
@@ -50,7 +50,7 @@ func TestExecutingPaneAndRuler(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Triggers running, evals still pending: the active model expands and exactly
@@ -221,7 +221,7 @@ func TestCompletedGroupSettlesWithoutSpinner(t *testing.T) {
 	_, m1 := soloModels()
 	tr := plan.UnitRef{Skill: "solo-skill", Key: m1.Key(), Kind: plan.KindTriggers}
 	ev := plan.UnitRef{Skill: "solo-skill", Key: m1.Key(), Kind: plan.KindEvals}
-	d := dashFromFilter(cat, []provider.Selection{m1}, nil, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, nil, plan.PriorMetrics{})
 
 	// Run every case to a pass but never deliver unitFinishedMsg, so each unit's
 	// status stays stRunning while all of its cases have settled.
@@ -255,7 +255,7 @@ func TestQueuedGroupShowsPendingIndicator(t *testing.T) {
 	cat := soloCatalog(t)
 	_, m1 := soloModels()
 	prior := commitAllPass(t, cat, m1.Key())
-	d := dashFromFilter(cat, []provider.Selection{m1}, nil, prior)
+	d := dashFromFilter(cat, []harness.Selection{m1}, nil, prior)
 
 	units := soloModelUnits(d)
 	if d.groupActive(units) {
@@ -275,7 +275,7 @@ func TestRunningGroupShowsSpinner(t *testing.T) {
 	cat := soloCatalog(t)
 	_, m1 := soloModels()
 	tr := plan.UnitRef{Skill: "solo-skill", Key: m1.Key(), Kind: plan.KindTriggers}
-	d := dashFromFilter(cat, []provider.Selection{m1}, nil, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, nil, plan.PriorMetrics{})
 
 	d.apply(unitStartedMsg{ref: tr, total: 2, mode: plan.ModeRun})
 	d.apply(itemStartedMsg{ref: tr, item: run.ItemStart{Label: "q1"}})
@@ -303,7 +303,7 @@ func TestExecutionBrowseKeepsCursorOnScreen(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// A live path (so the model is expanded), then focus the Execution pane.
@@ -341,7 +341,7 @@ func TestExecutionBrowseMode(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true, "q2": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true, "e2": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 120, 40
 
 	// Drive triggers to completion, finish e1, and leave e2 in flight — a live

@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/manifest"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 )
 
@@ -51,14 +51,14 @@ func Catalog(opts Options) ([]plan.SkillCatalog, error) {
 // selections, tiers, and filter — every (skill, provider/model, tier) triple
 // with at least one applicable case. It reuses the planner's applicability
 // checks so the planned list cannot drift from what the engine runs.
-func Plan(cat []plan.SkillCatalog, sels []provider.Selection, f *plan.Filter, tiers plan.Tiers) []plan.UnitRef {
+func Plan(cat []plan.SkillCatalog, sels []harness.Selection, f *plan.Filter, tiers plan.Tiers) []plan.UnitRef {
 	var units []plan.UnitRef
 	for _, sc := range cat {
 		for _, sel := range sels {
-			if tiers.Triggers && len(plan.ApplicableTriggers(sc.Triggers, sel.Provider.Name(), sc.Skill, f)) > 0 {
+			if tiers.Triggers && len(plan.ApplicableTriggers(sc.Triggers, sel.Model.ProviderID, sc.Skill, f)) > 0 {
 				units = append(units, plan.UnitRef{Skill: sc.Skill, Key: sel.Key(), Kind: plan.KindTriggers})
 			}
-			if tiers.Evals && len(plan.ApplicableEvals(sc.Evals, sel.Provider.Name(), sc.Skill, f)) > 0 {
+			if tiers.Evals && len(plan.ApplicableEvals(sc.Evals, sel.Model.ProviderID, sc.Skill, f)) > 0 {
 				units = append(units, plan.UnitRef{Skill: sc.Skill, Key: sel.Key(), Kind: plan.KindEvals})
 			}
 		}
@@ -67,8 +67,8 @@ func Plan(cat []plan.SkillCatalog, sels []provider.Selection, f *plan.Filter, ti
 }
 
 // PlanFor enumerates the units one selection would run under a per-model filter.
-func PlanFor(cat []plan.SkillCatalog, sel provider.Selection, f *plan.Filter, tiers plan.Tiers) []plan.UnitRef {
-	return Plan(cat, []provider.Selection{sel}, f, tiers)
+func PlanFor(cat []plan.SkillCatalog, sel harness.Selection, f *plan.Filter, tiers plan.Tiers) []plan.UnitRef {
+	return Plan(cat, []harness.Selection{sel}, f, tiers)
 }
 
 // Needs reports, per resolved selection (keyed by Selection.Key()) and per
@@ -81,7 +81,7 @@ func PlanFor(cat []plan.SkillCatalog, sel provider.Selection, f *plan.Filter, ti
 // skip_providers honored), appear. Token-count estimates are deliberately not a
 // reason here nor in the engine, so this needs no token-counting round trip.
 func Needs(
-	opts Options, cat []plan.SkillCatalog, sels []provider.Selection, def plan.Tiers, evalFilter string,
+	opts Options, cat []plan.SkillCatalog, sels []harness.Selection, def plan.Tiers, evalFilter string,
 ) (need map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string) {
 	need = make(map[string]map[plan.CaseRef]bool, len(sels))
 	for _, sel := range sels {
@@ -132,7 +132,7 @@ func needContentHashes(opts Options, sc plan.SkillCatalog, def plan.Tiers) (trig
 
 // needTriggers records, for each of a skill's triggers, whether each model would
 // run it and the aggregate preselect note — the same predicate the engine uses.
-func needTriggers(opts Options, sc plan.SkillCatalog, sels []provider.Selection, flags bool,
+func needTriggers(opts Options, sc plan.SkillCatalog, sels []harness.Selection, flags bool,
 	file *results.File, content string, need map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string) {
 
 	for _, t := range sc.Triggers {
@@ -143,7 +143,7 @@ func needTriggers(opts Options, sc plan.SkillCatalog, sels []provider.Selection,
 		}
 		var perModel []SelectReason
 		for _, sel := range sels {
-			if t.SkipsProvider(sel.Provider.Name()) {
+			if t.SkipsProvider(sel.Model.ProviderID) {
 				continue
 			}
 			reason := ReasonNone
@@ -162,7 +162,7 @@ func needTriggers(opts Options, sc plan.SkillCatalog, sels []provider.Selection,
 }
 
 // needEvals is needTriggers for the eval tier, honoring evalFilter.
-func needEvals(opts Options, sc plan.SkillCatalog, sels []provider.Selection, flags bool,
+func needEvals(opts Options, sc plan.SkillCatalog, sels []harness.Selection, flags bool,
 	file *results.File, content, evalFilter string, need map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string) {
 
 	for _, c := range sc.Evals {
@@ -176,7 +176,7 @@ func needEvals(opts Options, sc plan.SkillCatalog, sels []provider.Selection, fl
 		}
 		var perModel []SelectReason
 		for _, sel := range sels {
-			if c.SkipsProvider(sel.Provider.Name()) {
+			if c.SkipsProvider(sel.Model.ProviderID) {
 				continue
 			}
 			reason := ReasonNone
@@ -203,16 +203,16 @@ func needEvals(opts Options, sc plan.SkillCatalog, sels []provider.Selection, fl
 
 // triggerExecutes reports whether a trigger sweep would run agents for sel (vs
 // token-count only): a CLI is on PATH and this is not a count-only invocation.
-func triggerExecutes(opts Options, sel provider.Selection) bool {
-	_, cliFound := provider.ResolveCLI(sel.Provider)
+func triggerExecutes(opts Options, sel harness.Selection) bool {
+	_, cliFound := harness.Available(sel.Harness)
 	return !opts.CountOnly && cliFound
 }
 
 // evalCapabilities mirrors runEvalUnit's per-model knobs: whether it executes,
-// whether the provider reports measured usage, and whether the model is priced.
-func evalCapabilities(opts Options, sel provider.Selection) (execute, reportsUsage, priced bool) {
-	evalRunner, isEvalRunner := sel.Provider.(provider.EvalRunner)
-	_, cliFound := provider.ResolveCLI(sel.Provider)
+// whether the harness reports measured usage, and whether the model is priced.
+func evalCapabilities(opts Options, sel harness.Selection) (execute, reportsUsage, priced bool) {
+	evalRunner, isEvalRunner := sel.Harness.(harness.EvalRunner)
+	_, cliFound := harness.Available(sel.Harness)
 	execute = isEvalRunner && cliFound && !opts.CountOnly
 	reportsUsage = isEvalRunner && evalRunner.ReportsUsage()
 	priced = sel.Model.InputUSD != nil && sel.Model.OutputUSD != nil

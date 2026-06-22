@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -25,7 +25,7 @@ func TestExecutingPaneScrolls(t *testing.T) {
 		Skills: map[string]bool{"solo-skill": true},
 		Evals:  map[string]map[string]bool{"solo-skill": {"e1": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 100, 24 // a short pane so the output overflows the result region
 
 	d.apply(unitStartedMsg{ref: ev, total: 1, mode: plan.ModeRun})

@@ -8,8 +8,9 @@ import (
 	"testing"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 )
 
 // These benchmarks bound the cost of one dashboard frame. The live run drives a
@@ -56,11 +57,14 @@ func benchCatalog(plugins, skills, triggers, evals int) []plan.SkillCatalog {
 	return cat
 }
 
-func benchModels(n int) []provider.Selection {
+func benchModels(n int) []harness.Selection {
 	p := fakeProv{}
-	sels := make([]provider.Selection, n)
+	sels := make([]harness.Selection, n)
 	for i := range sels {
-		sels[i] = provider.Selection{Provider: p, Model: provider.Model{ID: fmt.Sprintf("m%d", i), Display: fmt.Sprintf("Model %d", i)}}
+		sels[i] = harness.Selection{Harness: p, Model: model.Model{
+			ID: fmt.Sprintf("fake/m%d", i), ProviderID: "fake", Name: fmt.Sprintf("Model %d", i),
+			Supported: map[string]string{"fake": fmt.Sprintf("m%d", i)}, Preferred: "fake",
+		}}
 	}
 	return sels
 }

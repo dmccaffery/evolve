@@ -15,8 +15,8 @@ import (
 	"golang.org/x/term"
 
 	"github.com/bitwise-media-group/evolve/internal/cli"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 	"github.com/bitwise-media-group/evolve/internal/telemetry"
 	"github.com/bitwise-media-group/evolve/internal/tui"
@@ -74,7 +74,7 @@ func forward(rep run.Reporter) io.Writer {
 // runs engine via the supplied callback once the user chooses RUN, keeping the
 // dashboard interactive until they quit. The callback receives the chosen
 // selections/filter and the reporter to attach to its run.Options.
-func runWithUI(cmd *cobra.Command, cat []plan.SkillCatalog, sels []provider.Selection,
+func runWithUI(cmd *cobra.Command, cat []plan.SkillCatalog, sels []harness.Selection,
 	needs map[string]map[plan.CaseRef]bool, notes map[plan.CaseRef]string, evalFilter string,
 	prior plan.PriorMetrics,
 	engine func(ctx context.Context, req tui.RunRequest, rep run.Reporter) (bool, error),
@@ -178,7 +178,7 @@ func uiRun(cmd *cobra.Command, sweep *SweepFlags, def plan.Tiers,
 	// from the per-case run matrix (with each case's preselection reason), so the
 	// initial state matches non-TUI mode (including --new/--failed) exactly.
 	needs, notes := run.Needs(common, cat, common.Selected, def, evalFilter)
-	allSels, err := opts.Selections("all")
+	allSels, err := opts.RunnableSelections("all", "")
 	if err != nil {
 		return err
 	}

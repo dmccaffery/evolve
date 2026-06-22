@@ -9,8 +9,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/run"
 )
 
@@ -99,7 +99,7 @@ func TestTitleBarAlignment(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e1": true}},
 	}
-	d := dashFromFilter(cat, []provider.Selection{m1}, filter, plan.PriorMetrics{})
+	d := dashFromFilter(cat, []harness.Selection{m1}, filter, plan.PriorMetrics{})
 	d.w, d.h = 140, 30
 	d.apply(unitStartedMsg{ref: tr, total: 1, mode: plan.ModeRun})
 	d.apply(itemStartedMsg{ref: tr, item: run.ItemStart{Label: "q1"}})

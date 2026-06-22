@@ -22,7 +22,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 )
 
 // scopeName is this package's OpenTelemetry instrumentation scope.
@@ -54,7 +54,7 @@ func newObservability() *observability {
 // observe records the exec's span attributes, metrics, and a finish log, and
 // marks the span errored only on runErr (a started-but-cancelled or unstartable
 // run). A timeout or non-zero exit is a normal outcome here, not a span error.
-func (o *observability) observe(ctx context.Context, span trace.Span, spec provider.CommandSpec,
+func (o *observability) observe(ctx context.Context, span trace.Span, spec model.CommandSpec,
 	res Result, runErr error) {
 	span.SetAttributes(
 		attribute.Int("exit_code", res.ExitCode),
@@ -110,7 +110,7 @@ type Exec struct {
 // trigger runs count as no-trigger and case runs grade partial output. The
 // returned error is non-nil only for unstartable commands or parent-context
 // cancellation (Ctrl-C).
-func (e *Exec) Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration,
+func (e *Exec) Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration,
 	onLine func([]byte) bool) (Result, error) {
 	o := obs()
 	ctx, span := o.tracer.Start(ctx, "evolve.agent.exec")

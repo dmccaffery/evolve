@@ -14,9 +14,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
 	"github.com/bitwise-media-group/evolve/internal/plan"
-	"github.com/bitwise-media-group/evolve/internal/provider"
 	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/workspace"
 )
@@ -115,12 +115,12 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 // reruns only the queries with a gap, merging their fresh results back over the
 // stored ones; otherwise it runs every selected query. A unit with no applicable
 // queries reports nothing and returns cleanly.
-func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet, sel provider.Selection,
+func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet, sel harness.Selection,
 	file *results.File, skillMD []byte, contentHash string, triggers []evalspec.Trigger, ws string,
 ) (failed bool, err error) {
 
 	rep := opts.reporter()
-	provName := sel.Provider.Name()
+	provName := sel.Model.ProviderID
 	// modelApplicable is every query valid for this model (skip_providers + skill
 	// only), ignoring the selection filter, so a partial rerun can preserve the
 	// queries it does not touch. applicable then narrows by the selection filter.
@@ -133,7 +133,7 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 	ctx, span := tracer().Start(ctx, "evolve.unit", trace.WithAttributes(unitSpanAttrs(ref)...))
 	defer func() { endSpan(span, err) }()
 
-	cli, cliFound := provider.ResolveCLI(sel.Provider)
+	cli, cliFound := harness.Available(sel.Harness)
 	execute := !opts.CountOnly && cliFound
 
 	// Per-case run-set: under --new/--failed/--modified keep only the queries
@@ -156,7 +156,7 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 	}
 	if !execute && !opts.CountOnly {
 		rep.Warn("  warn: `%s` CLI not found; %s gets token counts only\n",
-			sel.Provider.CLI()[0], sel.Key())
+			sel.Harness.CLI()[0], sel.Key())
 	}
 
 	mode := plan.ModeCountOnly
@@ -215,7 +215,7 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 // runQueries executes every query's runs concurrently (jobs at a time) and
 // fills hits/runs/passed/avg into entryResults as queries complete. Sharing
 // the workspace is safe: trigger sessions are read-only.
-func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection, cli, ws string, ref plan.UnitRef,
+func runQueries(ctx context.Context, opts TriggerOptions, sel harness.Selection, cli, ws string, ref plan.UnitRef,
 	triggers []evalspec.Trigger, entryResults []results.TriggerResult) (bool, error) {
 
 	rep := opts.reporter()
@@ -292,10 +292,11 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 		rep.ItemStarted(ref, ItemStart{Index: i, Label: t.Query, Runs: opts.Runs})
 		for range opts.Runs {
 			g.Go(func() error {
-				spec := sel.Provider.TriggerSpec(ws, t.Query, sel.Model.ID, opts.HostSandboxed)
+				cliModelID, _ := sel.Model.CLIModelID(sel.Harness.ID())
+				spec := sel.Harness.TriggerSpec(ws, t.Query, cliModelID, opts.HostSandboxed)
 				spec.Argv[0] = cli
 				onLine := func(line []byte) bool {
-					hit, note := sel.Provider.ScanLine(line, skill)
+					hit, note := sel.Harness.ScanLine(line, skill)
 					if note != "" {
 						rep.Warn("  warn: %s\n", note)
 					}
@@ -323,7 +324,7 @@ func runQueries(ctx context.Context, opts TriggerOptions, sel provider.Selection
 	return failed, err
 }
 
-func buildTriggerEntry(opts TriggerOptions, sel provider.Selection, executed bool,
+func buildTriggerEntry(opts TriggerOptions, sel harness.Selection, executed bool,
 	contentHash string, entryResults []results.TriggerResult, old *results.TriggerEntry) *results.TriggerEntry {
 	header := opts.header(sel, executed)
 	header.ContentHash = contentHash

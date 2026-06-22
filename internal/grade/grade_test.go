@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
-	"github.com/bitwise-media-group/evolve/internal/provider"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/runner"
 )
 
@@ -20,10 +20,10 @@ import (
 type judgeRunner struct {
 	exec     runner.Exec
 	response string
-	gotSpec  provider.CommandSpec
+	gotSpec  model.CommandSpec
 }
 
-func (j *judgeRunner) Run(ctx context.Context, spec provider.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
+func (j *judgeRunner) Run(ctx context.Context, spec model.CommandSpec, timeout time.Duration, onLine func([]byte) bool) (runner.Result, error) {
 	if spec.Argv[0] == "claude" {
 		j.gotSpec = spec
 		return runner.Result{Stdout: []byte(j.response)}, nil
