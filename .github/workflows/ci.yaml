@@ -1,8 +1,9 @@
-# Continuous integration — thin caller for the org's reusable ci-go workflow:
-# build, vet, race-detector tests with coverage (published to Codecov), a
-# govulncheck scan, and prose lint. The Go version comes from go.mod and the Node
-# version from .node-version; every gate runs through a Makefile target so local
-# `make` and CI run the exact same command.
+# Continuous integration — thin caller for the org's reusable ci workflow. It runs
+# the canonical Makefile gates (lint, build, test) as one parallel job each, then a
+# Codecov upload from coverage/cobertura-coverage.xml (emitted by `make test`).
+# `make lint` carries all check-mode static analysis — go vet, govulncheck,
+# golangci-lint, prettier --check, markdownlint, addlicense. The Go version comes
+# from go.mod and the Node version from .node-version.
 #
 # The reusable workflow is pinned to a full commit SHA (tag in the comment) so a
 # moved tag can never change what runs; Dependabot keeps the pin fresh.
@@ -19,10 +20,11 @@ permissions:
 
 jobs:
   ci:
-    uses: bitwise-media-group/github-workflows/.github/workflows/ci-go.yaml@077a003a620f49bd0062c73fc761dbea05d7fb70 # v1.1.0
+    uses: bitwise-media-group/github-workflows/.github/workflows/ci.yaml@e37b7f61bbd233ae77aad81c967d08ad49220b8f # v2.0.0
     with:
-      # Default is go.sum; list every lockfile that affects the build. `make vet`
-      # also vets the e2e module, and test-coverage/vuln build tools from tools/.
+      # Default is go.sum; list every lockfile that affects the build. `make lint`
+      # vets the e2e module and runs the tools/ CLIs (golangci-lint, govulncheck,
+      # addlicense); `make test` uses gocover-cobertura, also from tools/.
       # e2e/ has no external deps yet (no go.sum), but is listed so the cache key
       # tracks it once it does.
       cache-dependency-path: |

@@ -22,7 +22,7 @@ schemas/           JSON Schemas for eval/results/report files (embedded via sche
 e2e/               SEPARATE Go module: live smoke test + fixture repos/ and golden/ outputs.
 tools/             SEPARATE Go module: pinned dev CLIs (golangci-lint, goreleaser, syft, addlicense).
 security/          Committed code-scanning notes.
-.github/workflows/ CI, release (goreleaser), CodeQL, auto-merge.
+.github/workflows/ CI, security (CodeQL), release (goreleaser), merge (fast-forward + auto-merge), dependabot.
 ```
 
 Generated/build outputs not to edit by hand: `docs/` (run `make docs`), `dist/` (goreleaser), `./evolve` (built binary),
@@ -66,7 +66,7 @@ Generated/build outputs not to edit by hand: `docs/` (run `make docs`), `dist/` 
 
 ## Build, test, run
 
-`Makefile` targets (Go 1.x via `go.mod`): `build`, `run`, `test`, `test-coverage`, `fuzz`, `smoke` (e2e module), `lint`
+`Makefile` targets (Go 1.x via `go.mod`): `build`, `run`, `test` (race + coverage), `fuzz`, `smoke` (e2e module), `lint`
 (golangci-lint), `fmt`, `tidy`, `docs` (regenerate `docs/`), `snapshot`/`release` (goreleaser), `pr`, `ci`. Lint config
 is `.golangci.yaml`; markdown/prettier via `.markdownlint-cli2.yaml` / `.prettierrc.yaml`.
 
