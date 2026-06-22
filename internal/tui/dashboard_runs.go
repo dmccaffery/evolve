@@ -33,11 +33,9 @@ func (d dashboardModel) renderRuns(w, h int) string {
 		}
 		return mutedStyle.Render("no executions yet.")
 	}
-	lines := make([]string, len(d.execLog))
-	for i, e := range d.execLog {
-		lines[i] = d.execLine(e, w, i == sel)
-	}
-	return scrollWindow(lines, centerScroll(len(lines), sel, h), h)
+	return scrollWindowFunc(len(d.execLog), sel, h, func(i int) string {
+		return d.execLine(d.execLog[i], w, i == sel)
+	})
 }
 
 // execLine renders one row of the execution log: status glyph, tier, label, and

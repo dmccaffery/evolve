@@ -113,7 +113,9 @@ func centerScroll(n, focus, h int) int {
 }
 
 // scrollWindow renders h rows of lines from scroll, replacing the first/last
-// visible row with a ▲/▼ indicator when content is hidden above/below.
+// visible row with a ▲/▼ indicator when content is hidden above/below. Use it
+// when the rows are already rendered; for a long list whose rows are expensive to
+// render, prefer scrollWindowFunc so off-screen rows are never built.
 func scrollWindow(lines []string, scroll, h int) string {
 	if len(lines) <= h {
 		return strings.Join(lines, "\n")
@@ -130,6 +132,42 @@ func scrollWindow(lines []string, scroll, h int) string {
 			line = mutedStyle.Render(fmt.Sprintf("  ┄ ▼ %d below (ctrl+d) ┄", len(lines)-1-idx))
 		}
 		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
+// scrollWindowFunc is scrollWindow for rows that are expensive to render: it
+// windows n rows centered on focus and calls renderRow only for the rows actually
+// on screen, so cost is O(h), not O(n). This matters for the live dashboard, where
+// every spinner tick re-renders the panes ~10×/second — without it the Runs and
+// Execution panes rendered every log entry / tree node each frame and threw all
+// but h of them away (the per-row lipgloss styling dominated the run's CPU). Output
+// is byte-identical to scrollWindow over the same rows: the first/last visible row
+// becomes the same ▲/▼ indicator when content is hidden, and those positions are
+// not rendered (the indicator replaces them).
+func scrollWindowFunc(n, focus, h int, renderRow func(i int) string) string {
+	if h < 1 {
+		h = 1
+	}
+	if n <= h {
+		out := make([]string, n)
+		for i := range n {
+			out[i] = renderRow(i)
+		}
+		return strings.Join(out, "\n")
+	}
+	scroll := centerScroll(n, focus, h)
+	out := make([]string, 0, h)
+	for i := range h {
+		idx := scroll + i
+		switch {
+		case i == 0 && scroll > 0:
+			out = append(out, mutedStyle.Render(fmt.Sprintf("  ┄ ▲ %d above ┄", scroll)))
+		case i == h-1 && idx < n-1:
+			out = append(out, mutedStyle.Render(fmt.Sprintf("  ┄ ▼ %d below (ctrl+d) ┄", n-1-idx)))
+		default:
+			out = append(out, renderRow(idx))
+		}
 	}
 	return strings.Join(out, "\n")
 }

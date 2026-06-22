@@ -249,17 +249,15 @@ func (d dashboardModel) renderLeftBody(nodes []nodeRef, hl, w, h int) string {
 	if h < 1 {
 		h = 1
 	}
-	lines := make([]string, len(nodes))
-	for i, n := range nodes {
-		lines[i] = d.nodeLine(n, w, i == hl)
-	}
-	if len(lines) <= h {
-		return strings.Join(lines, "\n")
-	}
 	// Scroll the whole tree to keep the highlight centred and on-screen — the same
 	// in browse and follow modes. Pinning just the active model's subtree (the old
 	// follow-mode path) made every other node vanish when the pane lost focus.
-	return scrollWindow(lines, centerScroll(len(lines), hl, h), h)
+	// scrollWindowFunc renders only the on-screen rows: nodeLine styles each row with
+	// lipgloss (and aggregates group metrics for header rows), so building every node
+	// each frame dominated the run's CPU — the window now bounds it to h rows.
+	return scrollWindowFunc(len(nodes), hl, h, func(i int) string {
+		return d.nodeLine(nodes[i], w, i == hl)
+	})
 }
 
 // nodeLine renders one tree row.
