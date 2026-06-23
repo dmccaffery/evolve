@@ -385,8 +385,11 @@ func (f formModel) request() RunRequest {
 // view renders the filter/harness/model column beside the case tree, with a
 // button/hint footer.
 func (f formModel) view() string {
-	const footerH = 4
-	paneH := max(f.h-footerH, 8)
+	// headerH covers the EVOLVE wordmark plus the blank line below it; footerH the
+	// button row (bordered, 3 high) plus the hint line. Both come off the pane
+	// height so the columns never overflow the window.
+	const headerH, footerH = 2, 4
+	paneH := max(f.h-headerH-footerH, 8)
 	leftW := max(f.w/3, 20)
 	rightW := max(f.w-leftW, 20)
 
@@ -427,7 +430,8 @@ func (f formModel) view() string {
 
 	footer := lipgloss.JoinVertical(lipgloss.Left, f.buttons(), f.hint())
 
-	return lipgloss.JoinVertical(lipgloss.Left, panes, footer)
+	// Leading space insets the wordmark one column to match the dashboard's title bar.
+	return lipgloss.JoinVertical(lipgloss.Left, " "+evolveTitle(), "", panes, footer)
 }
 
 // buttons renders the right-aligned CANCEL / RUN pair. The focused button takes

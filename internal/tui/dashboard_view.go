@@ -179,7 +179,7 @@ func (d dashboardModel) headerStats() string {
 		mutedStyle.Render(fmt.Sprintf("%d running", running)),
 		mutedStyle.Render("(" + state + ")"),
 	}
-	head := titleStyle.Render("EVOLVE") + "  " + strings.Join(parts, "  ")
+	head := evolveTitle() + "  " + strings.Join(parts, "  ")
 	if d.started {
 		head += "  " + mutedStyle.Render(fmtClock(d.now().Sub(d.startWall)))
 	}

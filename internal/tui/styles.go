@@ -6,6 +6,7 @@ package tui
 import (
 	"fmt"
 	"image/color"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 )
@@ -23,6 +24,7 @@ var (
 	colBlue   = lipgloss.Color("#5ea1ff") // focus / accent
 	colTeal   = lipgloss.Color("#5ef1ff")
 	colOrange = lipgloss.Color("#ffbd5e") // details
+	colPurple = lipgloss.Color("#a15eff") // mirrors colBlue, completes the wordmark
 
 	colFaint = lipgloss.Color("#3c4048") // borders, separators
 
@@ -54,6 +56,21 @@ var (
 	mutedStyle    = lipgloss.NewStyle().Foreground(colGrey)
 	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colBlue)
 
+	// evolveLetters colours each glyph of the EVOLVE wordmark with its own palette
+	// hue, so the dashboard header reads as a rainbow (E V O L V E → blue, green,
+	// teal, pink, orange, purple). See evolveTitle for the rendered string.
+	evolveLetters = []struct {
+		ch  string
+		col color.Color
+	}{
+		{"E", colBlue},
+		{"V", colGreen},
+		{"O", colTeal},
+		{"L", colPink},
+		{"V", colOrange},
+		{"E", colPurple},
+	}
+
 	// Per-pane heading styles: each pane's column/section headings take that pane's
 	// accent hue (see paneBaseColor) so a heading reads as belonging to its pane.
 	headerExecStyle    = lipgloss.NewStyle().Bold(true).Foreground(accentExec)
@@ -82,3 +99,14 @@ var (
 	buttonReady = lipgloss.NewStyle().Padding(0, 2).Bold(true).Foreground(colGreen).
 			Border(lipgloss.RoundedBorder()).BorderForeground(colGreen)
 )
+
+// evolveTitle renders the EVOLVE wordmark for the dashboard header, each letter
+// bold in its own palette hue (see evolveLetters). Rendered per call so lipgloss
+// downsamples against the live terminal's colour profile.
+func evolveTitle() string {
+	var b strings.Builder
+	for _, l := range evolveLetters {
+		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(l.col).Render(l.ch))
+	}
+	return b.String()
+}
