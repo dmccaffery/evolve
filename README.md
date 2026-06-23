@@ -44,6 +44,12 @@ plugin repository to check the local environment, credentials, provider CLIs, an
 
 ## Install
 
+Install with Homebrew on macOS and Linux:
+
+```sh
+brew install --cask bitwise-media-group/tap/evolve
+```
+
 Build from source with Go:
 
 ```sh
