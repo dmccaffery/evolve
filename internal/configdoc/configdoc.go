@@ -140,19 +140,12 @@ const (
 // commentWidth caps comment lines in the generated examples.
 const commentWidth = 72
 
-// Markdown renders the configuration reference page.
+// Markdown renders the configuration reference table. It is embedded into
+// docs/config/index.md through a pymdownx.snippets marker, so it is a bare
+// fragment carrying no page heading of its own.
 func Markdown() []byte {
 	var b strings.Builder
-	b.WriteString("# Configuration\n" +
-		"\n" +
-		"evolve reads an optional config file named `.evolve.<ext>` from the repository root (`--root`),\n" +
-		"where `<ext>` is one of `yaml`, `yml`, `json`, or `jsonc`. At most one config file may\n" +
-		"exist — two formats side by side is an error. Settings layer lowest precedence first: built-in\n" +
-		"defaults, the config file, `EVOLVE_*` environment variables, then explicit flags.\n" +
-		"\n" +
-		"## Options\n" +
-		"\n" +
-		"| Key | Type | Default | Description |\n" +
+	b.WriteString("| Key | Type | Default | Description |\n" +
 		"| --- | --- | --- | --- |\n")
 	for _, o := range Schema() {
 		def := "unset — " + o.Fallback
@@ -162,33 +155,6 @@ func Markdown() []byte {
 		fmt.Fprintf(&b, "| `%s` | %s | %s | %s |\n",
 			mdCell(o.Key), mdCell(o.Type), mdCell(def), mdCell(o.Doc))
 	}
-	b.WriteString("\n" +
-		"## Provider overrides\n" +
-		"\n" +
-		"`providers.<name>.models` replaces that provider's builtin model matrix; providers without an\n" +
-		"entry keep their builtin models. Each list entry is an object:\n" +
-		"\n" +
-		"| Field | Type | Description |\n" +
-		"| --- | --- | --- |\n" +
-		"| `id` | string | Model id passed to the runner CLI (required). |\n" +
-		"| `display` | string | Human-readable name shown in reports (default: the id). |\n" +
-		"| `input_per_mtok` | float | Input price in USD per million tokens (omit when unpublished). |\n" +
-		"| `output_per_mtok` | float | Output price in USD per million tokens (omit when unpublished). |\n" +
-		"\n" +
-		"## Annotated examples\n" +
-		"\n" +
-		"Generated alongside this page, each with every default value set and a comment per option —\n" +
-		"copy one to the repository root:\n" +
-		"\n" +
-		"- [`.evolve.yaml`](.evolve.yaml)\n" +
-		"- [`.evolve.jsonc`](.evolve.jsonc)\n" +
-		"\n" +
-		"## Schema\n" +
-		"\n" +
-		"[`config.schema.json`](config.schema.json) is the JSON Schema (draft 2020-12) for the config\n" +
-		"file, generated from the same keys. The annotated examples above already point at its published\n" +
-		"URL — a `# yaml-language-server: $schema=…` comment in the YAML, a `\"$schema\"` key in the JSONC —\n" +
-		"so an editor offers completion and validation as soon as you copy one to the repository root.\n")
 	return []byte(b.String())
 }
 

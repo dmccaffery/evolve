@@ -88,17 +88,21 @@ func TestExamplesRoundTrip(t *testing.T) {
 	}
 }
 
-// TestMarkdownCoversSchema ensures the reference page documents every key.
+// TestMarkdownCoversSchema ensures the reference fragment documents every key.
+// Markdown is embedded into docs/config/index.md via a pymdownx.snippets
+// marker, so it must stay a heading-less table fragment: a leading "#" would
+// inject a stray page title into the host page.
 func TestMarkdownCoversSchema(t *testing.T) {
 	md := string(Markdown())
+	if strings.HasPrefix(md, "#") {
+		t.Error("markdown must be a heading-less fragment for snippet embedding")
+	}
+	if !strings.Contains(md, "| Key | Type | Default | Description |") {
+		t.Error("markdown is missing the reference table header")
+	}
 	for _, o := range Schema() {
 		if !strings.Contains(md, "`"+o.Key+"`") {
 			t.Errorf("markdown is missing option %s", o.Key)
-		}
-	}
-	for _, want := range []string{"providers.<name>.models", ".evolve.yaml", ".evolve.jsonc", "config.schema.json"} {
-		if !strings.Contains(md, want) {
-			t.Errorf("markdown is missing %q", want)
 		}
 	}
 }

@@ -57,13 +57,21 @@ func writeConfigDocs(dir string) error {
 		name string
 		data []byte
 	}{
-		{"configuration.md", configdoc.Markdown()},
+		// reference.md is a snippet fragment included into config/index.md, not a
+		// standalone page. Zensical has no exclude_docs and renders every .md under
+		// docs/ as its own page, but prunes dot-directories entirely — so the
+		// fragment lives in .includes/ to keep it off the rendered site while
+		// staying readable by the pymdownx.snippets preprocessor.
+		{filepath.Join(".includes", "reference.md"), configdoc.Markdown()},
 		{"config.schema.json", configdoc.JSONSchema()},
 		{".evolve.yaml", configdoc.ExampleYAML()},
 		{".evolve.jsonc", configdoc.ExampleJSONC()},
 	}
 	for _, f := range files {
 		path := filepath.Join(dir, f.name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create %s: %w", filepath.Dir(path), err)
+		}
 		if err := os.WriteFile(path, f.data, 0o644); err != nil {
 			return fmt.Errorf("write %s: %w", path, err)
 		}
