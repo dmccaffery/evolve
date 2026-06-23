@@ -119,8 +119,42 @@ Useful run filters and debug flags:
 - `--count-only`: compute token usage without running agents.
 - `--stale-results keep|drop`: decide what to do with stored results outside the `models` restriction.
 
-On an interactive terminal, `run triggers`, `run evals`, and `run all` open a TUI for toggling filters, harnesses,
-models, and cases before showing live progress. Use `--no-tui` or `EVOLVE_NO_TUI=1` for plain output.
+## Interactive TUI
+
+On an interactive terminal, `evolve run triggers`, `run evals`, and `run all` open a full-screen TUI: first a selection
+form to scope the run, then a live dashboard that streams results as agents finish. Pass `--no-tui` (or set
+`EVOLVE_NO_TUI=1`) for the plain line-based output used in CI and non-TTY pipes — both paths drive the same engine, so
+the run is identical either way.
+
+### Selection form
+
+The form is a set of focusable panes you tab between to choose what runs:
+
+- **Filters** — the same `new` / `modified` / `failed` scoping that the run flags expose.
+- **Harnesses** — the agent CLIs to drive; any whose CLI is off `PATH` is shown disabled.
+- **Models** — individual models grouped under a per-provider header row, so you can toggle one model or a whole
+  provider at once. Models unsupported by the enabled harnesses are shown disabled.
+- **Plugins / Skills / Cases** — a tree of every trigger and behavioral case. Each row shows whether it is forced on,
+  forced off, or auto-queued for all / some / none of the enabled models; a legend under the tree names every glyph.
+
+Move between panes with `tab` / `shift+tab` (or `1`–`4` to jump), `↑↓` / `jk` to move within a pane, `←→` / `hl` to fold
+the tree, `space` to toggle, and `g` / `G` for the ends. Tab on to the **RUN** / **CANCEL** buttons, or just press `r`
+to run and `esc` to cancel. The form previews exactly what will execute — it and the engine resolve through the same
+plan, so they cannot drift.
+
+### Live dashboard
+
+![evolve live run dashboard](docs/assets/dashboard-1200.png)
+
+Once a run starts, the dashboard streams progress:
+
+- A title bar with running pass / fail / error tallies, elapsed time, rolled-up cost, and an overall progress bar.
+- An **Execution** tree (plugin → skill → model → case) carrying per-node rollup columns.
+- A tabbed **Rollup** (Summary / Providers / Plugins / Skills), a **Runs** log of every execution in plan order, and a
+  **Details** pane showing in-flight cases and the selected case's authored spec.
+
+Selecting a run in any pane moves the selection everywhere; `f` follows the live execution, `enter` jumps to its detail,
+and `g` / `G` plus `^d` / `^u` scroll. See [DESIGN.md → TUI](DESIGN.md) for the full wiring.
 
 ## Reports
 
