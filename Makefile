@@ -101,7 +101,7 @@ tidy: go.mod e2e/go.mod tools/go.mod ## tidy the go module references
 	@ rm -f e2e/go.sum; go -C e2e mod tidy
 
 .PHONY: lint
-lint: node_modules ## lint the go code (across the LINT_GOOS build-tag matrix)
+lint: node_modules go_tools ## lint the go code (across the LINT_GOOS build-tag matrix)
 	@ go tool -modfile=tools/go.mod addlicense -check -c $(LICENSE_HOLDER) -l mit -s=only $(LICENSE_IGNORE) .
 	@	ret=0; \
 		for goos in $(LINT_GOOS); do \
