@@ -21,7 +21,10 @@ nav = [
   { "Getting started" = "getting-started.md" },
   { "Installation" = "installation.md" },
   { "Configuration" = "config/index.md" },
-  { "Authoring evaluations" = "authoring-evaluations.md" },
+  { "Authoring evaluations" = [
+    { "Overview" = "evaluations/index.md" },
+    { "Assertions" = "evaluations/assertions.md" },
+  ] },
   { "Reference" = "reference.md" },
   { "TUI" = "tui.md" },
 ]
@@ -79,40 +82,62 @@ link = "https://github.com/bitwise-media-group/evolve"
 # `--8<-- "path"` marker (base_path is relative to docs_dir).
 # https://zensical.org/docs/setup/extensions/
 [project.markdown_extensions.abbr]
+
 [project.markdown_extensions.admonition]
+
 [project.markdown_extensions.attr_list]
+
 [project.markdown_extensions.def_list]
+
 [project.markdown_extensions.footnotes]
+
 [project.markdown_extensions.md_in_html]
+
 [project.markdown_extensions.toc]
 permalink = true
+
 [project.markdown_extensions.pymdownx.arithmatex]
 generic = true
+
 [project.markdown_extensions.pymdownx.betterem]
+
 [project.markdown_extensions.pymdownx.caret]
+
 [project.markdown_extensions.pymdownx.details]
+
 [project.markdown_extensions.pymdownx.emoji]
 emoji_generator = "zensical.extensions.emoji.to_svg"
 emoji_index = "zensical.extensions.emoji.twemoji"
+
 [project.markdown_extensions.pymdownx.highlight]
 anchor_linenums = true
 line_spans = "__span"
 pygments_lang_class = true
+
 [project.markdown_extensions.pymdownx.inlinehilite]
+
 [project.markdown_extensions.pymdownx.keys]
+
 [project.markdown_extensions.pymdownx.magiclink]
+
 [project.markdown_extensions.pymdownx.mark]
+
 [project.markdown_extensions.pymdownx.smartsymbols]
+
 [project.markdown_extensions.pymdownx.snippets]
 base_path = ["docs"]
 check_paths = true
+
 [project.markdown_extensions.pymdownx.superfences]
 custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]
+
 [project.markdown_extensions.pymdownx.tabbed]
 alternate_style = true
 combine_header_slug = true
+
 [project.markdown_extensions.pymdownx.tasklist]
 custom_checkbox = true
+
 [project.markdown_extensions.pymdownx.tilde]

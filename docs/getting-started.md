@@ -46,14 +46,16 @@ evolve run all --strict
 evolve report --check
 ```
 
-!!! tip "Interactive by default" On a TTY, `run triggers`, `run evals` and `run all` open a full-screen TUI — a
-selection form to scope the run, then a live dashboard. Pass `--no-tui` (or set `EVOLVE_NO_TUI=1`) for plain line output
-in CI. Both drive the same engine, so the run is identical either way. See [TUI](tui.md).
+!!! tip "Interactive by default"
+
+    On a TTY, `run triggers`, `run evals` and `run all` open a full-screen TUI — a selection form to scope the run,
+    then a live dashboard. Pass `--no-tui` (or set `EVOLVE_NO_TUI=1`) for plain line output in CI. Both drive the same
+    engine, so the run is identical either way. See [TUI](tui.md).
 
 ## Next steps
 
 - [Installation](installation.md)
 - [Configuration](config/index.md)
-- [Authoring evaluations](authoring-evaluations.md)
+- [Authoring evaluations](evaluations/index.md)
 - [Reference](reference.md)
 - [TUI](tui.md)

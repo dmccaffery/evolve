@@ -23,7 +23,8 @@ evolve run triggers --model anthropic,openai --runs 5
 ## Evals (Tier 2)
 
 `evals.<ext>` lists behavioral cases. `evolve run evals` runs each case in a throwaway workspace, then grades the output
-with deterministic **assertions** (files, regexes, commands) and any configured **LLM judge**. Per-case knobs include
+with deterministic **assertions** (files, regexes, commands) and any configured **LLM judge**. The full set of assertion
+types, with a realistic example of each, is documented in [Assertions](assertions.md). Per-case knobs include
 `max_turns`, `timeout_seconds`, `allowed_tools` and `skip_providers`.
 
 ```sh
@@ -36,9 +37,11 @@ One committed `results.<ext>` per skill stores both eval kinds, keyed by `provid
 entries it ran, so diffs stay scoped. Output is deterministic — sorted keys, fixed field order, rounded floats, trailing
 newline — so reports re-render identically as the live matrix moves.
 
-!!! tip "Reruns & resuming" `--new` runs only work with missing or stale results; `--modified` reruns only cases whose
-authored content changed since their stored results. Both keep finished entries, so an interrupted sweep resumes
-cleanly.
+!!! tip "Reruns & resuming"
+
+     `--new` runs only work with missing or stale results; `--modified` reruns only cases whose authored content changed
+     since their stored results. Both keep finished entries, so an interrupted sweep resumes
+     cleanly.
 
 JSON Schemas for every authored and emitted file live in `schemas/` — point your editor at the raw URLs via a
 `"$schema"` key for validation and completion.

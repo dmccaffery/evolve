@@ -1,19 +1,19 @@
 # Copyright 2026 Bitwise Media Group
 # SPDX-License-Identifier: MIT
-
+# yaml-language-server: $schema=https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/refs/heads/main/schema/markdownlint-cli2-config-schema.json
 config:
   default: true
   # Keep prose readable in terminals and diffs; tables are exempt.
-  MD013:
+  line-length:
     line_length: 120
     tables: false
-  MD024:
+  no-duplicate-heading:
     siblings_only: true
   # gofmt mandates hard tabs, so Go examples in code fences keep them; prose stays tab-free.
-  MD010:
+  no-hard-tabs:
     code_blocks: false
-  MD046:
-    style: fenced
+  # required for admonitions
+  code-block-style: false
 
 globs:
   - "**/*.md"
