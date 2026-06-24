@@ -56,6 +56,7 @@ evolve report --check
 
 - [Installation](installation.md)
 - [Configuration](config/index.md)
+- [Authoring skills](skills.md)
 - [Authoring evaluations](evaluations/index.md)
 - [Reference](reference.md)
 - [TUI](tui.md)

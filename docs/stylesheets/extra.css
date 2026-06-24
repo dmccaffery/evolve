@@ -898,6 +898,17 @@
     border-color: color-mix(in oklab, var(--ev-orange) 32%, transparent);
 }
 
+/* Field/key tables: keep the first column on one line. Opt-in per table via a
+   `.nowrap-first` wrapper (md_in_html) so the narrow name/field/signal column
+   never breaks an identifier mid-token (`description` -> `descripti`/`on`) and
+   the nested "↳ …" signal labels stay intact — stealing the width from the wide
+   final column instead. Scoped to opted-in tables so the wide reference/config
+   tables keep their natural first-column wrapping. */
+.md-typeset .nowrap-first th:first-child,
+.md-typeset .nowrap-first td:first-child {
+    white-space: nowrap;
+}
+
 /* keyframes */
 @keyframes ev-blink {
     0%,

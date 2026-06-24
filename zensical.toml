@@ -21,6 +21,7 @@ nav = [
   { "Getting started" = "getting-started.md" },
   { "Installation" = "installation.md" },
   { "Configuration" = "config/index.md" },
+  { "Authoring skills" = "skills.md" },
   { "Authoring evaluations" = [
     { "Overview" = "evaluations/index.md" },
     { "Triggers" = "evaluations/triggers.md" },
