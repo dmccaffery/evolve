@@ -1,22 +1,56 @@
-// Tint shell (`sh`) code fences with the four brand accents, cycling per block
-// so consecutive blocks differ. The pygments shell lexer leaves commands as bare
-// text (only whitespace/comment tokens get spans), so the blocks render in one
-// drab grey; this assigns each block a `data-ev-accent` that extra.css keys the
-// command colour off (comments stay muted). A MutationObserver re-runs the pass
-// after zensical's instant navigation swaps in new page content.
+// Two cosmetic passes that paint with the four brand accents, both keyed off a
+// data attribute extra.css styles. A single MutationObserver re-runs them after
+// zensical's instant navigation swaps in new page content.
+//
+//  1. paintSh — tint shell (`sh`) code fences, cycling per block so consecutive
+//     blocks differ. The pygments shell lexer leaves commands as bare text, so
+//     the blocks would otherwise render in one drab grey.
+//  2. paintTableCode — stripe the inline-code chips in reference tables by row,
+//     so the long field tables read as alternating bands instead of a wall of
+//     identical grey chips.
 (function () {
     var COLORS = ["magenta", "green", "cyan", "orange"];
-    var next = 0;
+    var nextSh = 0;
+
+    function paintSh() {
+        document
+            .querySelectorAll(".language-sh.highlight:not([data-ev-accent])")
+            .forEach(function (block) {
+                block.setAttribute(
+                    "data-ev-accent",
+                    COLORS[nextSh % COLORS.length],
+                );
+                nextSh++;
+            });
+    }
+
+    // Every <code> in a tbody row shares one hue; rows cycle through the palette.
+    // The cycle resets per table (data-ev-ic-done marks a table painted) so the
+    // first row of every table starts on the same colour.
+    function paintTableCode() {
+        document
+            .querySelectorAll(".md-typeset table:not([data-ev-ic-done])")
+            .forEach(function (table) {
+                table.querySelectorAll("tbody tr").forEach(function (row, i) {
+                    var hue = COLORS[i % COLORS.length];
+                    row.querySelectorAll("code").forEach(function (code) {
+                        code.setAttribute("data-ev-ic", hue);
+                    });
+                });
+                table.setAttribute("data-ev-ic-done", "");
+            });
+    }
 
     function paint() {
-        document.querySelectorAll(".language-sh.highlight:not([data-ev-accent])").forEach(function (block) {
-            block.setAttribute("data-ev-accent", COLORS[next % COLORS.length]);
-            next++;
-        });
+        paintSh();
+        paintTableCode();
     }
 
     paint();
-    // childList/subtree only — setAttribute above mutates attributes, which this
-    // observer ignores, so painting never re-triggers itself.
-    new MutationObserver(paint).observe(document.body, { childList: true, subtree: true });
+    // childList/subtree only — the setAttribute calls above mutate attributes,
+    // which this observer ignores, so painting never re-triggers itself.
+    new MutationObserver(paint).observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
 })();
