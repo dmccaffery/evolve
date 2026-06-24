@@ -10,6 +10,12 @@ The pipeline is split into three tiers:
 - Tier 1 `triggers`: prompt-level checks that verify the expected skill activates.
 - Tier 2 `evals`: behavioral cases that run real agent CLIs and grade the result.
 
+<!-- prettier-ignore -->
+> [!TIP]
+> **New to evolve?** Read the full docs at **[oss.bitwisemedia.uk/evolve](https://oss.bitwisemedia.uk/evolve/)** —
+> getting started, authoring evaluations (triggers, behavioral evals, fixtures, and how they run), the configuration
+> reference, and the TUI guide.
+
 ## Supported repositories
 
 `evolve` auto-detects these layouts, or you can force one with `--layout`:
@@ -28,19 +34,26 @@ Each eval directory may contain:
 
 Supported data formats are `json`, `jsonc`, `yaml`, and `yml`; for a given basename, only one matching file may exist.
 
-## Providers
+## Harnesses and providers
 
-`evolve` can run the built-in provider set:
+`evolve` distinguishes the **harness** — the agent CLI it drives — from the **provider** that owns and prices the model
+the harness runs. Models are provider-qualified, and each is bound to the harness that can run it; evals execute once
+per model, through that harness.
 
-- Anthropic
-- OpenAI
-- Google
-- Cursor
-- GitHub Copilot
-- Antigravity
+Built-in harnesses, each needing its runner CLI on `PATH` and whatever credentials that CLI requires:
 
-Each provider needs its runner CLI on `PATH` and whatever credentials that CLI requires. Run `evolve doctor` from a
-plugin repository to check the local environment, credentials, provider CLIs, and token-counting access.
+| Harness        | Runner CLI     |
+| -------------- | -------------- |
+| Claude Code    | `claude`       |
+| OpenAI Codex   | `codex`        |
+| Gemini         | `gemini`       |
+| Cursor         | `cursor-agent` |
+| GitHub Copilot | `copilot`      |
+| Antigravity    | `agy`          |
+
+Built-in providers (the model vendors) are **Anthropic**, **OpenAI**, **Google**, and **Cursor** — the last is both a
+provider (it owns Composer) and a harness. Run `evolve doctor` from a plugin repository to check the environment,
+credentials, and runner CLIs, and `evolve models` to see the effective provider / model / harness matrix.
 
 ## Install
 
@@ -184,8 +197,8 @@ evolve report --check --min-triggers-pass-rate 0.95 --min-evals-pass-rate 0.90
 
 Top-level commands:
 
-- `evolve doctor`: check provider CLIs, credentials, and counting APIs.
-- `evolve models`: show the effective provider/model matrix and pricing metadata.
+- `evolve doctor`: check harness runner CLIs, credentials, and counting APIs.
+- `evolve models`: show the effective provider / model / harness matrix and pricing metadata.
 - `evolve report`: regenerate evaluation rollups from stored results.
 - `evolve run`: run static checks, trigger checks, behavioral evals, or the full pipeline.
 - `evolve version`: print build metadata.
@@ -273,6 +286,8 @@ security/     code-scanning and security notes
 
 ## Further reading
 
+- **[Documentation site](https://oss.bitwisemedia.uk/evolve/)** — getting started, authoring evaluations, configuration,
+  and the TUI guide.
 - [DESIGN.md](DESIGN.md) for architecture, engine boundaries, and TUI wiring.
 - [docs/cli/evolve.md](docs/cli/evolve.md) for generated command documentation.
 - [docs/config/configuration.md](docs/config/configuration.md) for the full config surface.
