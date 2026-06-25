@@ -10,12 +10,14 @@ import (
 
 	"github.com/bitwise-media-group/evolve/internal/cli"
 	"github.com/bitwise-media-group/evolve/internal/report"
+	"github.com/bitwise-media-group/evolve/internal/results"
 	"github.com/bitwise-media-group/evolve/internal/version"
 )
 
 // ReportFlags holds the flags for `evolve report`.
 type ReportFlags struct {
 	Check               bool
+	Migrate             bool
 	MinTriggersPassRate float64
 	MinEvalsPassRate    float64
 }
@@ -34,6 +36,11 @@ var reportCmd = &cobra.Command{
 		models, err := opts.AvailableModels()
 		if err != nil {
 			return err
+		}
+		if reportFlags.Migrate {
+			if err := runMigrate(cmd); err != nil {
+				return err
+			}
 		}
 		if err := reconcileStaleResults(cmd, interactiveTUI(cmd, opts.JSON)); err != nil {
 			return err
@@ -82,9 +89,34 @@ var reportCmd = &cobra.Command{
 	},
 }
 
+// runMigrate upgrades every stored results file to the current schema before the
+// report is generated, so a structural schema bump lands in the committed files
+// without a full eval rerun. It reports each upgraded file and is a no-op once
+// every file is current.
+func runMigrate(cmd *cobra.Command) error {
+	upgraded, err := opts.MigrateResults()
+	if err != nil {
+		return err
+	}
+	out := cmd.OutOrStdout()
+	if len(upgraded) == 0 {
+		fmt.Fprintf(out, "migrate: results files already at schema %d\n", results.Schema)
+		return nil
+	}
+	for _, m := range upgraded {
+		fmt.Fprintf(out, "migrate: upgraded %s/%s from schema %d to %d\n",
+			m.Plugin, m.Skill, m.FromSchema, results.Schema)
+	}
+	fmt.Fprintf(out, "migrate: upgraded %d results %s to schema %d\n",
+		len(upgraded), plural(len(upgraded), "file", "files"), results.Schema)
+	return nil
+}
+
 func init() {
 	reportCmd.Flags().BoolVar(&reportFlags.Check, "check", false,
 		"fail when pass rates breach the configured thresholds")
+	reportCmd.Flags().BoolVar(&reportFlags.Migrate, "migrate", false,
+		"upgrade stored results files to the latest schema before generating the reports")
 	reportCmd.Flags().Float64Var(&reportFlags.MinTriggersPassRate, "min-triggers-pass-rate", 0,
 		"minimum trigger pass rate (0..1) for --check")
 	reportCmd.Flags().Float64Var(&reportFlags.MinEvalsPassRate, "min-evals-pass-rate", 0,

@@ -4,10 +4,61 @@
 package results
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/bitwise-media-group/evolve/internal/encfmt"
 )
+
+// Migratable reports whether a results file written under the given on-disk
+// schema can be upgraded to the current Schema in place. It is the single source
+// of the convertible range: schemas outside it — older than the oldest layout
+// migrate understands, or newer than this binary — cannot be upgraded without
+// discarding committed data. LoadDir and MigrateFile both gate on it.
+func Migratable(schema int) bool {
+	return schema == 3 || schema == 4
+}
+
+// MigrateFile upgrades the results file in dir to the current schema in place,
+// rewriting it in format only when it was written under an older structural
+// schema (see Migratable). It reports the schema found on disk (0 when dir holds
+// no results file) and whether it rewrote the file: a file already at the current
+// schema, or no file at all, leaves upgraded false and writes nothing. plugin and
+// skill stamp the rewritten file's identity, as in LoadDir.
+//
+// A file that cannot be migrated without discarding committed data — unreadable,
+// older than the migratable range, or written by a newer evolve — is left
+// untouched and reported as an error, never overwritten. This is the deliberate
+// difference from LoadDir, which resets such a file to a fresh in-memory value.
+func MigrateFile(dir, plugin, skill, format string) (onDisk int, upgraded bool, err error) {
+	path := Find(dir)
+	if path == "" {
+		return 0, false, nil
+	}
+	var probe struct {
+		Schema int `json:"schema"`
+	}
+	if encfmt.DecodeFile(path, &probe) != nil {
+		return 0, false, fmt.Errorf("%s: unreadable or malformed results file", path)
+	}
+	switch {
+	case probe.Schema == Schema:
+		return probe.Schema, false, nil
+	case Migratable(probe.Schema):
+		f, ok := migrate(path)
+		if !ok {
+			return probe.Schema, false, fmt.Errorf("%s: cannot decode schema %d results file", path, probe.Schema)
+		}
+		f.Plugin, f.Skill = plugin, skill
+		if _, err := f.SaveDir(dir, format); err != nil {
+			return probe.Schema, false, err
+		}
+		return probe.Schema, true, nil
+	default:
+		return probe.Schema, false, fmt.Errorf(
+			"%s is schema %d, which this evolve cannot migrate (current schema %d)", path, probe.Schema, Schema)
+	}
+}
 
 // migrate reads a pre-v5 results file (schema 3 or 4) and converts it to the
 // current shape: tier-major maps (triggers/evals) become a model-major Models

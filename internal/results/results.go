@@ -328,15 +328,15 @@ func LoadDir(dir, plugin, skill string) (f *File, reset bool) {
 	if encfmt.DecodeFile(path, &probe) != nil {
 		return fresh, true
 	}
-	switch probe.Schema {
-	case Schema:
+	switch {
+	case probe.Schema == Schema:
 		var loaded File
 		if encfmt.DecodeFile(path, &loaded) != nil {
 			return fresh, true
 		}
 		loaded.Plugin, loaded.Skill = plugin, skill
 		return &loaded, false
-	case 3, 4:
+	case Migratable(probe.Schema):
 		migrated, ok := migrate(path)
 		if !ok {
 			return fresh, true

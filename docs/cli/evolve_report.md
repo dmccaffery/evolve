@@ -11,6 +11,7 @@ evolve report [flags]
 ```
       --check                          fail when pass rates breach the configured thresholds
   -h, --help                           help for report
+      --migrate                        upgrade stored results files to the latest schema before generating the reports
       --min-evals-pass-rate float      minimum eval pass rate (0..1) for --check
       --min-triggers-pass-rate float   minimum trigger pass rate (0..1) for --check
       --stale-results string           keep|drop stored results for models outside the models restriction (default: prompt on a terminal, else keep)
