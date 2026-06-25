@@ -55,12 +55,7 @@ func (o *Options) FindStaleResults(active map[string]bool) ([]StaleEntry, error)
 		}
 		file, _ := results.LoadDir(set.ResultsDir, set.Plugin.Name, set.Skill)
 		stale := map[string]bool{}
-		for key := range file.Triggers {
-			if !active[key] {
-				stale[key] = true
-			}
-		}
-		for key := range file.Evals {
+		for key := range file.Models {
 			if !active[key] {
 				stale[key] = true
 			}
@@ -83,8 +78,7 @@ func (o *Options) FindStaleResults(active map[string]bool) ([]StaleEntry, error)
 func (o *Options) DropStaleResults(entries []StaleEntry) error {
 	for _, e := range entries {
 		for _, key := range e.keys {
-			delete(e.file.Triggers, key)
-			delete(e.file.Evals, key)
+			delete(e.file.Models, key)
 		}
 		if _, err := e.file.SaveDir(e.dir, o.ResultsFormat); err != nil {
 			return err

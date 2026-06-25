@@ -91,13 +91,17 @@ func triggerCase(ref UnitRef, t evalspec.Trigger, sel Selection, prior PriorMetr
 func evalCase(ref UnitRef, id string, sel Selection, prior PriorMetrics) Case {
 	cr := CaseRef{Skill: ref.Skill, Kind: KindEvals, Case: id}
 	c := Case{Label: id, Kind: KindEvals, Queued: sel.queued(ref.Key, cr)}
-	if m, ok := prior.EvalPrevious(ref, id); ok && (m.Passed != nil || m.Errored) {
+	if m, ok := prior.EvalPrevious(ref, id); ok && (m.Passed != nil || m.RuntimeError != "") {
 		c.HasPrior = true
 		c.PriorStatus = boolStatus(m.Passed != nil && *m.Passed)
-		if m.Errored {
+		if m.RuntimeError != "" {
 			c.PriorStatus = StatusError
 		}
-		c.Prior = ItemMetrics{AvgRunSeconds: m.AvgRunSeconds, AssertPassed: m.AssertPassed, AssertTotal: m.AssertTotal}
+		c.Prior = ItemMetrics{AvgRunSeconds: m.RunSeconds()}
+		if m.Summary != nil {
+			c.Prior.AssertPassed = new(m.Summary.Passed)
+			c.Prior.AssertTotal = new(m.Summary.Total)
+		}
 		if m.Measured != nil {
 			c.Prior.InputTokens = m.Measured.InputTokens
 			c.Prior.OutputTokens = m.Measured.OutputTokens

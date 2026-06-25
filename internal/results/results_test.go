@@ -68,7 +68,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			dir := filepath.Join(t.TempDir(), "evals", "go-testing")
 			saveDir(t, sample(), dir, format)
 			loaded, _ := LoadDir(dir, "golang", "go-testing")
-			entry := loaded.Triggers["anthropic/claude-fable-5"]
+			entry := loaded.Trigger("anthropic/claude-fable-5")
 			if entry == nil || !entry.Executed || *entry.Summary.Passed != 1 {
 				t.Fatalf("loaded entry = %+v", entry)
 			}
@@ -78,7 +78,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			if entry.Pricing == nil || *entry.Pricing.InputPerMTok != 10.0 {
 				t.Errorf("pricing = %+v", entry.Pricing)
 			}
-			if loaded.Triggers["cursor/composer-2.5"].Pricing != nil {
+			if loaded.Trigger("cursor/composer-2.5").Pricing != nil {
 				t.Error("cursor pricing must stay nil")
 			}
 		})
@@ -113,10 +113,10 @@ func TestSaveDirFormatSwitch(t *testing.T) {
 		t.Error("stale results.json must be removed on format switch")
 	}
 	again, _ := LoadDir(dir, "golang", "go-testing")
-	if entry := again.Triggers["anthropic/claude-fable-5"]; entry == nil || *entry.Summary.Passed != 1 {
+	if entry := again.Trigger("anthropic/claude-fable-5"); entry == nil || *entry.Summary.Passed != 1 {
 		t.Errorf("yaml reload = %+v, want history preserved", entry)
 	}
-	if again.Triggers["cursor/composer-2.5"].Pricing != nil {
+	if again.Trigger("cursor/composer-2.5").Pricing != nil {
 		t.Error("explicit-null pricing must survive the yaml round trip")
 	}
 }
@@ -148,39 +148,76 @@ func TestLoadToleratesGarbage(t *testing.T) {
 
 	bad := t.TempDir()
 	os.WriteFile(filepath.Join(bad, "results.json"), []byte("{corrupt"), 0o644)
-	if f, _ := LoadDir(bad, "p", "s"); len(f.Triggers) != 0 {
+	if f, _ := LoadDir(bad, "p", "s"); len(f.Models) != 0 {
 		t.Error("corrupt file must load fresh")
 	}
 
 	newer := t.TempDir()
 	os.WriteFile(filepath.Join(newer, "results.json"), []byte(`{"schema": 99, "models": {"m": {}}}`), 0o644)
-	if f, reset := LoadDir(newer, "p", "s"); !reset || len(f.Triggers) != 0 || f.Schema != Schema {
+	if f, reset := LoadDir(newer, "p", "s"); !reset || len(f.Models) != 0 || f.Schema != Schema {
 		t.Error("a newer schema cannot be read down and must load fresh")
 	}
 }
 
-// TestLoadMigratesOlderSchema pins the auto-upgrade: a file from an older schema is
-// preserved (not discarded) and brought to the current version in place.
+// TestLoadMigratesOlderSchema pins the auto-upgrade: a file written under the old
+// (v4) structural shape — tier-major maps with snapshot case maps — is migrated in
+// place to the current model-major shape (snapshot results arrays), not discarded.
 func TestLoadMigratesOlderSchema(t *testing.T) {
 	dir := t.TempDir()
-	f := &File{Schema: Schema - 1, Plugin: "p", Skill: "s"}
-	f.SetTrigger("fake/m1", &TriggerEntry{
-		Header:  Header{Provider: "fake", Model: "m1", Executed: true},
-		Results: []TriggerResult{{Query: "q1", Hits: new(2), Runs: new(3)}},
-		Summary: TriggerSummary{Total: 1},
-	})
-	if _, err := f.SaveDir(dir, "json"); err != nil {
+	const v4 = `{
+  "schema": 4, "plugin": "p", "skill": "s",
+  "triggers": {
+    "fake/m1": {
+      "provider": "fake", "model": "m1", "executed": true, "ran_at": "2026-06-10T00:00:00Z",
+      "results": [{"query": "q1", "should_trigger": true, "hits": 2, "runs": 3, "passed": true}],
+      "summary": {"passed": 1, "total": 1},
+      "previous": {
+        "ran_at": "2026-06-09T00:00:00Z", "summary": {"passed": 0, "total": 1},
+        "cases": {"q1": {"hits": 0, "runs": 3, "passed": false, "avg_run_seconds": 8.0}}
+      }
+    }
+  },
+  "evals": {
+    "fake/m1": {
+      "provider": "fake", "model": "m1", "executed": true, "ran_at": "2026-06-10T00:00:00Z",
+      "results": [{"id": "e1", "passed": false, "summary": {"passed": 0, "failed": 1, "total": 1}}],
+      "summary": {"passed": 0, "failed": 1, "total": 1},
+      "baseline": {
+        "ran_at": "2026-06-10T00:00:00Z", "summary": {"passed": 1, "total": 1},
+        "cases": {"e1": {"passed": true, "pass_rate": 1.0, "assert_passed": 1, "assert_total": 1, "avg_run_seconds": 4.0, "fingerprint": "fp-e1"}}
+      }
+    }
+  }
+}`
+	if err := os.WriteFile(filepath.Join(dir, "results.json"), []byte(v4), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	loaded, reset := LoadDir(dir, "p", "s")
 	if reset {
-		t.Error("an older schema must upgrade, not reset")
+		t.Fatal("an older structural schema must migrate, not reset")
 	}
 	if loaded.Schema != Schema {
 		t.Errorf("schema = %d, want upgraded to %d", loaded.Schema, Schema)
 	}
-	if len(loaded.Triggers) != 1 {
-		t.Errorf("committed history must survive the upgrade, got %d trigger entries", len(loaded.Triggers))
+	// Trigger history survives under the new model-major shape, as a results array.
+	tr := loaded.Trigger("fake/m1")
+	if tr == nil || tr.Previous == nil || len(tr.Previous.Results) != 1 {
+		t.Fatalf("trigger previous lost in migration: %+v", tr)
+	}
+	if pc := tr.Previous.Results[0]; pc.Query != "q1" || pc.Hits == nil || *pc.Hits != 0 {
+		t.Errorf("migrated trigger snapshot case = %+v", pc)
+	}
+	// Eval baseline survives, with the case metrics reprojected onto an EvalResult.
+	ev := loaded.Eval("fake/m1")
+	if ev == nil || ev.Baseline == nil || len(ev.Baseline.Results) != 1 {
+		t.Fatalf("eval baseline lost in migration: %+v", ev)
+	}
+	bc := ev.Baseline.Results[0]
+	if bc.ID != "e1" || bc.Fingerprint != "fp-e1" || bc.Summary == nil || bc.Summary.PassRate == nil || *bc.Summary.PassRate != 1.0 {
+		t.Errorf("migrated baseline case = %+v (summary %+v)", bc, bc.Summary)
+	}
+	if rs := bc.RunSeconds(); rs == nil || *rs != 4.0 {
+		t.Errorf("migrated baseline run seconds = %v, want 4.0", rs)
 	}
 }
 
@@ -251,7 +288,7 @@ func TestRuntimeErrorSerialization(t *testing.T) {
 	if reset {
 		t.Error("additive omitempty fields must not force a schema reset")
 	}
-	entry := loaded.Evals["anthropic/claude-fable-5"]
+	entry := loaded.Eval("anthropic/claude-fable-5")
 	if r := entry.Results[0]; r.RuntimeError != "empty CLI output" || r.Passed != nil {
 		t.Errorf("loaded result = %+v", r)
 	}

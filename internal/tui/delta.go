@@ -35,15 +35,26 @@ type caseKey struct {
 	label string
 }
 
-// evalCaseMetricsOf projects a finished eval case's live status and metrics into
-// the results shape the delta helpers compare. The rate is the expectation tally.
-func evalCaseMetricsOf(st status, m plan.ItemMetrics) results.EvalCaseMetrics {
-	out := results.EvalCaseMetrics{AvgRunSeconds: m.AvgRunSeconds, Errored: st == stError}
-	if m.AssertPassed != nil && m.AssertTotal != nil && *m.AssertTotal > 0 {
-		r := float64(*m.AssertPassed) / float64(*m.AssertTotal)
-		out.PassRate = &r
+// evalResultOf projects a finished eval case's live status and metrics into the
+// results shape the delta helpers compare. The rate is the expectation tally,
+// carried on the grade summary; the run time is the executor duration.
+func evalResultOf(st status, m plan.ItemMetrics) results.EvalResult {
+	var out results.EvalResult
+	if m.AvgRunSeconds != nil {
+		out.Timing = &results.Timing{ExecutorDurationSeconds: m.AvgRunSeconds}
 	}
-	if st == stPass || st == stFail {
+	if m.AssertPassed != nil && m.AssertTotal != nil {
+		s := &results.GradeSummary{Passed: *m.AssertPassed, Total: *m.AssertTotal}
+		if *m.AssertTotal > 0 {
+			r := float64(*m.AssertPassed) / float64(*m.AssertTotal)
+			s.PassRate = &r
+		}
+		out.Summary = s
+	}
+	switch st {
+	case stError:
+		out.RuntimeError = "errored"
+	case stPass, stFail:
 		p := st == stPass
 		out.Passed = &p
 	}
@@ -60,9 +71,9 @@ func evalCaseMetricsOf(st status, m plan.ItemMetrics) results.EvalCaseMetrics {
 	return out
 }
 
-// triggerCaseMetricsOf projects a finished trigger case into the results shape.
-func triggerCaseMetricsOf(st status, m plan.ItemMetrics) results.TriggerCaseMetrics {
-	out := results.TriggerCaseMetrics{Hits: m.Hits, Runs: m.Runs, AvgRunSeconds: m.AvgRunSeconds}
+// triggerResultOf projects a finished trigger case into the results shape.
+func triggerResultOf(st status, m plan.ItemMetrics) results.TriggerResult {
+	out := results.TriggerResult{Hits: m.Hits, Runs: m.Runs, AvgRunSeconds: m.AvgRunSeconds}
 	if st == stPass || st == stFail {
 		p := st == stPass
 		out.Passed = &p
@@ -81,7 +92,7 @@ func triggerCaseMetricsOf(st status, m plan.ItemMetrics) results.TriggerCaseMetr
 
 // evalCasePrior resolves an eval case's comparison basis: previous, else baseline
 // (live this run, else seeded), else none.
-func (d dashboardModel) evalCasePrior(ref plan.UnitRef, label string) (results.EvalCaseMetrics, deltaBasis) {
+func (d dashboardModel) evalCasePrior(ref plan.UnitRef, label string) (results.EvalResult, deltaBasis) {
 	if m, ok := d.prior.EvalPrevious(ref, label); ok {
 		return m, basisPrevious
 	}
@@ -91,7 +102,7 @@ func (d dashboardModel) evalCasePrior(ref plan.UnitRef, label string) (results.E
 	if m, ok := d.prior.EvalBaseline(ref, label); ok {
 		return m, basisBaseline
 	}
-	return results.EvalCaseMetrics{}, basisNone
+	return results.EvalResult{}, basisNone
 }
 
 // caseDelta is the per-metric delta and basis for one finished case.
@@ -101,13 +112,13 @@ func (d dashboardModel) caseDelta(ref plan.UnitRef, c *caseState) (results.Delta
 		if basis == basisNone {
 			return results.Delta{}, basisNone
 		}
-		return results.EvalCaseDelta(evalCaseMetricsOf(c.status, c.metrics), prior), basis
+		return results.EvalCaseDelta(evalResultOf(c.status, c.metrics), prior), basis
 	}
 	prior, ok := d.prior.TriggerPrevious(ref, c.label)
 	if !ok {
 		return results.Delta{}, basisNone
 	}
-	return results.TriggerCaseDelta(triggerCaseMetricsOf(c.status, c.metrics), prior, c.shouldTrigger), basisPrevious
+	return results.TriggerCaseDelta(triggerResultOf(c.status, c.metrics), prior, c.shouldTrigger), basisPrevious
 }
 
 // ── group aggregation (execution group rows) ────────────────────────────────
@@ -148,7 +159,7 @@ func (d dashboardModel) casePriorScalars(ref plan.UnitRef, c *caseState) (priorS
 		if basis == basisNone {
 			return priorScalars{}, false
 		}
-		ps := priorScalars{passed: m.Passed, avg: m.AvgRunSeconds, basis: basis}
+		ps := priorScalars{passed: m.Passed, avg: m.RunSeconds(), basis: basis}
 		if m.Measured != nil {
 			ps.in, ps.out, ps.cost = m.Measured.InputTokens, m.Measured.OutputTokens, m.Measured.CostUSD
 		}

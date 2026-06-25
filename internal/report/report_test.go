@@ -66,9 +66,9 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 				Passed: new(2), Total: 2, AvgRunSeconds: new(8.0),
 				Estimate: &results.Estimate{InputTokens: 2700, InputCostUSD: new(0.027)},
 			},
-			Cases: map[string]results.TriggerCaseMetrics{
-				"Write tests | with pipes": {Hits: new(3), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
-				"Write pytest tests":       {Hits: new(0), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
+			Results: []results.TriggerResult{
+				{Query: "Write tests | with pipes", ShouldTrigger: true, Hits: new(3), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
+				{Query: "Write pytest tests", ShouldTrigger: false, Hits: new(0), Runs: new(3), Passed: new(true), AvgRunSeconds: new(8.0)},
 			},
 		},
 	})
@@ -142,11 +142,10 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 				AvgRunSeconds: new(80.0),
 				Measured:      &results.Measured{InputTokens: new(8000), OutputTokens: new(3000), CostUSD: new(0.75)},
 			},
-			Cases: map[string]results.EvalCaseMetrics{
-				"basic": {
-					Passed: new(true), PassRate: new(1.0), AvgRunSeconds: new(80.0),
-					Measured: &results.Measured{InputTokens: new(8000), OutputTokens: new(3000), CostUSD: new(0.75)},
-				},
+			Results: []results.EvalResult{
+				{ID: "basic", Passed: new(true), Summary: &results.GradeSummary{PassRate: new(1.0)},
+					Timing:   &results.Timing{ExecutorDurationSeconds: new(80.0)},
+					Measured: &results.Measured{InputTokens: new(8000), OutputTokens: new(3000), CostUSD: new(0.75)}},
 			},
 		},
 		Baseline: &results.EvalSnapshot{
@@ -155,8 +154,9 @@ func fixtureRepo(t *testing.T) *layout.Repo {
 				Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
 				AvgRunSeconds: new(40.0),
 			},
-			Cases: map[string]results.EvalCaseMetrics{
-				"basic": {Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(40.0), Fingerprint: "fp-basic"},
+			Results: []results.EvalResult{
+				{ID: "basic", Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)},
+					Timing: &results.Timing{ExecutorDurationSeconds: new(40.0)}, Fingerprint: "fp-basic"},
 			},
 		},
 	})
@@ -257,31 +257,34 @@ func TestRenderingRules(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(repo.Root, "EVALUATION.md"))
 	text := string(data)
 
-	// Cursor rows render n/a for usage cells (capability absent), the
-	// count-only google row renders — for the executed columns.
-	cursorRow := lineContaining(t, text, "`composer-2.5`")
-	for _, cell := range []string{"| n/a | n/a |"} {
-		if !strings.Contains(cursorRow, cell) {
-			t.Errorf("cursor row = %q, want usage cells %q", cursorRow, cell)
-		}
+	// Rollup row: cursor renders n/a usage cells (capability absent) and its
+	// passed-count; google is count-only (— executed cells, grouped tokens).
+	cursorRollup := lineContaining(t, text, "`composer-2.5`")
+	if !strings.Contains(cursorRollup, "| n/a | n/a |") || !strings.Contains(cursorRollup, "| 2/2 |") {
+		t.Errorf("cursor rollup row = %q", cursorRollup)
 	}
-	if !strings.Contains(cursorRow, "| 2/2 |") {
-		t.Errorf("cursor row = %q, want passed cell", cursorRow)
-	}
-	googleRow := lineContaining(t, text, "`gemini-3.5-flash`")
-	if !strings.Contains(googleRow, "| — | — | — |") {
-		t.Errorf("google count-only row = %q, want — executed cells", googleRow)
-	}
-	if !strings.Contains(googleRow, "2,580") {
-		t.Errorf("google row = %q, want grouped token count", googleRow)
+	googleRollup := lineContaining(t, text, "`gemini-3.5-flash`")
+	if !strings.Contains(googleRollup, "| — | — | — |") || !strings.Contains(googleRollup, "2,580") {
+		t.Errorf("google rollup row = %q", googleRollup)
 	}
 
-	// Pipes in queries must be escaped in detail tables.
-	if !strings.Contains(text, `Write tests \| with pipes`) {
-		t.Error("query pipes not escaped")
+	// Per-case detail: one heading per trigger, with a model-per-row table. The
+	// query is a heading (literal pipe, not escaped) and the expectation is shown.
+	if !strings.Contains(text, "#### Write tests | with pipes (expected: yes)") {
+		t.Error("trigger query heading missing or pipe-escaped")
 	}
-	// Failed assertions surface with evidence.
-	if !strings.Contains(text, "`basic` failed") {
+	// A per-case cursor trigger row shows the verdict + hits/runs and n/a usage cells.
+	cursorCase := lineWith(t, text, "composer-2.5", "PASS")
+	if !strings.Contains(cursorCase, "| 2/3 |") || !strings.Contains(cursorCase, "| n/a | n/a |") {
+		t.Errorf("cursor per-case row = %q", cursorCase)
+	}
+	// A per-case google trigger row is count-only with grouped token counts.
+	googleCase := lineWith(t, text, "gemini-3.5-flash", "1,290")
+	if !strings.Contains(googleCase, "| — | — | — | — |") {
+		t.Errorf("google per-case row = %q", googleCase)
+	}
+	// Failed assertions surface with evidence, now keyed by model.
+	if !strings.Contains(text, "`claude-fable-5` failed `file x exists`: x missing") {
 		t.Error("failed assertion not surfaced")
 	}
 }
@@ -310,6 +313,88 @@ func TestCheckThresholds(t *testing.T) {
 	}
 }
 
+// multiSkillRepo builds a single-plugin repo with two skills (aaa-skill,
+// zzz-skill) to exercise the case-major detail's per-skill grouping, ordering,
+// and per-case model rows. In aaa-skill, haiku ran only the first query, so the
+// second query's table must omit its row.
+func multiSkillRepo(t *testing.T) *layout.Repo {
+	t.Helper()
+	root := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(root, rel)
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".claude-plugin/plugin.json", `{"name":"solo","version":"0.1.0"}`)
+	for _, skill := range []string{"aaa-skill", "zzz-skill"} {
+		write("skills/"+skill+"/SKILL.md", "---\nname: "+skill+"\n---\nx\n")
+		write("evals/"+skill+"/triggers.json",
+			`{"triggers":[{"query":"q1","should_trigger":true},{"query":"q2","should_trigger":true}]}`)
+	}
+
+	mk := func(modelID string, queries ...string) *results.TriggerEntry {
+		e := &results.TriggerEntry{Header: results.Header{
+			Provider: "anthropic", Model: modelID, Display: modelID,
+			ToolVersion: "test", RanAt: "2026-06-11T10:00:00Z", Executed: true,
+			RunsPerQuery: 3, TimeoutSeconds: 120,
+		}}
+		for _, q := range queries {
+			e.Results = append(e.Results, results.TriggerResult{
+				Query: q, ShouldTrigger: true, Hits: new(3), Runs: new(3),
+				Passed: new(true), AvgRunSeconds: new(9.1),
+			})
+		}
+		e.Summary = results.TriggerSummary{Passed: new(len(queries)), Total: len(queries)}
+		return e
+	}
+
+	a := &results.File{Schema: results.Schema, Plugin: "solo", Skill: "aaa-skill"}
+	a.SetTrigger("anthropic/claude-fable-5", mk("claude-fable-5", "q1", "q2"))
+	a.SetTrigger("anthropic/claude-haiku-4-5", mk("claude-haiku-4-5", "q1")) // missing q2
+	if _, err := a.SaveDir(filepath.Join(root, "evals", "aaa-skill"), "json"); err != nil {
+		t.Fatal(err)
+	}
+	z := &results.File{Schema: results.Schema, Plugin: "solo", Skill: "zzz-skill"}
+	z.SetTrigger("anthropic/claude-fable-5", mk("claude-fable-5", "q1", "q2"))
+	if _, err := z.SaveDir(filepath.Join(root, "evals", "zzz-skill"), "json"); err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := layout.Detect(root, layout.Auto)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return repo
+}
+
+func TestDetailMultiSkillCaseMajor(t *testing.T) {
+	repo := multiSkillRepo(t)
+	if _, err := Generate(Options{Repo: repo, ToolVersion: "test", Models: model.AllModels(nil)}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(repo.Root, "EVALUATION.md"))
+	text := string(data)
+
+	// Skills group under their own heading, in directory (alphabetical) order.
+	ia, iz := strings.Index(text, "## aaa-skill"), strings.Index(text, "## zzz-skill")
+	if ia < 0 || iz < 0 || ia > iz {
+		t.Fatalf("skill headings missing or out of order: aaa=%d zzz=%d", ia, iz)
+	}
+	// Each query is its own subsection.
+	if !strings.Contains(text, "#### q1 (expected: yes)") || !strings.Contains(text, "#### q2 (expected: yes)") {
+		t.Error("per-query headings missing")
+	}
+	// A model missing a case is omitted from that case's table: haiku ran only q1
+	// of aaa-skill, so it appears exactly twice — once in the plugin rollup, once
+	// in the q1 table — and never under a q2 table.
+	if n := strings.Count(text, "`claude-haiku-4-5`"); n != 2 {
+		t.Errorf("haiku appears %d times, want 2 (rollup + q1 only):\n%s", n, text)
+	}
+}
+
 func lineContaining(t *testing.T, text, needle string) string {
 	t.Helper()
 	for line := range strings.SplitSeq(text, "\n") {
@@ -318,5 +403,25 @@ func lineContaining(t *testing.T, text, needle string) string {
 		}
 	}
 	t.Fatalf("no line contains %q:\n%s", needle, text)
+	return ""
+}
+
+// lineWith returns the first line containing all needles — used to target a
+// specific per-case row (e.g. a model key plus its verdict) past the rollup row.
+func lineWith(t *testing.T, text string, needles ...string) string {
+	t.Helper()
+	for line := range strings.SplitSeq(text, "\n") {
+		all := true
+		for _, n := range needles {
+			if !strings.Contains(line, n) {
+				all = false
+				break
+			}
+		}
+		if all {
+			return line
+		}
+	}
+	t.Fatalf("no line contains all of %v:\n%s", needles, text)
 	return ""
 }

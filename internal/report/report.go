@@ -256,14 +256,9 @@ func load(repo *layout.Repo) ([]pluginFiles, error) {
 func filterActive(loaded []pluginFiles, active map[string]bool) {
 	for _, pf := range loaded {
 		for _, f := range pf.files {
-			for key := range f.Triggers {
+			for key := range f.Models {
 				if !active[key] {
-					delete(f.Triggers, key)
-				}
-			}
-			for key := range f.Evals {
-				if !active[key] {
-					delete(f.Evals, key)
+					delete(f.Models, key)
 				}
 			}
 		}
@@ -351,7 +346,11 @@ func rollupTriggers(files []*results.File) map[string]*ModelRollup {
 	cur := map[string]*ModelRollup{}
 	prev := map[string]*ModelRollup{}
 	for _, f := range files {
-		for key, entry := range f.Triggers {
+		for key, m := range f.Models {
+			entry := m.Triggers
+			if entry == nil {
+				continue
+			}
 			addTriggerSummary(ensureRollup(cur, key, entry.Header), entry.Summary, entry.Executed)
 			if entry.Previous != nil {
 				addTriggerSummary(ensureRollup(prev, key, entry.Header), entry.Previous.Summary, true)
@@ -369,7 +368,11 @@ func rollupEvals(files []*results.File) map[string]*ModelRollup {
 	base := map[string]*ModelRollup{}
 	prev := map[string]*ModelRollup{}
 	for _, f := range files {
-		for key, entry := range f.Evals {
+		for key, m := range f.Models {
+			entry := m.Evals
+			if entry == nil {
+				continue
+			}
 			addEvalSummary(ensureRollup(cur, key, entry.Header), entry.Summary, entry.Executed)
 			if entry.Baseline != nil {
 				addEvalSummary(ensureRollup(base, key, entry.Header), entry.Baseline.Summary, true)

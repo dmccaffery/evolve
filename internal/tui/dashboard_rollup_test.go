@@ -127,8 +127,8 @@ func TestRollupImprovementsBaselineBasis(t *testing.T) {
 	d.w, d.h = 120, 40
 
 	// Without the skill both evals failed; with it, e1 passes (1/2).
-	d.liveBaseline[caseKey{ev, "e1"}] = results.EvalCaseMetrics{Passed: new(false), PassRate: new(0.0)}
-	d.liveBaseline[caseKey{ev, "e2"}] = results.EvalCaseMetrics{Passed: new(false), PassRate: new(0.0)}
+	d.liveBaseline[caseKey{ev, "e1"}] = results.EvalResult{Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)}}
+	d.liveBaseline[caseKey{ev, "e2"}] = results.EvalResult{Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)}}
 	d.apply(unitStartedMsg{ref: ev, total: 2, mode: plan.ModeRun})
 	d.apply(itemDoneMsg{ref: ev, item: run.ItemResult{Index: 0, Label: "e1", Status: plan.StatusPass,
 		Metrics: plan.ItemMetrics{AssertPassed: new(1), AssertTotal: new(1)}}})

@@ -19,7 +19,7 @@ func TestLoadPriorMetrics(t *testing.T) {
 		Summary: results.EvalSummary{Passed: new(1), Total: 1},
 		Baseline: &results.EvalSnapshot{
 			Summary: results.EvalSummary{Passed: new(0), Total: 1},
-			Cases:   map[string]results.EvalCaseMetrics{"e1": {Passed: new(false), PassRate: new(0.0), Fingerprint: "fp"}},
+			Results: []results.EvalResult{{ID: "e1", Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)}, Fingerprint: "fp"}},
 		},
 	})
 	f.SetTrigger("fake/m1", &results.TriggerEntry{
@@ -35,7 +35,7 @@ func TestLoadPriorMetrics(t *testing.T) {
 	pm := LoadPriorMetrics(cat)
 
 	evRef := UnitRef{Skill: "s", Key: "fake/m1", Kind: KindEvals}
-	if m, ok := pm.EvalPrevious(evRef, "e1"); !ok || m.PassRate == nil || *m.PassRate != 1.0 {
+	if m, ok := pm.EvalPrevious(evRef, "e1"); !ok || m.Summary == nil || m.Summary.PassRate == nil || *m.Summary.PassRate != 1.0 {
 		t.Errorf("eval previous = %+v ok=%v, want pass rate 1.0", m, ok)
 	}
 	if b, ok := pm.EvalBaseline(evRef, "e1"); !ok || b.Passed == nil || *b.Passed {

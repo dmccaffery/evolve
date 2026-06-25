@@ -24,28 +24,28 @@ func TestColorDirections(t *testing.T) {
 	}
 }
 
-func TestEvalCaseMetricsOf(t *testing.T) {
-	m := evalCaseMetricsOf(stPass, plan.ItemMetrics{
+func TestEvalResultOf(t *testing.T) {
+	m := evalResultOf(stPass, plan.ItemMetrics{
 		AvgRunSeconds: new(12.0), AssertPassed: new(3), AssertTotal: new(4),
 		InputTokens: new(100), OutputTokens: new(10), CostUSD: new(0.5),
 	})
 	if m.Passed == nil || !*m.Passed {
 		t.Error("a pass status should set Passed true")
 	}
-	if m.PassRate == nil || *m.PassRate != 0.75 {
-		t.Errorf("pass rate = %v, want 0.75 (3/4 expectations)", m.PassRate)
+	if m.Summary == nil || m.Summary.PassRate == nil || *m.Summary.PassRate != 0.75 {
+		t.Errorf("pass rate = %v, want 0.75 (3/4 expectations)", m.Summary)
 	}
 	if m.Measured == nil || m.Measured.InputTokens == nil || *m.Measured.InputTokens != 100 {
 		t.Errorf("measured = %+v, want input 100", m.Measured)
 	}
-	if e := evalCaseMetricsOf(stError, plan.ItemMetrics{}); !e.Errored {
-		t.Error("an error status should set Errored")
+	if e := evalResultOf(stError, plan.ItemMetrics{}); e.RuntimeError == "" {
+		t.Error("an error status should set a runtime error")
 	}
 }
 
 func TestCaseDeltaBasisFallback(t *testing.T) {
 	ev := plan.UnitRef{Skill: "s", Key: "fake/m1", Kind: plan.KindEvals}
-	d := dashboardModel{prior: plan.PriorMetrics{}, liveBaseline: map[caseKey]results.EvalCaseMetrics{}}
+	d := dashboardModel{prior: plan.PriorMetrics{}, liveBaseline: map[caseKey]results.EvalResult{}}
 	c := &caseState{kind: plan.KindEvals, label: "e1", status: stPass,
 		metrics: plan.ItemMetrics{AssertPassed: new(1), AssertTotal: new(1)}}
 
@@ -54,7 +54,7 @@ func TestCaseDeltaBasisFallback(t *testing.T) {
 		t.Errorf("basis = %v, want none", basis)
 	}
 	// A live baseline (this run) provides the baseline basis when no previous exists.
-	d.liveBaseline[caseKey{ev, "e1"}] = results.EvalCaseMetrics{PassRate: new(0.0)}
+	d.liveBaseline[caseKey{ev, "e1"}] = results.EvalResult{Summary: &results.GradeSummary{PassRate: new(0.0)}}
 	delta, basis := d.caseDelta(ev, c)
 	if basis != basisBaseline {
 		t.Errorf("basis = %v, want baseline", basis)

@@ -20,8 +20,8 @@ import (
 // is still running, so the row does not flicker as work finishes underneath.
 func TestCaseMetricCellsGatedOnCompletion(t *testing.T) {
 	ev := plan.UnitRef{Skill: "s", Key: "fake/m1", Kind: plan.KindEvals}
-	d := dashboardModel{prior: plan.PriorMetrics{}, liveBaseline: map[caseKey]results.EvalCaseMetrics{
-		{ev, "e1"}: {PassRate: new(0.0)},
+	d := dashboardModel{prior: plan.PriorMetrics{}, liveBaseline: map[caseKey]results.EvalResult{
+		{ev, "e1"}: {Summary: &results.GradeSummary{PassRate: new(0.0)}},
 	}}
 	metrics := plan.ItemMetrics{AssertPassed: new(1), AssertTotal: new(1)}
 

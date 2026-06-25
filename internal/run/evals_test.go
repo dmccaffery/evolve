@@ -208,7 +208,7 @@ func evalRepoWithToolCall(t *testing.T) *layout.Repo {
 func firstEvalResult(t *testing.T, repo *layout.Repo) results.EvalResult {
 	t.Helper()
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
+	entry := file.Eval("fake/model-1")
 	if entry == nil || len(entry.Results) == 0 {
 		t.Fatalf("no results: %+v", entry)
 	}
@@ -249,7 +249,7 @@ func TestEvalsGradesEval(t *testing.T) {
 	}
 
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
+	entry := file.Eval("fake/model-1")
 	if entry == nil || !entry.Executed {
 		t.Fatalf("entry = %+v", entry)
 	}
@@ -426,7 +426,7 @@ func TestEvalsCursorLikeProvider(t *testing.T) {
 		t.Error("failed = true")
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
+	entry := file.Eval("fake/model-1")
 	r := entry.Results[0]
 	if r.Measured != nil || r.Estimate != nil || entry.Pricing != nil {
 		t.Errorf("cursor-like entry leaked usage data: %+v", r)
@@ -494,7 +494,7 @@ func TestEvalsRuntimeError(t *testing.T) {
 	}
 
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
+	entry := file.Eval("fake/model-1")
 	if entry == nil {
 		t.Fatal("no entry written")
 	}
@@ -632,8 +632,8 @@ func TestEvalsFailedPreservesAndNarrows(t *testing.T) {
 	resultsDir := filepath.Join(repo.Root, "evals", "solo-skill")
 	key := opts.Selected[0].Key()
 	file, _ := results.LoadDir(resultsDir, "solo", "solo-skill")
-	if got := byID(file.Evals[key].Results); got["good"].Passed == nil || !*got["good"].Passed || got["bad"].Passed == nil || *got["bad"].Passed {
-		t.Fatalf("first run: want good pass / bad fail, got %+v", file.Evals[key].Results)
+	if got := byID(file.Eval(key).Results); got["good"].Passed == nil || !*got["good"].Passed || got["bad"].Passed == nil || *got["bad"].Passed {
+		t.Fatalf("first run: want good pass / bad fail, got %+v", file.Eval(key).Results)
 	}
 
 	// Break the runner so any re-execution errors, then --failed. Only "bad" should
@@ -645,7 +645,7 @@ func TestEvalsFailedPreservesAndNarrows(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ = results.LoadDir(resultsDir, "solo", "solo-skill")
-	got := byID(file.Evals[key].Results)
+	got := byID(file.Eval(key).Results)
 	if len(got) != 2 {
 		t.Fatalf("merged results = %d, want 2 (both evals retained)", len(got))
 	}
@@ -714,8 +714,8 @@ func TestEvalsBaseline(t *testing.T) {
 		t.Errorf("BaselineDone calls = %d, want 1", len(rep.baselines))
 	}
 	file, _ := results.LoadDir(resultsDir, "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
-	if entry.Baseline == nil || entry.Baseline.Cases["basic"].Fingerprint == "" {
+	entry := file.Eval("fake/model-1")
+	if entry.Baseline == nil || byID(entry.Baseline.Results)["basic"].Fingerprint == "" {
 		t.Fatalf("baseline not stored with a fingerprint: %+v", entry.Baseline)
 	}
 	if entry.Previous != nil {
@@ -733,7 +733,7 @@ func TestEvalsBaseline(t *testing.T) {
 	if len(rn2.agentRuns) != 1 || !rn2.agentRuns[0] {
 		t.Errorf("second run agent runs = %v, want one with-skill run (baseline cached)", rn2.agentRuns)
 	}
-	if file, _ = results.LoadDir(resultsDir, "solo", "solo-skill"); file.Evals["fake/model-1"].Previous == nil {
+	if file, _ = results.LoadDir(resultsDir, "solo", "solo-skill"); file.Eval("fake/model-1").Previous == nil {
 		t.Error("second run should rotate the prior run into previous")
 	}
 
@@ -800,7 +800,7 @@ func TestEvalsBaselineAdditiveWithNew(t *testing.T) {
 	if _, err := Evals(context.Background(), opts); err != nil {
 		t.Fatal(err)
 	}
-	if file, _ := results.LoadDir(resultsDir, "solo", "solo-skill"); file.Evals["fake/model-1"].Baseline != nil {
+	if file, _ := results.LoadDir(resultsDir, "solo", "solo-skill"); file.Eval("fake/model-1").Baseline != nil {
 		t.Fatal("precondition: the first run should leave no baseline")
 	}
 
@@ -830,7 +830,7 @@ func TestEvalsBaselineAdditiveWithNew(t *testing.T) {
 		t.Errorf("agent runs with-skill=%d without-skill=%d, want 1 and 1 (%v)", with, without, rn.agentRuns)
 	}
 	entry := mustLoadEval(t, resultsDir)
-	if entry.Baseline == nil || entry.Baseline.Cases["basic"].Fingerprint == "" {
+	if entry.Baseline == nil || byID(entry.Baseline.Results)["basic"].Fingerprint == "" {
 		t.Errorf("--baseline did not fill the missing baseline: %+v", entry.Baseline)
 	}
 	// The with-skill eval reran, so the replaced run rotated into previous.
@@ -842,7 +842,7 @@ func TestEvalsBaselineAdditiveWithNew(t *testing.T) {
 func mustLoadEval(t *testing.T, dir string) *results.EvalEntry {
 	t.Helper()
 	file, _ := results.LoadDir(dir, "solo", "solo-skill")
-	entry := file.Evals["fake/model-1"]
+	entry := file.Eval("fake/model-1")
 	if entry == nil {
 		t.Fatal("no eval entry written")
 	}

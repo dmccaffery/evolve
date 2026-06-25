@@ -190,7 +190,7 @@ func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet
 		}
 	}
 
-	old := file.Triggers[sel.Key()]
+	old := file.Trigger(sel.Key())
 	merged := mergeTriggerResults(old, entryResults, modelApplicable)
 	entry := buildTriggerEntry(opts, sel, execute, contentHash, merged, old)
 	file.SetTrigger(sel.Key(), entry)

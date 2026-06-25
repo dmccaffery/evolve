@@ -50,8 +50,8 @@ func TestDeltaNilSafety(t *testing.T) {
 
 func TestTriggerCaseDeltaRate(t *testing.T) {
 	// A should-trigger query: correctness is hits/runs. 3/3 vs 1/2 → +0.5.
-	cur := TriggerCaseMetrics{Hits: new(3), Runs: new(3)}
-	prior := TriggerCaseMetrics{Hits: new(1), Runs: new(2)}
+	cur := TriggerResult{Hits: new(3), Runs: new(3)}
+	prior := TriggerResult{Hits: new(1), Runs: new(2)}
 	if d := TriggerCaseDelta(cur, prior, true); d.Rate == nil || *d.Rate != 0.5 {
 		t.Errorf("should-trigger rate delta = %v, want +0.5", d.Rate)
 	}
@@ -61,7 +61,7 @@ func TestTriggerCaseDeltaRate(t *testing.T) {
 		t.Errorf("should-not-trigger rate delta = %v, want -0.5", d.Rate)
 	}
 	// Zero runs is not comparable.
-	if got := TriggerCaseDelta(TriggerCaseMetrics{Hits: new(0), Runs: new(0)}, prior, true); got.Rate != nil {
+	if got := TriggerCaseDelta(TriggerResult{Hits: new(0), Runs: new(0)}, prior, true); got.Rate != nil {
 		t.Errorf("rate delta with zero runs = %v, want nil", got.Rate)
 	}
 }
@@ -71,19 +71,25 @@ func TestSnapshotEval(t *testing.T) {
 		Header: Header{Executed: true, RanAt: "2026-06-11T00:00:00Z"},
 		Results: []EvalResult{
 			{ID: "a", Passed: new(true), Summary: &GradeSummary{PassRate: new(1.0)},
-				Timing: &Timing{ExecutorDurationSeconds: new(12.0)}},
+				Timing:       &Timing{ExecutorDurationSeconds: new(12.0)},
+				Expectations: []GradedAssertion{{Text: "x", Passed: new(true)}}},
 			{ID: "b", RuntimeError: "boom"},
 		},
 		Summary: EvalSummary{Passed: new(1), Total: 2},
 	}
 	snap := SnapshotEval(e)
-	if snap == nil || len(snap.Cases) != 2 {
+	if snap == nil || len(snap.Results) != 2 {
 		t.Fatalf("snapshot = %+v", snap)
 	}
-	if a := snap.Cases["a"]; a.Passed == nil || !*a.Passed || a.PassRate == nil || *a.PassRate != 1.0 {
+	a, ok := findEvalResult(snap.Results, "a")
+	if !ok || a.Passed == nil || !*a.Passed || a.Summary == nil || a.Summary.PassRate == nil || *a.Summary.PassRate != 1.0 {
 		t.Errorf("case a = %+v, want pass-rate projection", a)
 	}
-	if b := snap.Cases["b"]; !b.Errored {
+	// Bulky detail is trimmed out of the snapshot.
+	if a.Expectations != nil {
+		t.Errorf("case a expectations not trimmed: %+v", a.Expectations)
+	}
+	if b, _ := findEvalResult(snap.Results, "b"); b.RuntimeError == "" {
 		t.Errorf("case b = %+v, want errored", b)
 	}
 	// An unexecuted entry has nothing meaningful to compare against.
@@ -92,13 +98,22 @@ func TestSnapshotEval(t *testing.T) {
 	}
 }
 
-func TestSummarizeEvalCases(t *testing.T) {
-	cases := map[string]EvalCaseMetrics{
-		"a": {Passed: new(true), AvgRunSeconds: new(10.0)},
-		"b": {Passed: new(false), AvgRunSeconds: new(20.0)},
-		"c": {Errored: true},
+func findEvalResult(rs []EvalResult, id string) (EvalResult, bool) {
+	for _, r := range rs {
+		if r.ID == id {
+			return r, true
+		}
 	}
-	s := SummarizeEvalCases(cases)
+	return EvalResult{}, false
+}
+
+func TestSummarizeEvalResults(t *testing.T) {
+	rs := []EvalResult{
+		{ID: "a", Passed: new(true), Timing: &Timing{ExecutorDurationSeconds: new(10.0)}},
+		{ID: "b", Passed: new(false), Timing: &Timing{ExecutorDurationSeconds: new(20.0)}},
+		{ID: "c", RuntimeError: "boom"},
+	}
+	s := SummarizeEvalResults(rs)
 	if s.Passed == nil || *s.Passed != 1 || s.Failed == nil || *s.Failed != 1 {
 		t.Errorf("passed/failed = %v/%v, want 1/1", s.Passed, s.Failed)
 	}

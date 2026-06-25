@@ -93,78 +93,190 @@ func renderDetailPage(pf pluginFiles, caps capabilityMap, title string) string {
 	return generatedMarker + "\n\n" + title + "\n" + renderDetail(pf, caps)
 }
 
-// renderDetail renders per-model, per-skill tables with one row per query or
-// eval.
+// renderDetail renders, per skill, one heading per trigger query and per eval
+// with a table whose rows are the models — the case-major view that makes
+// cross-model comparison on a single case the default. Columns mirror the
+// rollup's, with the per-case verdict (Result) standing in for its passed-count.
 func renderDetail(pf pluginFiles, caps capabilityMap) string {
 	var b strings.Builder
-
-	// Group model keys by provider, in first-seen sorted order.
-	keys := map[string]bool{}
 	for _, f := range pf.files {
-		for k := range f.Triggers {
-			keys[k] = true
+		if len(f.Models) == 0 {
+			continue
 		}
-		for k := range f.Evals {
-			keys[k] = true
-		}
-	}
-	for _, key := range sortedKeys(keys) {
-		provName, modelID, _ := strings.Cut(key, "/")
-		fmt.Fprintf(&b, "\n## %s — `%s`\n", caps.providerDisplay(provName), modelID)
-
-		for _, f := range pf.files {
-			if entry, ok := f.Triggers[key]; ok {
-				fmt.Fprintf(&b, "\n### Triggers — %s\n\n", f.Skill)
-				fmt.Fprintf(&b, "%s\n\n", lastRunNote(entry.Header, entry.RunsPerQuery))
-				b.WriteString("| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |\n")
-				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
-				for _, r := range entry.Results {
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-						cell(r.Query, 60), yesNo(r.ShouldTrigger), fmtHits(r.Hits, r.Runs),
-						triggerCaseRateDelta(r, entry.Previous), fmtVerdict(r.Passed), fmtSecs(r.AvgRunSeconds),
-						fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps))
-				}
-			}
-			if entry, ok := f.Evals[key]; ok {
-				fmt.Fprintf(&b, "\n### Evals — %s\n\n", f.Skill)
-				fmt.Fprintf(&b, "%s\n\n", lastRunNote(entry.Header, 0))
-				b.WriteString("| Eval | Result | Δ rate | Run | Input tokens | Est. cost" +
-					" | Measured in/out | Cache rd/wr | Measured cost |\n")
-				b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
-				for _, r := range entry.Results {
-					fmt.Fprintf(&b, "| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-						cell(r.ID, 60), evalVerdict(r), evalCaseRateDelta(r, entry.Previous, entry.Baseline),
-						fmtSecs(runSeconds(r.Timing)),
-						fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps),
-						fmtMeasuredInOut(r.Measured, provName, caps), fmtMeasuredCache(r.Measured, provName, caps),
-						fmtMeasuredCostDetail(r.Measured, entry.Pricing, provName, caps))
-				}
-				// Runtime errors and failed expectations get surfaced under the table.
-				for _, r := range entry.Results {
-					if r.RuntimeError != "" {
-						fmt.Fprintf(&b, "\n- `%s` runtime error: %s\n", r.ID, cell(r.RuntimeError, 160))
-					}
-					for _, a := range r.Expectations {
-						if a.Passed != nil && !*a.Passed {
-							fmt.Fprintf(&b, "\n- `%s` failed `%s`: %s\n", r.ID, a.Text, cell(a.Evidence, 160))
-						}
-					}
-				}
-			}
-		}
+		fmt.Fprintf(&b, "\n## %s\n", f.Skill)
+		renderTriggerCases(&b, f, caps)
+		renderEvalCases(&b, f, caps)
 	}
 	return b.String()
 }
 
-func lastRunNote(h results.Header, runsPerQuery int) string {
-	note := fmt.Sprintf("Last run %s (evolve %s, timeout %ds)", h.RanAt, h.ToolVersion, h.TimeoutSeconds)
-	if runsPerQuery > 0 {
-		note += fmt.Sprintf(", %d runs per query", runsPerQuery)
+// triggerKeys returns the model keys with trigger results in this file, sorted.
+func triggerKeys(f *results.File) []string {
+	ks := map[string]*results.TriggerEntry{}
+	for k, m := range f.Models {
+		if m.Triggers != nil {
+			ks[k] = m.Triggers
+		}
 	}
-	if !h.Executed {
-		note += " — token counts only"
+	return sortedKeys(ks)
+}
+
+// evalKeys returns the model keys with eval results in this file, sorted.
+func evalKeys(f *results.File) []string {
+	ks := map[string]*results.EvalEntry{}
+	for k, m := range f.Models {
+		if m.Evals != nil {
+			ks[k] = m.Evals
+		}
 	}
-	return note + "."
+	return sortedKeys(ks)
+}
+
+// renderTriggerCases renders a "#### {query}" subsection per trigger query, each
+// a model-per-row table.
+func renderTriggerCases(b *strings.Builder, f *results.File, caps capabilityMap) {
+	keys := triggerKeys(f)
+	if len(keys) == 0 {
+		return
+	}
+	b.WriteString("\n### Triggers\n")
+	for _, q := range orderedTriggerQueries(f, keys) {
+		expected := false
+		for _, key := range keys {
+			if r, ok := findTrigger(f.Models[key].Triggers.Results, q); ok {
+				expected = r.ShouldTrigger
+				break
+			}
+		}
+		fmt.Fprintf(b, "\n#### %s (expected: %s)\n\n", heading(q), yesNo(expected))
+		b.WriteString("| Provider | Model | Result | Rate | Δ rate | Avg run | Input tokens | Est. cost |\n")
+		b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- |\n")
+		for _, key := range keys {
+			entry := f.Models[key].Triggers
+			r, ok := findTrigger(entry.Results, q)
+			if !ok {
+				continue
+			}
+			provName, modelID, _ := strings.Cut(key, "/")
+			fmt.Fprintf(b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s |\n",
+				caps.providerDisplay(provName), entry.Display, modelID,
+				fmtVerdict(r.Passed), fmtHits(r.Hits, r.Runs),
+				triggerCaseRateDelta(r, entry.Previous), fmtSecs(r.AvgRunSeconds),
+				fmtEstimateTokens(r.Estimate, provName, caps),
+				fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps))
+		}
+	}
+}
+
+// renderEvalCases renders a "#### {eval}" subsection per eval, each a
+// model-per-row table, with every model's runtime errors and failed assertions
+// listed below.
+func renderEvalCases(b *strings.Builder, f *results.File, caps capabilityMap) {
+	keys := evalKeys(f)
+	if len(keys) == 0 {
+		return
+	}
+	b.WriteString("\n### Evals\n")
+	for _, id := range orderedEvalIDs(f, keys) {
+		title := id
+		for _, key := range keys {
+			if r, ok := findEval(f.Models[key].Evals.Results, id); ok && r.Name != "" {
+				title = id + " — " + r.Name
+				break
+			}
+		}
+		fmt.Fprintf(b, "\n#### %s\n\n", heading(title))
+		b.WriteString("| Provider | Model | Result | Δ rate | Lift vs base | Avg run | Input tokens | Est. cost" +
+			" | Measured in/out | Cache rd/wr | Measured cost |\n")
+		b.WriteString("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n")
+		for _, key := range keys {
+			entry := f.Models[key].Evals
+			r, ok := findEval(entry.Results, id)
+			if !ok {
+				continue
+			}
+			provName, modelID, _ := strings.Cut(key, "/")
+			fmt.Fprintf(b, "| %s | %s (`%s`) | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+				caps.providerDisplay(provName), entry.Display, modelID,
+				evalVerdict(r), evalCaseRateDelta(r, entry.Previous, entry.Baseline),
+				evalCaseLiftVsBase(r, entry.Baseline), fmtSecs(runSeconds(r.Timing)),
+				fmtEstimateTokens(r.Estimate, provName, caps), fmtEstimateCost(r.Estimate, entry.Pricing, provName, caps),
+				fmtMeasuredInOut(r.Measured, provName, caps), fmtMeasuredCache(r.Measured, provName, caps),
+				fmtMeasuredCostDetail(r.Measured, entry.Pricing, provName, caps))
+		}
+		// Each model's runtime errors and failed expectations, surfaced under the table.
+		for _, key := range keys {
+			r, ok := findEval(f.Models[key].Evals.Results, id)
+			if !ok {
+				continue
+			}
+			_, modelID, _ := strings.Cut(key, "/")
+			if r.RuntimeError != "" {
+				fmt.Fprintf(b, "\n- `%s` runtime error: %s\n", modelID, cell(r.RuntimeError, 160))
+			}
+			for _, a := range r.Expectations {
+				if a.Passed != nil && !*a.Passed {
+					fmt.Fprintf(b, "\n- `%s` failed `%s`: %s\n", modelID, a.Text, cell(a.Evidence, 160))
+				}
+			}
+		}
+	}
+}
+
+// orderedTriggerQueries lists every query across the skill's models in authored
+// order — first-seen over the sorted model keys, since all models share the same
+// triggers spec.
+func orderedTriggerQueries(f *results.File, keys []string) []string {
+	var order []string
+	seen := map[string]bool{}
+	for _, key := range keys {
+		for _, r := range f.Models[key].Triggers.Results {
+			if !seen[r.Query] {
+				seen[r.Query] = true
+				order = append(order, r.Query)
+			}
+		}
+	}
+	return order
+}
+
+// orderedEvalIDs is orderedTriggerQueries for the eval tier.
+func orderedEvalIDs(f *results.File, keys []string) []string {
+	var order []string
+	seen := map[string]bool{}
+	for _, key := range keys {
+		for _, r := range f.Models[key].Evals.Results {
+			if !seen[r.ID] {
+				seen[r.ID] = true
+				order = append(order, r.ID)
+			}
+		}
+	}
+	return order
+}
+
+func findTrigger(rs []results.TriggerResult, query string) (results.TriggerResult, bool) {
+	for _, r := range rs {
+		if r.Query == query {
+			return r, true
+		}
+	}
+	return results.TriggerResult{}, false
+}
+
+func findEval(rs []results.EvalResult, id string) (results.EvalResult, bool) {
+	for _, r := range rs {
+		if r.ID == id {
+			return r, true
+		}
+	}
+	return results.EvalResult{}, false
+}
+
+// heading sanitizes a value for a Markdown heading: newlines would break it,
+// but pipes are literal there and need no escaping.
+func heading(s string) string {
+	return strings.ReplaceAll(s, "\n", " ")
 }
 
 // runSeconds extracts the executor duration from a per-eval timing block.
@@ -230,18 +342,28 @@ func liftVsBase(m *ModelRollup) string {
 	return "—"
 }
 
+// evalCaseLiftVsBase is liftVsBase at case granularity: one eval's pass-rate lift
+// over its without-skill baseline, or "—" when there is no baseline for it.
+func evalCaseLiftVsBase(r results.EvalResult, base *results.EvalSnapshot) string {
+	if base != nil {
+		if bc, ok := findEval(base.Results, r.ID); ok {
+			return fmtSignedRate(results.EvalCaseDelta(r, bc).Rate)
+		}
+	}
+	return "—"
+}
+
 // evalCaseRateDelta renders one eval's expectation-rate delta with the basis
 // fallback (previous, else baseline marked).
 func evalCaseRateDelta(r results.EvalResult, prev, base *results.EvalSnapshot) string {
-	cur := results.EvalCaseMetricsOf(r)
 	if prev != nil {
-		if pc, ok := prev.Cases[r.ID]; ok {
-			return fmtSignedRate(results.EvalCaseDelta(cur, pc).Rate)
+		if pc, ok := findEval(prev.Results, r.ID); ok {
+			return fmtSignedRate(results.EvalCaseDelta(r, pc).Rate)
 		}
 	}
 	if base != nil {
-		if bc, ok := base.Cases[r.ID]; ok {
-			return fmtSignedRate(results.EvalCaseDelta(cur, bc).Rate) + " (vs base)"
+		if bc, ok := findEval(base.Results, r.ID); ok {
+			return fmtSignedRate(results.EvalCaseDelta(r, bc).Rate) + " (vs base)"
 		}
 	}
 	return "—"
@@ -251,8 +373,8 @@ func evalCaseRateDelta(r results.EvalResult, prev, base *results.EvalSnapshot) s
 // (triggers have no baseline).
 func triggerCaseRateDelta(r results.TriggerResult, prev *results.TriggerSnapshot) string {
 	if prev != nil {
-		if pc, ok := prev.Cases[r.Query]; ok {
-			return fmtSignedRate(results.TriggerCaseDelta(results.TriggerCaseMetricsOf(r), pc, r.ShouldTrigger).Rate)
+		if pc, ok := findTrigger(prev.Results, r.Query); ok {
+			return fmtSignedRate(results.TriggerCaseDelta(r, pc, r.ShouldTrigger).Rate)
 		}
 	}
 	return "—"

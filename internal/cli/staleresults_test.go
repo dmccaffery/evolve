@@ -105,10 +105,10 @@ func TestFindAndDropStaleResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	reloaded, _ := results.LoadDir(filepath.Join(root, "evals", "solo-skill"), "solo", "solo-skill")
-	if _, ok := reloaded.Triggers["google/gemini-3.5-flash"]; ok {
+	if _, ok := reloaded.Models["google/gemini-3.5-flash"]; ok {
 		t.Error("dropped model still on disk")
 	}
-	if _, ok := reloaded.Triggers["anthropic/claude-haiku-4-5"]; !ok {
+	if _, ok := reloaded.Models["anthropic/claude-haiku-4-5"]; !ok {
 		t.Error("active model was wrongly dropped")
 	}
 

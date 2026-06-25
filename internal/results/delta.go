@@ -45,25 +45,34 @@ func TriggerSummaryDelta(cur, prior TriggerSummary) Delta {
 	}
 }
 
-// EvalCaseDelta is current-minus-prior over two eval case-metric sets. The rate
-// is the per-eval expectation pass rate (distinct from the aggregate eval pass
-// rate compared by EvalSummaryDelta).
-func EvalCaseDelta(cur, prior EvalCaseMetrics) Delta {
+// EvalCaseDelta is current-minus-prior over two eval results. The rate is the
+// per-eval expectation pass rate (the grade summary's, distinct from the aggregate
+// eval pass rate compared by EvalSummaryDelta); the run time is the executor
+// duration.
+func EvalCaseDelta(cur, prior EvalResult) Delta {
 	return Delta{
-		Rate:          subFloat(cur.PassRate, prior.PassRate, Round6),
-		AvgRunSeconds: subFloat(cur.AvgRunSeconds, prior.AvgRunSeconds, Round1),
+		Rate:          subFloat(evalRate(cur), evalRate(prior), Round6),
+		AvgRunSeconds: subFloat(cur.RunSeconds(), prior.RunSeconds(), Round1),
 		InputTokens:   subInt(measuredInput(cur.Measured), measuredInput(prior.Measured)),
 		OutputTokens:  subInt(measuredOutput(cur.Measured), measuredOutput(prior.Measured)),
 		CostUSD:       subFloat(measuredCost(cur.Measured), measuredCost(prior.Measured), Round6),
 	}
 }
 
-// TriggerCaseDelta is current-minus-prior over two trigger case-metric sets. The
-// rate is the correctness rate on each side — the fraction of runs that behaved as
+// evalRate is an eval result's expectation pass rate, or nil when ungraded.
+func evalRate(r EvalResult) *float64 {
+	if r.Summary == nil {
+		return nil
+	}
+	return r.Summary.PassRate
+}
+
+// TriggerCaseDelta is current-minus-prior over two trigger results. The rate is
+// the correctness rate on each side — the fraction of runs that behaved as
 // should_trigger expects (firing for a should-trigger query, not firing for a
 // should-not-trigger one) — so a rising rate is always an improvement, including
 // for negative queries where fewer hits is better.
-func TriggerCaseDelta(cur, prior TriggerCaseMetrics, shouldTrigger bool) Delta {
+func TriggerCaseDelta(cur, prior TriggerResult, shouldTrigger bool) Delta {
 	return Delta{
 		Rate: subFloat(correctRate(cur.Hits, cur.Runs, shouldTrigger),
 			correctRate(prior.Hits, prior.Runs, shouldTrigger), Round6),

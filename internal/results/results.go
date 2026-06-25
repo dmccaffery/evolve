@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/bitwise-media-group/evolve/internal/encfmt"
 	"github.com/bitwise-media-group/evolve/internal/evalspec"
@@ -27,20 +28,34 @@ import (
 // meaning of the failed count — an eval whose agent never produced usable
 // output is now reported as errored rather than failed.
 //
-// v4 records the per-case assertion counts (EvalCaseMetrics.AssertPassed/Total,
-// derived from each result's grade summary) so a preserved eval row can show its
-// Pass/Tot. From v4 on a file one or more versions behind is upgraded in place on
-// load (see migrate) rather than discarded, so committed history survives a schema
-// bump; only an unreadable file or one written by a newer evolve still resets.
-const Schema = 4
+// v4 records the per-case assertion counts (derived from each result's grade
+// summary) so a preserved eval row can show its Pass/Tot. A file one or more
+// versions behind is upgraded in place on load (see migrate) rather than
+// discarded, so committed history survives a schema bump; only an unreadable file
+// or one written by a newer evolve still resets.
+//
+// v5 normalized the file shape: previous/baseline snapshots now carry a results
+// array of the same TriggerResult/EvalResult struct as the live run (the compact
+// per-case metric structs are gone), and the file is nested model-major under a
+// models map (skill -> model -> {triggers, evals}) rather than tier-major. Old
+// v3/v4 files are migrated in place on load (see migrate).
+const Schema = 5
 
-// File is one evals/<skill>/results.<ext>.
+// File is one evals/<skill>/results.<ext>. It is nested model-major: each model
+// key maps to a ModelEntry holding that model's trigger and eval entries, so the
+// file reads in execution order (a model runs its triggers then its evals).
 type File struct {
-	Schema   int                      `json:"schema"`
-	Plugin   string                   `json:"plugin"`
-	Skill    string                   `json:"skill"`
-	Triggers map[string]*TriggerEntry `json:"triggers,omitempty"`
-	Evals    map[string]*EvalEntry    `json:"evals,omitempty"`
+	Schema int                    `json:"schema"`
+	Plugin string                 `json:"plugin"`
+	Skill  string                 `json:"skill"`
+	Models map[string]*ModelEntry `json:"models,omitempty"`
+}
+
+// ModelEntry groups one model's trigger and eval entries under its key. Either
+// may be nil when that tier has not run for the model.
+type ModelEntry struct {
+	Triggers *TriggerEntry `json:"triggers,omitempty"`
+	Evals    *EvalEntry    `json:"evals,omitempty"`
 }
 
 // Header is the run metadata common to both entry kinds.
@@ -120,22 +135,13 @@ type TriggerEntry struct {
 	Previous *TriggerSnapshot `json:"previous,omitempty"`
 }
 
-// TriggerSnapshot is a compact record of one prior trigger run: enough to compute
-// deltas (the summary and per-query scalar metrics), never the full result detail.
+// TriggerSnapshot is a record of one prior trigger run: enough to compute deltas.
+// Its Results carry the same TriggerResult struct as the live run — triggers have
+// no bulky per-case detail to trim.
 type TriggerSnapshot struct {
-	RanAt   string                        `json:"ran_at,omitempty"`
-	Summary TriggerSummary                `json:"summary"`
-	Cases   map[string]TriggerCaseMetrics `json:"cases,omitempty"` // keyed by query
-}
-
-// TriggerCaseMetrics is one query's deltable scalars (rate is derived from
-// Hits/Runs at compare time).
-type TriggerCaseMetrics struct {
-	Hits          *int      `json:"hits,omitempty"`
-	Runs          *int      `json:"runs,omitempty"`
-	Passed        *bool     `json:"passed,omitempty"`
-	AvgRunSeconds *float64  `json:"avg_run_seconds,omitempty"`
-	Estimate      *Estimate `json:"estimate,omitempty"`
+	RanAt   string          `json:"ran_at,omitempty"`
+	Summary TriggerSummary  `json:"summary"`
+	Results []TriggerResult `json:"results,omitempty"`
 }
 
 // TriggerResult is one query's outcome. Hits/Runs are exact integers (the
@@ -166,8 +172,8 @@ type TriggerSummary struct {
 
 // EvalEntry is one model's behavioral sweep over a skill. Baseline records the
 // same evals run with the skill absent (the skill's lift over nothing); Previous
-// snapshots the run this entry replaced (the iteration delta). Both are compact —
-// summaries plus per-case scalars — so committed files stay readable.
+// snapshots the run this entry replaced (the iteration delta). Both are trimmed —
+// summaries plus trimmed result arrays — so committed files stay readable.
 type EvalEntry struct {
 	Header
 	Results  []EvalResult  `json:"results"`
@@ -176,28 +182,14 @@ type EvalEntry struct {
 	Previous *EvalSnapshot `json:"previous,omitempty"`
 }
 
-// EvalSnapshot is a compact record of one prior eval run (previous or baseline):
-// the summary and per-eval scalar metrics, never the bulky expectations/evidence.
+// EvalSnapshot is a record of one prior eval run (previous or baseline): the
+// summary and a results array. Its Results carry the same EvalResult struct as
+// the live run, trimmed of the bulky expectations/execution-metrics/timing detail
+// (see trimEval).
 type EvalSnapshot struct {
-	RanAt   string                     `json:"ran_at,omitempty"`
-	Summary EvalSummary                `json:"summary"`
-	Cases   map[string]EvalCaseMetrics `json:"cases,omitempty"` // keyed by eval id
-}
-
-// EvalCaseMetrics is one eval's deltable scalars. Fingerprint is set only on
-// baseline cases: it records the eval spec+fixtures hash the baseline was run
-// against, so a baseline is recomputed only when the eval itself changes (not
-// when the skill changes).
-type EvalCaseMetrics struct {
-	Passed        *bool     `json:"passed,omitempty"`
-	PassRate      *float64  `json:"pass_rate,omitempty"`     // expectation rate (GradeSummary)
-	AssertPassed  *int      `json:"assert_passed,omitempty"` // graded expectations that passed
-	AssertTotal   *int      `json:"assert_total,omitempty"`  // graded expectations total
-	AvgRunSeconds *float64  `json:"avg_run_seconds,omitempty"`
-	Measured      *Measured `json:"measured,omitempty"`
-	Estimate      *Estimate `json:"estimate,omitempty"`
-	Errored       bool      `json:"errored,omitempty"`
-	Fingerprint   string    `json:"fingerprint,omitempty"` // baseline only
+	RanAt   string       `json:"ran_at,omitempty"`
+	Summary EvalSummary  `json:"summary"`
+	Results []EvalResult `json:"results,omitempty"`
 }
 
 // GradedAssertion is one graded expectation: skill-creator's grading.json
@@ -274,6 +266,18 @@ type EvalResult struct {
 	// was written; --modified reruns the eval when it differs from the current
 	// spec. Empty on pre-fingerprinting results (no baseline).
 	SpecHash string `json:"spec_hash,omitempty"`
+	// Fingerprint is set only on baseline-snapshot results: the eval spec+fixtures
+	// hash the baseline was run against, so a baseline is recomputed only when the
+	// eval itself changes (not when the skill changes). Empty elsewhere.
+	Fingerprint string `json:"fingerprint,omitempty"`
+}
+
+// RunSeconds is the eval's executor (agent-run) duration, or nil when untimed.
+func (r EvalResult) RunSeconds() *float64 {
+	if r.Timing == nil {
+		return nil
+	}
+	return r.Timing.ExecutorDurationSeconds
 }
 
 // EvalSummary aggregates an eval entry. Errored counts evals whose agent run
@@ -306,38 +310,43 @@ func Find(dir string) string {
 }
 
 // LoadDir finds and decodes the results file in dir regardless of format, or
-// initialises a fresh one when the file is missing. A file an older schema upgrades
-// in place (migrate) and is rewritten on the next SaveDir, so committed history
-// survives a schema bump; a file that is unreadable or written by a newer evolve is
-// discarded. reset reports such a discard so callers can tell the user history is
-// starting over.
+// initialises a fresh one when the file is missing. A file written under an older
+// structural schema (v3/v4) is migrated to the current shape on load (see migrate)
+// and rewritten on the next SaveDir, so committed history survives a schema bump; a
+// file that is unreadable, far older, or written by a newer evolve is discarded.
+// reset reports such a discard so callers can tell the user history is starting
+// over.
 func LoadDir(dir, plugin, skill string) (f *File, reset bool) {
 	fresh := &File{Schema: Schema, Plugin: plugin, Skill: skill}
 	path := Find(dir)
 	if path == "" {
 		return fresh, false
 	}
-	var loaded File
-	if encfmt.DecodeFile(path, &loaded) != nil || loaded.Schema > Schema {
+	var probe struct {
+		Schema int `json:"schema"`
+	}
+	if encfmt.DecodeFile(path, &probe) != nil {
 		return fresh, true
 	}
-	if loaded.Schema < Schema {
-		migrate(&loaded)
+	switch probe.Schema {
+	case Schema:
+		var loaded File
+		if encfmt.DecodeFile(path, &loaded) != nil {
+			return fresh, true
+		}
+		loaded.Plugin, loaded.Skill = plugin, skill
+		return &loaded, false
+	case 3, 4:
+		migrated, ok := migrate(path)
+		if !ok {
+			return fresh, true
+		}
+		migrated.Plugin, migrated.Skill = plugin, skill
+		return migrated, false
+	default:
+		// Older than the migratable range, or written by a newer evolve: discard.
+		return fresh, true
 	}
-	loaded.Plugin, loaded.Skill = plugin, skill
-	return &loaded, false
-}
-
-// migrate upgrades a decoded results file from an older schema to the current one,
-// in place, so committed history is preserved instead of discarded. Steps are
-// additive and idempotent, so a file several versions behind is brought fully
-// current. The upgraded file is rewritten with the new schema by the next SaveDir.
-//
-// v3 -> v4: EvalCaseMetrics.AssertPassed/AssertTotal are re-derived from each
-// result's grade summary (EvalCaseMetricsOf) whenever a snapshot is written, so the
-// counts repopulate on the next save without backfilling the compact snapshots.
-func migrate(f *File) {
-	f.Schema = Schema
 }
 
 // SaveDir writes results.<format> atomically with deterministic formatting,
@@ -371,20 +380,54 @@ func (f *File) SaveDir(dir, format string) (string, error) {
 	return path, nil
 }
 
-// SetTrigger stores entry under the model key, creating the section.
-func (f *File) SetTrigger(key string, entry *TriggerEntry) {
-	if f.Triggers == nil {
-		f.Triggers = map[string]*TriggerEntry{}
+// model returns the model entry for key, creating it (and the Models map) when
+// absent.
+func (f *File) model(key string) *ModelEntry {
+	if f.Models == nil {
+		f.Models = map[string]*ModelEntry{}
 	}
-	f.Triggers[key] = entry
+	m := f.Models[key]
+	if m == nil {
+		m = &ModelEntry{}
+		f.Models[key] = m
+	}
+	return m
 }
 
-// SetEval stores entry under the model key, creating the section.
+// SetTrigger stores the trigger entry under the model key, creating the section.
+func (f *File) SetTrigger(key string, entry *TriggerEntry) {
+	f.model(key).Triggers = entry
+}
+
+// SetEval stores the eval entry under the model key, creating the section.
 func (f *File) SetEval(key string, entry *EvalEntry) {
-	if f.Evals == nil {
-		f.Evals = map[string]*EvalEntry{}
+	f.model(key).Evals = entry
+}
+
+// Trigger returns the model's trigger entry, or nil when the model or tier is absent.
+func (f *File) Trigger(key string) *TriggerEntry {
+	if m := f.Models[key]; m != nil {
+		return m.Triggers
 	}
-	f.Evals[key] = entry
+	return nil
+}
+
+// Eval returns the model's eval entry, or nil when the model or tier is absent.
+func (f *File) Eval(key string) *EvalEntry {
+	if m := f.Models[key]; m != nil {
+		return m.Evals
+	}
+	return nil
+}
+
+// ModelKeys returns the file's model keys in sorted order.
+func (f *File) ModelKeys() []string {
+	keys := make([]string, 0, len(f.Models))
+	for k := range f.Models {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // Round1 rounds to 1 decimal (seconds), Round6 to 6 (costs) — always round
@@ -466,69 +509,50 @@ func SumEstimates(estimates []*Estimate) *Estimate {
 	return sum
 }
 
-// EvalCaseMetricsOf projects one eval result down to the scalar metrics a
-// snapshot retains (no expectations/evidence). The pass rate is the expectation
-// rate from the grade summary; the run time is the executor duration.
-func EvalCaseMetricsOf(r EvalResult) EvalCaseMetrics {
-	m := EvalCaseMetrics{
-		Passed:   r.Passed,
-		Measured: r.Measured,
-		Estimate: r.Estimate,
-		Errored:  r.RuntimeError != "",
+// TrimEval returns a snapshot copy of an eval result: the scalars deltas and
+// baselines need (verdict, expectation summary, run time, tokens, usage,
+// fingerprint), without the bulky per-case detail (graded expectations, execution
+// metrics, name) or the verbose timing breakdown beyond the executor duration.
+func TrimEval(r EvalResult) EvalResult {
+	t := EvalResult{
+		ID:           r.ID,
+		RuntimeError: r.RuntimeError,
+		Passed:       r.Passed,
+		Estimate:     r.Estimate,
+		Measured:     r.Measured,
+		Summary:      r.Summary,
+		Fingerprint:  r.Fingerprint,
 	}
-	if r.Summary != nil {
-		m.PassRate = r.Summary.PassRate
-		m.AssertPassed = new(r.Summary.Passed)
-		m.AssertTotal = new(r.Summary.Total)
+	if r.Timing != nil && r.Timing.ExecutorDurationSeconds != nil {
+		t.Timing = &Timing{ExecutorDurationSeconds: r.Timing.ExecutorDurationSeconds}
 	}
-	if r.Timing != nil {
-		m.AvgRunSeconds = r.Timing.ExecutorDurationSeconds
-	}
-	return m
+	return t
 }
 
-// TriggerCaseMetricsOf projects one trigger result down to its snapshot scalars.
-func TriggerCaseMetricsOf(r TriggerResult) TriggerCaseMetrics {
-	return TriggerCaseMetrics{
-		Hits:          r.Hits,
-		Runs:          r.Runs,
-		Passed:        r.Passed,
-		AvgRunSeconds: r.AvgRunSeconds,
-		Estimate:      r.Estimate,
-	}
-}
-
-// SnapshotEval captures an entry's full current state — its summary and every
-// case's scalar metrics — as the "previous" of the run that replaces it. Because
-// the merge preserves untouched cases, the entry is always a complete prior run,
-// so the snapshot faithfully represents the last committed state. Returns nil for
-// a nil or unexecuted entry (nothing meaningful to compare against).
+// SnapshotEval captures an entry's current state — its summary and a trimmed copy
+// of every result — as the "previous" of the run that replaces it. Because the
+// merge preserves untouched cases, the entry is always a complete prior run, so
+// the snapshot faithfully represents the last committed state. Returns nil for a
+// nil or unexecuted entry (nothing meaningful to compare against).
 func SnapshotEval(e *EvalEntry) *EvalSnapshot {
 	if e == nil || !e.Executed {
 		return nil
 	}
 	snap := &EvalSnapshot{RanAt: e.RanAt, Summary: e.Summary}
-	if len(e.Results) > 0 {
-		snap.Cases = make(map[string]EvalCaseMetrics, len(e.Results))
-		for _, r := range e.Results {
-			snap.Cases[r.ID] = EvalCaseMetricsOf(r)
-		}
+	for _, r := range e.Results {
+		snap.Results = append(snap.Results, TrimEval(r))
 	}
 	return snap
 }
 
-// SnapshotTrigger is SnapshotEval for the trigger tier.
+// SnapshotTrigger is SnapshotEval for the trigger tier. Trigger results carry no
+// bulky detail, so they are snapshotted whole.
 func SnapshotTrigger(e *TriggerEntry) *TriggerSnapshot {
 	if e == nil || !e.Executed {
 		return nil
 	}
 	snap := &TriggerSnapshot{RanAt: e.RanAt, Summary: e.Summary}
-	if len(e.Results) > 0 {
-		snap.Cases = make(map[string]TriggerCaseMetrics, len(e.Results))
-		for _, r := range e.Results {
-			snap.Cases[r.Query] = TriggerCaseMetricsOf(r)
-		}
-	}
+	snap.Results = append(snap.Results, e.Results...)
 	return snap
 }
 
@@ -587,31 +611,31 @@ func SumMeasured(ms []*Measured) *Measured {
 	return sum
 }
 
-// SummarizeEvalCases aggregates per-eval case metrics into an eval summary, the
-// same way a live run is tallied — used to summarize a baseline snapshot assembled
-// from individual without-skill case results.
-func SummarizeEvalCases(cases map[string]EvalCaseMetrics) EvalSummary {
-	s := EvalSummary{Total: len(cases)}
+// SummarizeEvalResults aggregates eval results into an eval summary, the same way
+// a live run is tallied — used to summarize a baseline snapshot assembled from
+// individual without-skill results. An errored result is one with a runtime error.
+func SummarizeEvalResults(rs []EvalResult) EvalSummary {
+	s := EvalSummary{Total: len(rs)}
 	passed, failed, errored := 0, 0, 0
 	var runSum float64
 	var runCount int
-	estimates := make([]*Estimate, 0, len(cases))
-	measures := make([]*Measured, 0, len(cases))
-	for _, m := range cases {
+	estimates := make([]*Estimate, 0, len(rs))
+	measures := make([]*Measured, 0, len(rs))
+	for _, r := range rs {
 		switch {
-		case m.Errored:
+		case r.RuntimeError != "":
 			errored++
-		case m.Passed != nil && *m.Passed:
+		case r.Passed != nil && *r.Passed:
 			passed++
-		case m.Passed != nil:
+		case r.Passed != nil:
 			failed++
 		}
-		if m.AvgRunSeconds != nil {
-			runSum += *m.AvgRunSeconds
+		if rs := r.RunSeconds(); rs != nil {
+			runSum += *rs
 			runCount++
 		}
-		estimates = append(estimates, m.Estimate)
-		measures = append(measures, m.Measured)
+		estimates = append(estimates, r.Estimate)
+		measures = append(measures, r.Measured)
 	}
 	s.Passed = &passed
 	s.Failed = &failed

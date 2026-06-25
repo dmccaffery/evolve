@@ -194,7 +194,7 @@ func lookupTrigger(file *results.File, key, query string) (r results.TriggerResu
 	if file == nil {
 		return results.TriggerResult{}, "", false
 	}
-	entry := file.Triggers[key]
+	entry := file.Trigger(key)
 	if entry == nil {
 		return results.TriggerResult{}, "", false
 	}
@@ -212,7 +212,7 @@ func lookupEval(file *results.File, key, id string) (r results.EvalResult, conte
 	if file == nil {
 		return results.EvalResult{}, "", false
 	}
-	entry := file.Evals[key]
+	entry := file.Eval(key)
 	if entry == nil {
 		return results.EvalResult{}, "", false
 	}

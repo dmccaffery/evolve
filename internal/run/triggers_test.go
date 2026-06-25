@@ -172,7 +172,7 @@ func TestTriggersWritesResults(t *testing.T) {
 
 	path := filepath.Join(repo.Root, "evals", "solo-skill", "results.json")
 	file, _ := results.LoadDir(filepath.Dir(path), "solo", "solo-skill")
-	entry := file.Triggers["fake/model-1"]
+	entry := file.Trigger("fake/model-1")
 	if entry == nil {
 		t.Fatalf("no fake/model-1 entry; stdout:\n%s", stdout.String())
 	}
@@ -210,7 +210,7 @@ func TestTriggersWithoutCountingCapability(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Triggers["fake/model-1"]
+	entry := file.Trigger("fake/model-1")
 	if entry.Pricing != nil {
 		t.Error("unpriced model must serialize pricing: null")
 	}
@@ -244,7 +244,7 @@ func TestTriggersDetectsFailures(t *testing.T) {
 		t.Error("failed = false, want true")
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	if r := file.Triggers["fake/model-1"].Results[0]; *r.Passed {
+	if r := file.Trigger("fake/model-1").Results[0]; *r.Passed {
 		t.Errorf("result = %+v, want failed", r)
 	}
 }
@@ -294,7 +294,7 @@ func TestTriggersNewRerunsAfterEvalChange(t *testing.T) {
 		t.Errorf("--new skipped despite a new query:\n%s", stdout.String())
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	if got := len(file.Triggers["fake/model-1"].Results); got != 3 {
+	if got := len(file.Trigger("fake/model-1").Results); got != 3 {
 		t.Errorf("results = %d, want 3 after the added query", got)
 	}
 }
@@ -393,7 +393,7 @@ func TestTriggersNewMergesAndPrunes(t *testing.T) {
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
 	queries := map[string]bool{}
-	for _, r := range file.Triggers["fake/model-1"].Results {
+	for _, r := range file.Trigger("fake/model-1").Results {
 		queries[r.Query] = true
 	}
 	if !queries["please trigger this"] {
@@ -422,7 +422,7 @@ func TestNeedsNewSkipsUnfillableCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Triggers[topts.Selected[0].Key()]
+	entry := file.Trigger(topts.Selected[0].Key())
 	if entry == nil || !entry.Executed {
 		t.Fatalf("entry = %+v, want an executed entry", entry)
 	}
@@ -459,7 +459,7 @@ func TestTriggersCountOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
-	entry := file.Triggers["fake/model-1"]
+	entry := file.Trigger("fake/model-1")
 	if entry.Executed || entry.RunsPerQuery != 0 {
 		t.Errorf("count-only entry = %+v, want executed=false", entry.Header)
 	}

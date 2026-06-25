@@ -156,8 +156,8 @@ func maximalResults() *results.File {
 				Passed: new(0), Failed: new(1), Total: 1,
 				PassRate: new(0.0), AvgRunSeconds: new(8.0),
 			},
-			Cases: map[string]results.TriggerCaseMetrics{
-				"q": {Hits: new(1), Runs: new(3), Passed: new(false), AvgRunSeconds: new(8.0)},
+			Results: []results.TriggerResult{
+				{Query: "q", ShouldTrigger: true, Hits: new(1), Runs: new(3), Passed: new(false), AvgRunSeconds: new(8.0)},
 			},
 		},
 	})
@@ -210,8 +210,9 @@ func maximalResults() *results.File {
 				Passed: new(0), Failed: new(1), Total: 1, PassRate: new(0.0),
 				AvgRunSeconds: new(40.0),
 			},
-			Cases: map[string]results.EvalCaseMetrics{
-				"1": {Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(40.0), Fingerprint: "fp-1"},
+			Results: []results.EvalResult{
+				{ID: "1", Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)},
+					Timing: &results.Timing{ExecutorDurationSeconds: new(40.0)}, Fingerprint: "fp-1"},
 			},
 		},
 		Previous: &results.EvalSnapshot{
@@ -221,11 +222,10 @@ func maximalResults() *results.File {
 				AvgRunSeconds: new(170.0),
 				Measured:      &results.Measured{InputTokens: new(90), OutputTokens: new(8), CostUSD: new(0.0002)},
 			},
-			Cases: map[string]results.EvalCaseMetrics{
-				"1": {
-					Passed: new(false), PassRate: new(0.0), AvgRunSeconds: new(170.0),
-					Measured: &results.Measured{InputTokens: new(90), OutputTokens: new(8), CostUSD: new(0.0002)},
-				},
+			Results: []results.EvalResult{
+				{ID: "1", Passed: new(false), Summary: &results.GradeSummary{PassRate: new(0.0)},
+					Timing:   &results.Timing{ExecutorDurationSeconds: new(170.0)},
+					Measured: &results.Measured{InputTokens: new(90), OutputTokens: new(8), CostUSD: new(0.0002)}},
 			},
 		},
 	})

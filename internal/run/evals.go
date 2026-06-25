@@ -6,7 +6,6 @@ package run
 import (
 	"context"
 	"fmt"
-	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -173,7 +172,7 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 	// The entry being replaced is the run we rotate into Previous and the source of
 	// the baseline we carry forward. Capture it before the run (read-only) so each
 	// eval can tell whether its baseline is stale, and before SetEval overwrites it.
-	old := file.Evals[sel.Key()]
+	old := file.Eval(sel.Key())
 	var priorBaseline *results.EvalSnapshot
 	if old != nil {
 		priorBaseline = old.Baseline
@@ -183,7 +182,7 @@ func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel 
 	// right before its own run, rather than as a separate post-pass — so a stale
 	// baseline streams as a visible "baseline running" row instead of a silent stall
 	// at the end of the unit. freshBaseline collects the baselines that re-ran.
-	var freshBaseline map[string]results.EvalCaseMetrics
+	var freshBaseline map[string]results.EvalResult
 	if execute {
 		batchFailed, fresh, err := runEvals(ctx, opts, set, sel, ref, evalRunner, cli, runSet, entryResults, priorBaseline)
 		failed = failed || batchFailed
@@ -245,12 +244,12 @@ const (
 func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel harness.Selection, ref plan.UnitRef,
 	evalRunner harness.EvalRunner, cli string, evals []evalspec.Eval, entryResults []results.EvalResult,
 	priorBaseline *results.EvalSnapshot,
-) (bool, map[string]results.EvalCaseMetrics, error) {
+) (bool, map[string]results.EvalResult, error) {
 	var failedAny bool
 	g, runCtx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.Jobs)
 	outcomes := make([]evalOutcome, len(evals))
-	baselines := make([]*results.EvalCaseMetrics, len(evals)) // nil unless a baseline re-ran
+	baselines := make([]*results.EvalResult, len(evals)) // nil unless a baseline re-ran
 	for i, c := range evals {
 		g.Go(func() error {
 			// Baseline first (interleaved), when on and stale, so the row shows its
@@ -262,9 +261,8 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel har
 					if err != nil {
 						return err
 					}
-					m := results.EvalCaseMetricsOf(base)
-					m.Fingerprint = fp
-					baselines[i] = &m
+					base.Fingerprint = fp
+					baselines[i] = &base
 				}
 			}
 			outcome, result, err := runEval(runCtx, opts, sel, ref, evalRunner, cli, c, i, []string{set.SkillDir}, false)
@@ -289,13 +287,13 @@ func runEvals(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel har
 			failedAny = true
 		}
 	}
-	var fresh map[string]results.EvalCaseMetrics
+	var fresh map[string]results.EvalResult
 	for i, m := range baselines {
 		if m == nil {
 			continue
 		}
 		if fresh == nil {
-			fresh = map[string]results.EvalCaseMetrics{}
+			fresh = map[string]results.EvalResult{}
 		}
 		fresh[evals[i].ID] = *m
 	}
@@ -331,7 +329,7 @@ func evalBaselineNeeded(file *results.File, key string, c evalspec.Eval, execute
 		return false
 	}
 	var prior *results.EvalSnapshot
-	if e := file.Evals[key]; e != nil {
+	if e := file.Eval(key); e != nil {
 		prior = e.Baseline
 	}
 	return baselineStale(prior, c.ID, evalFingerprint(c))
@@ -343,38 +341,40 @@ func baselineStale(prior *results.EvalSnapshot, id, fp string) bool {
 	if prior == nil {
 		return true
 	}
-	m, ok := prior.Cases[id]
-	if !ok {
-		return true
+	for _, r := range prior.Results {
+		if r.ID == id {
+			return r.Fingerprint != fp
+		}
 	}
-	return m.Fingerprint != fp
+	return true
 }
 
 // mergeBaseline assembles the new entry's baseline snapshot: carry the prior
-// baseline forward, overlay the cases that re-ran this round, drop cases no longer
-// in the spec, and re-summarize. RanAt advances only when a case actually re-ran.
-// Returns nil when no baseline data remains.
-func mergeBaseline(old *results.EvalSnapshot, fresh map[string]results.EvalCaseMetrics,
+// baseline forward, overlay the cases that re-ran this round (trimmed), drop cases
+// no longer in the spec, and re-summarize — in the current spec order. RanAt
+// advances only when a case actually re-ran. Returns nil when no baseline remains.
+func mergeBaseline(old *results.EvalSnapshot, fresh map[string]results.EvalResult,
 	current []results.EvalResult, now string,
 ) *results.EvalSnapshot {
-	cases := map[string]results.EvalCaseMetrics{}
+	byID := map[string]results.EvalResult{}
 	if old != nil {
-		maps.Copy(cases, old.Cases)
-	}
-	maps.Copy(cases, fresh)
-	keep := make(map[string]bool, len(current))
-	for _, r := range current {
-		keep[r.ID] = true
-	}
-	for id := range cases {
-		if !keep[id] {
-			delete(cases, id)
+		for _, r := range old.Results {
+			byID[r.ID] = r
 		}
 	}
-	if len(cases) == 0 {
+	for id, r := range fresh {
+		byID[id] = results.TrimEval(r)
+	}
+	var out []results.EvalResult
+	for _, r := range current {
+		if b, ok := byID[r.ID]; ok {
+			out = append(out, b)
+		}
+	}
+	if len(out) == 0 {
 		return nil
 	}
-	snap := &results.EvalSnapshot{Cases: cases, Summary: results.SummarizeEvalCases(cases)}
+	snap := &results.EvalSnapshot{Results: out, Summary: results.SummarizeEvalResults(out)}
 	switch {
 	case len(fresh) > 0:
 		snap.RanAt = now
@@ -716,7 +716,7 @@ func measured(m model.Model, usage *model.Usage) *results.Measured {
 
 func buildEvalEntry(opts EvalOptions, sel harness.Selection, executed bool,
 	contentHash string, entryResults []results.EvalResult, old *results.EvalEntry,
-	freshBaseline map[string]results.EvalCaseMetrics,
+	freshBaseline map[string]results.EvalResult,
 ) *results.EvalEntry {
 	header := opts.header(sel, executed)
 	header.ContentHash = contentHash

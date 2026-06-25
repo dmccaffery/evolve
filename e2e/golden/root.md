@@ -26,45 +26,32 @@ reporting, or no published pricing).
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Anthropic | Claude Fable 5 (`claude-fable-5`) | 0/1 | -100% | +0% | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
-## Anthropic — `claude-fable-5`
+## solo-skill
 
-### Triggers — solo-skill
+### Triggers
 
-Last run 2026-06-11T10:00:00Z (evolve test, timeout 120s), 3 runs per query.
+#### Write tests | with pipes (expected: yes)
 
-| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
+| Provider | Model | Result | Rate | Δ rate | Avg run | Input tokens | Est. cost |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | 3/3 | +0% | PASS | 9.1s | 1,385 | $0.0138 |
-| Write pytest tests | no | 2/3 | -67% | FAIL | 5.0s | 1,385 | $0.0138 |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | PASS | 3/3 | +0% | 9.1s | 1,385 | $0.0138 |
+| Cursor | Cursor Composer 2.5 (`composer-2.5`) | PASS | 2/3 | — | 14.3s | n/a | n/a |
+| Google | Gemini 3.5 Flash (`gemini-3.5-flash`) | — | — | — | — | 1,290 | $0.0019 |
 
-### Evals — solo-skill
+#### Write pytest tests (expected: no)
 
-Last run 2026-06-11T12:00:00Z (evolve test, timeout 600s).
-
-| Eval | Result | Δ rate | Run | Input tokens | Est. cost | Measured in/out | Cache rd/wr | Measured cost |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| basic | FAIL | -100% | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
-
-- `basic` failed `file x exists`: x missing
-
-## Cursor — `composer-2.5`
-
-### Triggers — solo-skill
-
-Last run 2026-06-11T11:00:00Z (evolve test, timeout 120s), 3 runs per query.
-
-| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
+| Provider | Model | Result | Rate | Δ rate | Avg run | Input tokens | Est. cost |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | 2/3 | — | PASS | 14.3s | n/a | n/a |
-| Write pytest tests | no | 0/3 | — | PASS | 11.0s | n/a | n/a |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | FAIL | 2/3 | -67% | 5.0s | 1,385 | $0.0138 |
+| Cursor | Cursor Composer 2.5 (`composer-2.5`) | PASS | 0/3 | — | 11.0s | n/a | n/a |
+| Google | Gemini 3.5 Flash (`gemini-3.5-flash`) | — | — | — | — | 1,290 | $0.0019 |
 
-## Google — `gemini-3.5-flash`
+### Evals
 
-### Triggers — solo-skill
+#### basic
 
-Last run 2026-06-11T09:00:00Z (evolve test, timeout 120s) — token counts only.
+| Provider | Model | Result | Δ rate | Lift vs base | Avg run | Input tokens | Est. cost | Measured in/out | Cache rd/wr | Measured cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Anthropic | Claude Fable 5 (`claude-fable-5`) | FAIL | -100% | +0% | 84.2s | 1,827 | $0.0183 | 8,200/3,142 | 220,000/5,480 | $0.7824 |
 
-| Query | Expected | Rate | Δ rate | Result | Avg run | Input tokens | Est. cost |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Write tests \| with pipes | yes | — | — | — | — | 1,290 | $0.0019 |
-| Write pytest tests | no | — | — | — | — | 1,290 | $0.0019 |
+- `claude-fable-5` failed `file x exists`: x missing

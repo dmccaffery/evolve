@@ -185,7 +185,7 @@ type dashboardModel struct {
 	// streamed this run via BaselineDone, so a first-ever run can show a delta
 	// against the baseline before the next run exists.
 	prior        plan.PriorMetrics
-	liveBaseline map[caseKey]results.EvalCaseMetrics
+	liveBaseline map[caseKey]results.EvalResult
 
 	spin     spinner.Model
 	warnings []string
@@ -245,7 +245,7 @@ func newDashboard(p plan.Plan, cat []plan.SkillCatalog, prior plan.PriorMetrics)
 		runFollow:    true,
 		liveIdx:      -1,
 		prior:        prior,
-		liveBaseline: map[caseKey]results.EvalCaseMetrics{},
+		liveBaseline: map[caseKey]results.EvalResult{},
 	}
 	for i := range cat {
 		d.skillCat[cat[i].Skill] = &cat[i]
@@ -423,7 +423,7 @@ func (d *dashboardModel) apply(msg tea.Msg) {
 	case baselineDoneMsg:
 		// Baselines are not tree cases; record the metrics so a first-run delta can
 		// fall back to the baseline basis until a previous run exists.
-		d.liveBaseline[caseKey{m.ref, m.item.Label}] = evalCaseMetricsOf(statusOf(m.item.Status), m.item.Metrics)
+		d.liveBaseline[caseKey{m.ref, m.item.Label}] = evalResultOf(statusOf(m.item.Status), m.item.Metrics)
 	case unitFinishedMsg:
 		if u := d.unit(m.ref); u != nil {
 			u.savedRel = m.savedRel

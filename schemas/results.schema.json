@@ -1,26 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/bitwise-media-group/evolve/main/schemas/results.schema.json",
-  "title": "evolve results file (schema 4)",
-  "description": "One skill's committed results (evals/<skill>/results.<ext>; format selected by results_format). Each per-eval result is a superset of a skill-creator grading.json document. Entries also retain compact prior states — previous (the run replaced) on both tiers and baseline (the same evals run without the skill) on the eval tier — so deltas are computable without re-running. Consumers must treat an absent key and an explicit null identically.",
+  "title": "evolve results file (schema 5)",
+  "description": "One skill's committed results (evals/<skill>/results.<ext>; format selected by results_format). The file is nested model-major: each model key maps to that model's trigger and eval entries (skill -> model -> {triggers, evals}). Each per-eval result is a superset of a skill-creator grading.json document. Entries also retain prior states — previous (the run replaced) on both tiers and baseline (the same evals run without the skill) on the eval tier — as a trimmed results array, so deltas are computable without re-running. Consumers must treat an absent key and an explicit null identically.",
   "type": "object",
   "required": ["schema", "plugin", "skill"],
   "properties": {
     "$schema": { "type": "string" },
-    "schema": { "const": 4 },
+    "schema": { "const": 5 },
     "plugin": { "type": "string" },
     "skill": { "type": "string" },
-    "triggers": {
+    "models": {
       "allOf": [{ "$ref": "common.schema.json#/$defs/modelKeyMap" }],
-      "additionalProperties": { "$ref": "#/$defs/triggerEntry" }
-    },
-    "evals": {
-      "allOf": [{ "$ref": "common.schema.json#/$defs/modelKeyMap" }],
-      "additionalProperties": { "$ref": "#/$defs/evalEntry" }
+      "additionalProperties": { "$ref": "#/$defs/modelEntry" }
     }
   },
   "additionalProperties": true,
   "$defs": {
+    "modelEntry": {
+      "description": "One model's trigger and eval entries; either may be absent when that tier has not run.",
+      "type": "object",
+      "properties": {
+        "triggers": { "$ref": "#/$defs/triggerEntry" },
+        "evals": { "$ref": "#/$defs/evalEntry" }
+      },
+      "additionalProperties": true
+    },
     "triggerEntry": {
       "allOf": [
         { "$ref": "common.schema.json#/$defs/header" },
@@ -36,27 +41,13 @@
       ]
     },
     "triggerSnapshot": {
-      "description": "A compact record of one prior trigger run: its summary plus per-query scalar metrics, keyed by query.",
+      "description": "A record of one prior trigger run: its summary plus a results array of the same triggerResult shape as the live run.",
       "type": "object",
       "required": ["summary"],
       "properties": {
         "ran_at": { "type": "string", "format": "date-time" },
         "summary": { "$ref": "#/$defs/triggerSummary" },
-        "cases": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/triggerCaseMetrics" }
-        }
-      },
-      "additionalProperties": true
-    },
-    "triggerCaseMetrics": {
-      "type": "object",
-      "properties": {
-        "hits": { "type": "integer", "minimum": 0 },
-        "runs": { "type": "integer", "minimum": 1 },
-        "passed": { "type": ["boolean", "null"] },
-        "avg_run_seconds": { "type": "number", "minimum": 0 },
-        "estimate": { "$ref": "common.schema.json#/$defs/estimate" }
+        "results": { "type": "array", "items": { "$ref": "#/$defs/triggerResult" } }
       },
       "additionalProperties": true
     },
@@ -107,34 +98,13 @@
       ]
     },
     "evalSnapshot": {
-      "description": "A compact record of one prior eval run (previous or without-skill baseline): its summary plus per-eval scalar metrics, keyed by eval id.",
+      "description": "A record of one prior eval run (previous or without-skill baseline): its summary plus a results array of the same evalResult shape as the live run, trimmed of the bulky expectations/execution-metrics/timing detail.",
       "type": "object",
       "required": ["summary"],
       "properties": {
         "ran_at": { "type": "string", "format": "date-time" },
         "summary": { "$ref": "#/$defs/evalSummary" },
-        "cases": {
-          "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/evalCaseMetrics" }
-        }
-      },
-      "additionalProperties": true
-    },
-    "evalCaseMetrics": {
-      "type": "object",
-      "properties": {
-        "passed": { "type": ["boolean", "null"] },
-        "pass_rate": { "type": "number", "minimum": 0, "maximum": 1 },
-        "assert_passed": { "type": "integer", "minimum": 0 },
-        "assert_total": { "type": "integer", "minimum": 0 },
-        "avg_run_seconds": { "type": "number", "minimum": 0 },
-        "measured": { "$ref": "common.schema.json#/$defs/measured" },
-        "estimate": { "$ref": "common.schema.json#/$defs/estimate" },
-        "errored": { "type": "boolean" },
-        "fingerprint": {
-          "description": "Baseline cases only: the eval spec+fixtures fingerprint the baseline was run against, so a baseline is recomputed only when the eval changes.",
-          "type": "string"
-        }
+        "results": { "type": "array", "items": { "$ref": "#/$defs/evalResult" } }
       },
       "additionalProperties": true
     },
@@ -163,6 +133,10 @@
         "eval_feedback": { "$ref": "grading.schema.json#/$defs/evalFeedback" },
         "spec_hash": {
           "description": "Fingerprint of this eval's authored JSON definition when the result was written; `evolve run --modified` reruns the eval when it differs. Absent on results written before fingerprinting.",
+          "type": "string"
+        },
+        "fingerprint": {
+          "description": "Baseline-snapshot results only: the eval spec+fixtures fingerprint the baseline was run against, so a baseline is recomputed only when the eval changes. Absent elsewhere.",
           "type": "string"
         }
       },
