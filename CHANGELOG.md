@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/bitwise-media-group/evolve/compare/v0.3.1...v0.4.0) (2026-06-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **report:** results.<ext> files bump to schema 5 (model-major nesting under a models map; previous/baseline snapshots as results arrays). Files written by an older evolve are migrated in place on load; a file from a newer evolve still resets.
+
+### Features
+
+* **checks:** add non-blocking skill-quality signals ([dc0f000](https://github.com/bitwise-media-group/evolve/commit/dc0f000aa3404b2fe7eec0c0b9178e7b984912d9)), closes [#27](https://github.com/bitwise-media-group/evolve/issues/27)
+* **report:** add --migrate to upgrade stored results to the latest schema ([eacd6d0](https://github.com/bitwise-media-group/evolve/commit/eacd6d03b74e85fa4c3a04b6ba50ea7673b00755))
+* **report:** case-major plugin reports and normalized results schema (v5) ([1250054](https://github.com/bitwise-media-group/evolve/commit/125005458a0ae20ba3bc33c3dd0fc9cadb4e885c))
+* **view:** add web report viewer ([a8d72c8](https://github.com/bitwise-media-group/evolve/commit/a8d72c8d150d9b12c5d75d79991792f2b09fa201))
+
 ## [0.3.1](https://github.com/bitwise-media-group/evolve/compare/v0.3.0...v0.3.1) (2026-06-24)
 
 
