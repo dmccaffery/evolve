@@ -12,7 +12,7 @@ import (
 // it: New (no/incomplete stored data a rerun could fill), Modified (authored
 // content or case definition changed), Failing (a complete result that did not
 // pass or errored). A pair absent from a Reasons map is not applicable to that
-// model (e.g. skip_providers).
+// model (e.g. the eval-set models restriction excludes it).
 type CaseReason struct {
 	New      bool
 	Modified bool
@@ -243,7 +243,7 @@ func (s *Session) queuedCounts(refs []CaseRef) (queued, total int) {
 				continue
 			}
 			if _, applicable := rm[cr]; !applicable {
-				continue // case not applicable to this model (skip_providers)
+				continue // case not applicable to this model (eval-set models restriction)
 			}
 			total++
 			switch s.cases[cr] {

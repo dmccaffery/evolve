@@ -95,7 +95,7 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 	}
 
 	for _, sel := range opts.Selected {
-		unitFailed, err := runEvalUnit(ctx, opts, set, sel, file, skillMD, contentHash, allEvals)
+		unitFailed, err := runEvalUnit(ctx, opts, set, sel, file, skillMD, contentHash, allEvals, spec.Models)
 		failed = failed || unitFailed
 		if err != nil {
 			return failed, err
@@ -109,19 +109,19 @@ func runEvalSet(ctx context.Context, opts EvalOptions, set layout.EvalSet) (fail
 // per-provider skips and the selection filter are applied here. A unit with no
 // applicable evals reports nothing and returns cleanly.
 func runEvalUnit(ctx context.Context, opts EvalOptions, set layout.EvalSet, sel harness.Selection,
-	file *results.File, skillMD []byte, contentHash string, allEvals []evalspec.Eval,
+	file *results.File, skillMD []byte, contentHash string, allEvals []evalspec.Eval, allowedModels []string,
 ) (failed bool, err error) {
 	rep := opts.reporter()
-	provName := sel.Model.ProviderID
 	evalRunner, _ := sel.Harness.(harness.EvalRunner)
 	cli, _ := harness.Available(sel.Harness)
 	execute, reportsUsage, priced := evalCapabilities(opts.Options, sel)
 
-	// modelApplicable is every eval valid for this model (skip_providers + skill
-	// only), ignoring the selection filter, so a partial rerun preserves the evals
-	// it does not touch. evals then narrows by the selection filter.
-	modelApplicable := plan.ApplicableEvals(allEvals, provName, set.Skill, nil)
-	evals := plan.ApplicableEvals(allEvals, provName, set.Skill, opts.Filter)
+	// modelApplicable is every eval valid for this model (the eval-set models
+	// restriction + skill only), ignoring the selection filter, so a partial rerun
+	// preserves the evals it does not touch. evals then narrows by the selection
+	// filter. A model outside the restriction yields no applicable evals.
+	modelApplicable := plan.ApplicableEvals(allEvals, sel.Model, allowedModels, set.Skill, nil)
+	evals := plan.ApplicableEvals(allEvals, sel.Model, allowedModels, set.Skill, opts.Filter)
 	if len(evals) == 0 {
 		return false, nil
 	}

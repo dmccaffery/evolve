@@ -37,6 +37,20 @@ func (m Model) Supports(harnessID string) bool {
 	return ok
 }
 
+// MatchedBy reports whether any token names this model: "all", its provider id,
+// its canonical id, or its bare id. Tokens are trimmed of surrounding space.
+// This is the shared matcher behind the root `models` config and the eval-set
+// models restriction.
+func (m Model) MatchedBy(tokens []string) bool {
+	for _, t := range tokens {
+		t = strings.TrimSpace(t)
+		if t == "all" || t == m.ProviderID || t == m.ID || t == m.BareID() {
+			return true
+		}
+	}
+	return false
+}
+
 // SupportedHarnessIDs lists the harness ids that can run this model, sorted for
 // stable display.
 func (m Model) SupportedHarnessIDs() []string {

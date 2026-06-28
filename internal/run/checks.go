@@ -137,6 +137,9 @@ func (c *checker) checkEvalSpecs() {
 			if err != nil {
 				c.errf("%s: %v", c.repo.Rel(set.EvalsPath), err)
 			} else {
+				for _, problem := range evalspec.ValidateModels(spec.Models) {
+					c.errf("%s: %s", c.repo.Rel(set.EvalsPath), problem)
+				}
 				for _, problem := range evalspec.ValidateEvals(spec.Evals) {
 					c.errf("%s: %s", c.repo.Rel(set.EvalsPath), problem)
 				}

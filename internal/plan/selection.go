@@ -29,8 +29,9 @@ type Selection struct {
 // queued resolves whether case cr runs for model mk this session — the rule the
 // engine and form share: both ends must be on (not Off), and the case runs if
 // either end is fully On (the user widened it) or the sweep preselected it
-// (Needs). Applicability (skip_providers, the tier/skill filters) is enforced by
-// Build before it consults this, so queued never re-checks it.
+// (Needs). Applicability (the eval-set models restriction, the tier/skill
+// filters) is enforced by Build before it consults this, so queued never
+// re-checks it.
 func (s Selection) queued(mk string, cr CaseRef) bool {
 	if s.Models[mk] == Off || s.Cases[cr] == Off {
 		return false

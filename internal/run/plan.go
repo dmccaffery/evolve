@@ -39,6 +39,7 @@ func Catalog(opts Options) ([]plan.SkillCatalog, error) {
 		}
 		if set.EvalsPath != "" {
 			if ef, err := evalspec.LoadEvals(set.EvalsPath); err == nil {
+				sc.Models = ef.Models
 				sc.Evals = ef.Evals
 			}
 		}
@@ -55,10 +56,10 @@ func Plan(cat []plan.SkillCatalog, sels []harness.Selection, f *plan.Filter, tie
 	var units []plan.UnitRef
 	for _, sc := range cat {
 		for _, sel := range sels {
-			if tiers.Triggers && len(plan.ApplicableTriggers(sc.Triggers, sel.Model.ProviderID, sc.Skill, f)) > 0 {
+			if tiers.Triggers && len(plan.ApplicableTriggers(sc.Triggers, sel.Model, sc.Models, sc.Skill, f)) > 0 {
 				units = append(units, plan.UnitRef{Skill: sc.Skill, Key: sel.Key(), Kind: plan.KindTriggers})
 			}
-			if tiers.Evals && len(plan.ApplicableEvals(sc.Evals, sel.Model.ProviderID, sc.Skill, f)) > 0 {
+			if tiers.Evals && len(plan.ApplicableEvals(sc.Evals, sel.Model, sc.Models, sc.Skill, f)) > 0 {
 				units = append(units, plan.UnitRef{Skill: sc.Skill, Key: sel.Key(), Kind: plan.KindEvals})
 			}
 		}
@@ -78,7 +79,7 @@ func PlanFor(cat []plan.SkillCatalog, sel harness.Selection, f *plan.Filter, tie
 // SelectReason is not ReasonNone — the same predicate the engine uses — so the
 // form's initial selection matches non-TUI mode case for case. Only cases under
 // def's tiers, the plugin/skill filters, and evalFilter, and applicable for the model (its
-// skip_providers honored), appear. Token-count estimates are deliberately not a
+// eval-set models restriction honored), appear. Token-count estimates are deliberately not a
 // reason here nor in the engine, so this needs no token-counting round trip.
 func Needs(
 	opts Options, cat []plan.SkillCatalog, sels []harness.Selection, def plan.Tiers, evalFilter string,
@@ -117,7 +118,7 @@ func Needs(
 // single queued baseline for the non-TUI path). It uses the same per-case
 // predicates the engine does, so a filter the form turns on selects exactly what
 // the equivalent CLI flag would. Only cases under def's tiers and evalFilter,
-// applicable to the model (skip_providers honored), appear.
+// applicable to the model (eval-set models restriction honored), appear.
 func CaseReasons(opts Options, cat []plan.SkillCatalog, sels []harness.Selection,
 	def plan.Tiers, evalFilter string,
 ) plan.Reasons {
@@ -144,7 +145,7 @@ func CaseReasons(opts Options, cat []plan.SkillCatalog, sels []harness.Selection
 				cr := plan.CaseRef{Skill: sc.Skill, Kind: plan.KindTriggers, Case: t.Query}
 				freshSpec := specHash(t)
 				for _, sel := range sels {
-					if t.SkipsProvider(sel.Model.ProviderID) {
+					if !sc.Allows(sel.Model) {
 						continue
 					}
 					r, storedContent, ok := lookupTrigger(file, sel.Key(), t.Query)
@@ -166,7 +167,7 @@ func CaseReasons(opts Options, cat []plan.SkillCatalog, sels []harness.Selection
 				cr := plan.CaseRef{Skill: sc.Skill, Kind: plan.KindEvals, Case: c.ID}
 				freshSpec := evalFingerprint(c)
 				for _, sel := range sels {
-					if c.SkipsProvider(sel.Model.ProviderID) {
+					if !sc.Allows(sel.Model) {
 						continue
 					}
 					r, storedContent, ok := lookupEval(file, sel.Key(), c.ID)
@@ -216,7 +217,7 @@ func needTriggers(opts Options, sc plan.SkillCatalog, sels []harness.Selection, 
 		}
 		var perModel []SelectReason
 		for _, sel := range sels {
-			if t.SkipsProvider(sel.Model.ProviderID) {
+			if !sc.Allows(sel.Model) {
 				continue
 			}
 			reason := ReasonNone
@@ -249,7 +250,7 @@ func needEvals(opts Options, sc plan.SkillCatalog, sels []harness.Selection, fla
 		}
 		var perModel []SelectReason
 		for _, sel := range sels {
-			if c.SkipsProvider(sel.Model.ProviderID) {
+			if !sc.Allows(sel.Model) {
 				continue
 			}
 			reason := ReasonNone

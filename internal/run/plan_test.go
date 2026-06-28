@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitwise-media-group/evolve/internal/harness"
 	"github.com/bitwise-media-group/evolve/internal/layout"
+	"github.com/bitwise-media-group/evolve/internal/model"
 	"github.com/bitwise-media-group/evolve/internal/plan"
 )
 
@@ -104,18 +105,19 @@ func TestApplicableHonorsFilter(t *testing.T) {
 		Triggers: map[string]map[string]bool{"solo-skill": {"q1": true}},
 		Evals:    map[string]map[string]bool{"solo-skill": {"e2": true}},
 	}
-	tr := plan.ApplicableTriggers(sc.Triggers, "fake", "solo-skill", f)
+	m := model.Model{ProviderID: "fake", ID: "fake/model-1"}
+	tr := plan.ApplicableTriggers(sc.Triggers, m, sc.Models, "solo-skill", f)
 	if len(tr) != 1 || tr[0].Query != "q1" {
 		t.Errorf("triggers = %+v, want only q1", tr)
 	}
-	ev := plan.ApplicableEvals(sc.Evals, "fake", "solo-skill", f)
+	ev := plan.ApplicableEvals(sc.Evals, m, sc.Models, "solo-skill", f)
 	if len(ev) != 1 || ev[0].ID != "e2" {
 		t.Errorf("evals = %+v, want only e2", ev)
 	}
 
 	// A skill excluded from the filter yields nothing.
 	none := &plan.Filter{Skills: map[string]bool{"other": true}}
-	if got := plan.ApplicableTriggers(sc.Triggers, "fake", "solo-skill", none); len(got) != 0 {
+	if got := plan.ApplicableTriggers(sc.Triggers, m, sc.Models, "solo-skill", none); len(got) != 0 {
 		t.Errorf("excluded skill still produced %d triggers", len(got))
 	}
 }

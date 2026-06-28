@@ -11,7 +11,6 @@ import (
 	slashpath "path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -78,7 +77,6 @@ type Eval struct {
 	MaxTurns       int         `json:"max_turns,omitempty"`
 	TimeoutSeconds int         `json:"timeout_seconds,omitempty"`
 	AllowedTools   string      `json:"allowed_tools,omitempty"`
-	SkipProviders  []string    `json:"skip_providers,omitempty"`
 }
 
 // UnmarshalJSON resolves the superset unions: id as a string or an integer
@@ -134,14 +132,16 @@ func (e *Eval) UnmarshalJSON(data []byte) error {
 }
 
 // EvalsFile is one authored evals document: skill-creator's envelope shape,
-// {skill_name?, evals: [...]}.
+// {skill_name?, evals: [...]}, plus evolve's top-level Models restriction.
 type EvalsFile struct {
 	SkillName string `json:"skill_name,omitempty"`
-	Evals     []Eval `json:"evals"`
+	// Models restricts which models this skill's evals (and its sibling
+	// triggers) may run, using the same tokens as the root models config
+	// (provider ids, canonical model ids, or "all"). The effective set is the
+	// intersection with the root models; an empty list means the root models.
+	Models []string `json:"models,omitempty"`
+	Evals  []Eval   `json:"evals"`
 }
-
-// SkipsProvider reports whether the eval opts out of a provider.
-func (e Eval) SkipsProvider(name string) bool { return slices.Contains(e.SkipProviders, name) }
 
 // LoadEvals parses an authored evals file in any supported format and
 // normalizes it: expectations expand to llm assertions graded before the
@@ -184,6 +184,19 @@ func (f *EvalsFile) normalize(baseDir string) error {
 		}
 	}
 	return nil
+}
+
+// ValidateModels returns the problems in an eval set's top-level models
+// restriction. Tokens are resolved against the live registry at run time, so
+// the only authored mistake to catch here is a blank entry.
+func ValidateModels(models []string) []string {
+	var problems []string
+	for i, m := range models {
+		if strings.TrimSpace(m) == "" {
+			problems = append(problems, fmt.Sprintf("models[%d]: empty model restriction", i))
+		}
+	}
+	return problems
 }
 
 // ValidateEvals returns the problems in a loaded (normalized) eval list.

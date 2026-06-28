@@ -6,7 +6,9 @@
 // [...]}). The eval object is a superset of skill-creator's — id (string or
 // integer), prompt, expected_output, files (fixture paths), expectations —
 // plus evolve's extensions: deterministic assertions, max_turns,
-// timeout_seconds, allowed_tools, and skip_providers. Loading normalizes the
+// timeout_seconds, and allowed_tools. The evals file also carries a top-level
+// models restriction (provider/model tokens, intersected with the root models)
+// that governs both its evals and the skill's triggers. Loading normalizes the
 // superset: integer ids become strings, expectations expand to llm
 // assertions graded before the authored ones, and fixture paths resolve
 // against the file's directory.

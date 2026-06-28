@@ -69,6 +69,15 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 	}
 	warnSkillName(&opts.Options, set, set.TriggersPath, spec.SkillName)
 	triggers := spec.Triggers
+	// The model restriction lives on the sibling evals file; triggers run for that
+	// same set. An unreadable/absent evals file leaves it unrestricted (the evals
+	// sweep and checks surface any parse error).
+	var allowedModels []string
+	if set.EvalsPath != "" {
+		if ef, err := evalspec.LoadEvals(set.EvalsPath); err == nil {
+			allowedModels = ef.Models
+		}
+	}
 	skillMD, err := os.ReadFile(filepath.Join(set.SkillDir, "SKILL.md"))
 	if err != nil {
 		return false, fmt.Errorf("reading skill under test: %w", err)
@@ -101,7 +110,7 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 	}
 
 	for _, sel := range opts.Selected {
-		unitFailed, err := runTriggerUnit(ctx, opts, set, sel, file, skillMD, contentHash, triggers, ws)
+		unitFailed, err := runTriggerUnit(ctx, opts, set, sel, file, skillMD, contentHash, triggers, allowedModels, ws)
 		failed = failed || unitFailed
 		if err != nil {
 			return failed, err
@@ -116,16 +125,16 @@ func runTriggerSet(ctx context.Context, opts TriggerOptions, set layout.EvalSet)
 // stored ones; otherwise it runs every selected query. A unit with no applicable
 // queries reports nothing and returns cleanly.
 func runTriggerUnit(ctx context.Context, opts TriggerOptions, set layout.EvalSet, sel harness.Selection,
-	file *results.File, skillMD []byte, contentHash string, triggers []evalspec.Trigger, ws string,
+	file *results.File, skillMD []byte, contentHash string, triggers []evalspec.Trigger, allowedModels []string, ws string,
 ) (failed bool, err error) {
 
 	rep := opts.reporter()
-	provName := sel.Model.ProviderID
-	// modelApplicable is every query valid for this model (skip_providers + skill
-	// only), ignoring the selection filter, so a partial rerun can preserve the
-	// queries it does not touch. applicable then narrows by the selection filter.
-	modelApplicable := plan.ApplicableTriggers(triggers, provName, set.Skill, nil)
-	applicable := plan.ApplicableTriggers(triggers, provName, set.Skill, opts.Filter)
+	// modelApplicable is every query valid for this model (the eval-set models
+	// restriction + skill only), ignoring the selection filter, so a partial rerun
+	// can preserve the queries it does not touch. applicable then narrows by the
+	// selection filter. A model outside the restriction yields no applicable queries.
+	modelApplicable := plan.ApplicableTriggers(triggers, sel.Model, allowedModels, set.Skill, nil)
+	applicable := plan.ApplicableTriggers(triggers, sel.Model, allowedModels, set.Skill, opts.Filter)
 	if len(applicable) == 0 {
 		return false, nil
 	}

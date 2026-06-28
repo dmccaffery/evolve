@@ -39,6 +39,30 @@ func TestLoadEvalsEvolveStyle(t *testing.T) {
 	}
 }
 
+func TestLoadEvalsModels(t *testing.T) {
+	path := write(t, t.TempDir(), "evals.json", `{
+		"models": ["anthropic", "openai/gpt-5"],
+		"evals": [{"id": "e1", "prompt": "p", "assertions": ["x"]}]
+	}`)
+	spec, err := LoadEvals(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.Models) != 2 || spec.Models[0] != "anthropic" || spec.Models[1] != "openai/gpt-5" {
+		t.Errorf("models = %v, want [anthropic openai/gpt-5]", spec.Models)
+	}
+}
+
+func TestValidateModels(t *testing.T) {
+	if problems := ValidateModels([]string{"anthropic", "openai/gpt-5"}); len(problems) != 0 {
+		t.Errorf("valid models flagged: %v", problems)
+	}
+	problems := ValidateModels([]string{"anthropic", "  "})
+	if len(problems) != 1 || !strings.Contains(problems[0], "empty model restriction") {
+		t.Errorf("problems = %v, want one empty-restriction problem", problems)
+	}
+}
+
 // TestLoadEvalsSkillCreatorDropIn pins the migration contract: a verbatim
 // skill-creator evals.json (integer ids, path-list files, string
 // expectations) loads without edits.

@@ -125,8 +125,7 @@ func triggerRepoFixture(t *testing.T) *layout.Repo {
 	write("skills/solo-skill/SKILL.md", "---\nname: solo-skill\ndescription: x. Use when testing.\nlicense: MIT\n---\nbody\n")
 	write("evals/solo-skill/triggers.json", `{"triggers": [
 		{"query": "please trigger this", "should_trigger": true},
-		{"query": "unrelated request", "should_trigger": false},
-		{"query": "skip me on fake", "should_trigger": true, "skip_providers": ["fake"]}
+		{"query": "unrelated request", "should_trigger": false}
 	]}`)
 	repo, err := layout.Detect(root, layout.Auto)
 	if err != nil {
@@ -179,9 +178,8 @@ func TestTriggersWritesResults(t *testing.T) {
 	if !entry.Executed || entry.RunsPerQuery != 3 || entry.RanAt != "2026-06-11T12:00:00Z" {
 		t.Errorf("header = %+v", entry.Header)
 	}
-	// skip_providers: the third query is excluded for this provider.
 	if len(entry.Results) != 2 {
-		t.Fatalf("results = %d, want 2 (skip_providers honored)", len(entry.Results))
+		t.Fatalf("results = %d, want 2", len(entry.Results))
 	}
 	r0 := entry.Results[0]
 	if *r0.Hits != 3 || *r0.Runs != 3 || !*r0.Passed {
@@ -226,6 +224,45 @@ func TestTriggersWithoutCountingCapability(t *testing.T) {
 	data, _ := os.ReadFile(filepath.Join(repo.Root, "evals", "solo-skill", "results.json"))
 	if !bytes.Contains(data, []byte(`"pricing": null`)) {
 		t.Error("missing explicit pricing null")
+	}
+}
+
+// TestTriggersHonorEvalModels: triggers inherit the sibling evals file's models
+// restriction, so a model outside it runs no queries at all.
+func TestTriggersHonorEvalModels(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		path := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".claude-plugin/plugin.json", `{"name":"solo","version":"0.1.0"}`)
+	write("skills/solo-skill/SKILL.md", "---\nname: solo-skill\ndescription: x. Use when testing.\nlicense: MIT\n---\nbody\n")
+	write("evals/solo-skill/triggers.json", `{"triggers": [
+		{"query": "please trigger this", "should_trigger": true}
+	]}`)
+	// The sibling evals file restricts the skill to anthropic; the fake/model-1
+	// sweep is outside that set, so it must run no triggers.
+	write("evals/solo-skill/evals.json", `{"models": ["anthropic"], "evals": [
+		{"id": "e1", "prompt": "p", "assertions": ["x"]}
+	]}`)
+	repo, err := layout.Detect(root, layout.Auto)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	opts := triggerOptions(t, repo, &fakeTriggerProvider{})
+	if _, err := Triggers(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	file, _ := results.LoadDir(filepath.Join(repo.Root, "evals", "solo-skill"), "solo", "solo-skill")
+	if entry := file.Trigger("fake/model-1"); entry != nil {
+		t.Errorf("fake/model-1 is outside the eval-set models; want no trigger entry, got %+v", entry)
 	}
 }
 

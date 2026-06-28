@@ -3,7 +3,10 @@
 
 package plan
 
-import "github.com/bitwise-media-group/evolve/internal/evalspec"
+import (
+	"github.com/bitwise-media-group/evolve/internal/evalspec"
+	"github.com/bitwise-media-group/evolve/internal/model"
+)
 
 // SkillCatalog is one skill's metadata and authored test cases — the data both
 // TUI panes draw from. It is the parsed spec, independent of any run.
@@ -12,18 +15,20 @@ type SkillCatalog struct {
 	Skill       string
 	Title       string // SKILL.md frontmatter title (falls back to name)
 	Description string
-	SkillDir    string // the skill's root directory, fingerprinted for --modified
-	ResultsDir  string // evals/<skill>, where results.<ext> persists
+	SkillDir    string   // the skill's root directory, fingerprinted for --modified
+	ResultsDir  string   // evals/<skill>, where results.<ext> persists
+	Models      []string // eval-set models restriction (intersected with the root models); empty = all
 	Triggers    []evalspec.Trigger
 	Evals       []evalspec.Eval
 }
 
 // Filter narrows a sweep to specific skills and individual triggers/evals, on
-// top of the PluginFilter/SkillFilter/EvalFilter and per-case SkipProviders. A nil *Filter, or a
-// nil sub-map, imposes no restriction at that level — so the flag-only path
-// (Filter == nil) behaves exactly as before. The TUI selection form populates
-// it explicitly: an empty (non-nil) per-skill set means "this skill is included
-// but none of its cases", which a missing entry (nil) does not.
+// top of the PluginFilter/SkillFilter/EvalFilter and the eval-set models
+// restriction. A nil *Filter, or a nil sub-map, imposes no restriction at that
+// level — so the flag-only path (Filter == nil) behaves exactly as before. The
+// TUI selection form populates it explicitly: an empty (non-nil) per-skill set
+// means "this skill is included but none of its cases", which a missing entry
+// (nil) does not.
 type Filter struct {
 	Skills   map[string]bool            // nil = all skills
 	Triggers map[string]map[string]bool // skill -> selected trigger queries
@@ -59,17 +64,32 @@ func (f *Filter) evalIncluded(skill, id string) bool {
 	return sub[id]
 }
 
-// ApplicableTriggers is every trigger the model under skill could run: those the
-// filter includes and the provider does not skip, in authored order.
-func ApplicableTriggers(triggers []evalspec.Trigger, providerName, skill string, f *Filter) []evalspec.Trigger {
-	if !f.skillIncluded(skill) {
+// modelAllowed reports whether m is within a skill's eval-set models
+// restriction. An empty restriction (the common case) allows every model; a
+// non-empty one allows only the models its tokens name — the intersection with
+// the root models, since m already comes from the root-resolved set.
+func modelAllowed(m model.Model, allowedModels []string) bool {
+	return len(allowedModels) == 0 || m.MatchedBy(allowedModels)
+}
+
+// Allows reports whether model m may run this skill's cases under its eval-set
+// models restriction. It is the per-skill gate the engine's case-by-case
+// previews share with ApplicableTriggers/ApplicableEvals.
+func (sc SkillCatalog) Allows(m model.Model) bool {
+	return modelAllowed(m, sc.Models)
+}
+
+// ApplicableTriggers is every trigger model m under skill could run: those the
+// filter includes, in authored order, and none when m is outside the eval-set
+// models restriction.
+func ApplicableTriggers(
+	triggers []evalspec.Trigger, m model.Model, allowedModels []string, skill string, f *Filter,
+) []evalspec.Trigger {
+	if !f.skillIncluded(skill) || !modelAllowed(m, allowedModels) {
 		return nil
 	}
 	var out []evalspec.Trigger
 	for _, t := range triggers {
-		if t.SkipsProvider(providerName) {
-			continue
-		}
 		if !f.triggerIncluded(skill, t.Query) {
 			continue
 		}
@@ -78,17 +98,17 @@ func ApplicableTriggers(triggers []evalspec.Trigger, providerName, skill string,
 	return out
 }
 
-// ApplicableEvals is every eval the model under skill could run: those the filter
-// includes and the provider does not skip, in authored order.
-func ApplicableEvals(evals []evalspec.Eval, providerName, skill string, f *Filter) []evalspec.Eval {
-	if !f.skillIncluded(skill) {
+// ApplicableEvals is every eval model m under skill could run: those the filter
+// includes, in authored order, and none when m is outside the eval-set models
+// restriction.
+func ApplicableEvals(
+	evals []evalspec.Eval, m model.Model, allowedModels []string, skill string, f *Filter,
+) []evalspec.Eval {
+	if !f.skillIncluded(skill) || !modelAllowed(m, allowedModels) {
 		return nil
 	}
 	var out []evalspec.Eval
 	for _, c := range evals {
-		if c.SkipsProvider(providerName) {
-			continue
-		}
 		if !f.evalIncluded(skill, c.ID) {
 			continue
 		}

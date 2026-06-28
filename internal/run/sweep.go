@@ -101,14 +101,22 @@ func runSweepSet(ctx context.Context, opts SweepOptions, set layout.EvalSet) (fa
 		triggers = spec.Triggers
 	}
 	var evals []evalspec.Eval
+	var allowedModels []string
 	if runEvalsTier {
 		spec, err := evalspec.LoadEvals(set.EvalsPath)
 		if err != nil {
 			return false, err
 		}
 		warnSkillName(&opts.Options, set, set.EvalsPath, spec.SkillName)
+		allowedModels = spec.Models
 		evals = filterEvals(spec.Evals, opts.EvalFilter)
 		runEvalsTier = len(evals) > 0
+	} else if runTriggers && set.EvalsPath != "" {
+		// Triggers honor the skill's models restriction (defined on the evals
+		// file) even when the evals tier is not part of this sweep.
+		if ef, err := evalspec.LoadEvals(set.EvalsPath); err == nil {
+			allowedModels = ef.Models
+		}
 	}
 	if !runTriggers && !runEvalsTier {
 		return false, nil // both tiers narrowed away (e.g. --eval matched nothing)
@@ -156,7 +164,7 @@ func runSweepSet(ctx context.Context, opts SweepOptions, set layout.EvalSet) (fa
 
 	u := sweepUnit{
 		opts: opts, set: set, file: file, skillMD: skillMD,
-		triggers: triggers, evals: evals,
+		triggers: triggers, evals: evals, allowedModels: allowedModels,
 		triggerContent: triggerContent, evalContent: evalContent,
 		ws: ws, runTriggers: runTriggers, runEvalsTier: runEvalsTier,
 	}
@@ -179,6 +187,7 @@ type sweepUnit struct {
 	skillMD                     []byte
 	triggers                    []evalspec.Trigger
 	evals                       []evalspec.Eval
+	allowedModels               []string
 	triggerContent, evalContent string
 	ws                          string
 	runTriggers, runEvalsTier   bool
@@ -199,7 +208,7 @@ func runSweepModel(ctx context.Context, u sweepUnit, sel harness.Selection) (fai
 		to.Filter = filter
 		to.Timeout = pickTimeout(u.opts.TriggerTimeout, u.opts.Timeout)
 		tf, err := runTriggerUnit(ctx, TriggerOptions{Options: to, Runs: u.opts.Runs},
-			u.set, sel, u.file, u.skillMD, u.triggerContent, u.triggers, u.ws)
+			u.set, sel, u.file, u.skillMD, u.triggerContent, u.triggers, u.allowedModels, u.ws)
 		failed = failed || tf
 		if err != nil {
 			return failed, err
@@ -210,7 +219,7 @@ func runSweepModel(ctx context.Context, u sweepUnit, sel harness.Selection) (fai
 		eo.Filter = filter
 		eo.Timeout = pickTimeout(u.opts.EvalTimeout, u.opts.Timeout)
 		ef, err := runEvalUnit(ctx, EvalOptions{Options: eo, EvalFilter: u.opts.EvalFilter, JudgeModel: u.opts.JudgeModel},
-			u.set, sel, u.file, u.skillMD, u.evalContent, u.evals)
+			u.set, sel, u.file, u.skillMD, u.evalContent, u.evals, u.allowedModels)
 		failed = failed || ef
 		if err != nil {
 			return failed, err

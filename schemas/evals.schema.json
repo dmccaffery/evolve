@@ -11,6 +11,11 @@
       "description": "Optional echo of the skill's name; the directory name stays authoritative and a mismatch warns.",
       "type": "string"
     },
+    "models": {
+      "description": "Models this skill's evals (and its sibling triggers) may run, named the same way as the root models config (provider ids, canonical model ids, or 'all'). The effective set is the intersection with the root models; omit to allow all root models.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "evals": {
       "type": "array",
       "items": { "$ref": "#/$defs/eval" }
@@ -52,8 +57,7 @@
         },
         "max_turns": { "type": "integer", "minimum": 1 },
         "timeout_seconds": { "type": "integer", "minimum": 1 },
-        "allowed_tools": { "type": "string" },
-        "skip_providers": { "type": "array", "items": { "type": "string" } }
+        "allowed_tools": { "type": "string" }
       },
       "additionalProperties": true
     },

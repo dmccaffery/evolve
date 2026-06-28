@@ -5,16 +5,16 @@ package evalspec
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/bitwise-media-group/evolve/internal/encfmt"
 )
 
-// Trigger is one trigger-accuracy query.
+// Trigger is one trigger-accuracy query. Triggers carry no model restriction of
+// their own: they run for the model set the sibling evals file's Models resolves
+// to (intersected with the root models).
 type Trigger struct {
-	Query         string   `json:"query"`
-	ShouldTrigger bool     `json:"should_trigger"`
-	SkipProviders []string `json:"skip_providers,omitempty"`
+	Query         string `json:"query"`
+	ShouldTrigger bool   `json:"should_trigger"`
 }
 
 // TriggersFile is one authored triggers document: the same envelope shape as
@@ -23,9 +23,6 @@ type TriggersFile struct {
 	SkillName string    `json:"skill_name,omitempty"`
 	Triggers  []Trigger `json:"triggers"`
 }
-
-// SkipsProvider reports whether the trigger opts out of a provider.
-func (t Trigger) SkipsProvider(name string) bool { return slices.Contains(t.SkipProviders, name) }
 
 // LoadTriggers parses an authored triggers file in any supported format.
 func LoadTriggers(path string) (*TriggersFile, error) {

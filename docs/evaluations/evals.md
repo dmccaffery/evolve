@@ -46,13 +46,28 @@ result matches: the files exist, the `Makefile` has a `pr` target, and the whole
 | `allowed_tools`   | no              | Space-separated tool allowlist for the agent (e.g. `Read Write Edit Bash(go *)`) |
 | `max_turns`       | no              | Cap on agent turns for this case; overrides the run's `--max-turns`              |
 | `timeout_seconds` | no              | Wall-clock cap for this case; overrides the run's `--timeout`                    |
-| `skip_providers`  | no              | Provider ids to skip for this case                                               |
 
 \* A case must declare at least one `expectations` entry **or** one `assertions` entry, or it fails to load.
 
 `allowed_tools` is worth tuning per case. It both protects the workspace and sharpens the signal: scoping `Bash` to
 `Bash(go *) Bash(gofmt *)` lets the agent build and format but not reach for unrelated tooling, so a pass reflects the
 skill rather than the model improvising around it.
+
+## Restricting models
+
+A top-level `models` array on the evals file limits which models the skill is evaluated against — both its evals **and**
+its sibling [triggers](triggers.md). It uses the same tokens as the root `models` config: provider ids (`"anthropic"`),
+canonical model ids (`"anthropic/claude-sonnet-4-6"`), or `"all"`. The effective set is the **intersection** with the
+root `models`, so a skill never runs a model the repo has not configured; omit `models` to run every root model.
+
+```json
+{
+    "models": ["anthropic", "openai/gpt-5"],
+    "evals": [{ "id": "project-scaffold", "prompt": "…", "assertions": ["…"] }]
+}
+```
+
+Use it when a skill is only meaningful for certain models, or to hold an expensive skill to a smaller matrix.
 
 ## Seeding the workspace: `files`
 

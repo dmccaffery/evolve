@@ -32,11 +32,14 @@ authoritative, and a mismatch only warns):
 }
 ```
 
-| Field            | Required | Meaning                                                                    |
-| ---------------- | -------- | -------------------------------------------------------------------------- |
-| `query`          | yes      | The prompt sent to the agent, verbatim                                     |
-| `should_trigger` | yes      | Whether the skill under test is _expected_ to activate for this query      |
-| `skip_providers` | no       | Provider ids to exclude for this one query (e.g. a model that can't judge) |
+| Field            | Required | Meaning                                                               |
+| ---------------- | -------- | --------------------------------------------------------------------- |
+| `query`          | yes      | The prompt sent to the agent, verbatim                                |
+| `should_trigger` | yes      | Whether the skill under test is _expected_ to activate for this query |
+
+Triggers carry no model restriction of their own: they run for whichever models the sibling
+[`evals.<ext>`'s `models`](evals.md#restricting-models) field allows (intersected with the root `models`). With no evals
+file, or no `models` field on it, they run for every root model.
 
 ## Your first triggers
 
@@ -106,15 +109,12 @@ raise it when you want to separate a flaky skill from a decisive one — `--runs
 Because scoring is per-query and the same prompts run for every model, two models' trigger scores are directly
 comparable — that is the whole point of pinning the queries rather than the activations.
 
-## Skipping a provider
+## Restricting the models
 
-If one provider can't fairly run a query, exclude it for that query with `skip_providers` (provider ids, e.g.
-`"anthropic"`, `"openai"`). The query still runs for everyone else, and the skipped provider's score is computed over
-the queries it did run.
-
-```json
-{ "query": "Add a seed corpus to this Go fuzz target", "should_trigger": true, "skip_providers": ["google"] }
-```
+To run a skill against only some models, set the [`models`](evals.md#restricting-models) field on its `evals.<ext>`
+file. Triggers inherit that same set — there is no per-query model control. The restriction is the intersection with the
+root `models`, so a query you do not want a given provider to run is best handled by narrowing the whole skill's
+`models` rather than by hand-excluding it per query.
 
 ---
 

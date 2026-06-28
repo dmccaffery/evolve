@@ -36,9 +36,9 @@ func Build(cat []SkillCatalog, models []harness.Selection, sel Selection, prior 
 func buildSkill(sc SkillCatalog, models []harness.Selection, sel Selection, prior PriorMetrics) Skill {
 	sk := Skill{Skill: sc.Skill, Title: sc.Title}
 	for _, m := range models {
-		key, prov := m.Key(), m.Model.ProviderID
+		key := m.Key()
 		var units []Unit
-		if trig := ApplicableTriggers(sc.Triggers, prov, sc.Skill, nil); len(trig) > 0 {
+		if trig := ApplicableTriggers(sc.Triggers, m.Model, sc.Models, sc.Skill, nil); len(trig) > 0 {
 			ref := UnitRef{Skill: sc.Skill, Key: key, Kind: KindTriggers}
 			cases := make([]Case, len(trig))
 			for i, t := range trig {
@@ -46,7 +46,7 @@ func buildSkill(sc SkillCatalog, models []harness.Selection, sel Selection, prio
 			}
 			units = append(units, Unit{Ref: ref, Cases: cases})
 		}
-		if evs := ApplicableEvals(sc.Evals, prov, sc.Skill, nil); len(evs) > 0 {
+		if evs := ApplicableEvals(sc.Evals, m.Model, sc.Models, sc.Skill, nil); len(evs) > 0 {
 			ref := UnitRef{Skill: sc.Skill, Key: key, Kind: KindEvals}
 			cases := make([]Case, len(evs))
 			for i, e := range evs {

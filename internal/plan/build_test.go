@@ -36,13 +36,13 @@ func sel(prov, id string) harness.Selection {
 }
 
 // twoModelCatalog is one plugin/skill with two triggers (q1 should-fire, q2 not)
-// and two evals (e1, e2); q2 skips the "skipped" provider.
+// and two evals (e1, e2), unrestricted (every model applies).
 func twoModelCatalog() []SkillCatalog {
 	return []SkillCatalog{{
 		Plugin: "p", Skill: "s", Title: "S",
 		Triggers: []evalspec.Trigger{
 			{Query: "q1", ShouldTrigger: true},
-			{Query: "q2", ShouldTrigger: false, SkipProviders: []string{"skipped"}},
+			{Query: "q2", ShouldTrigger: false},
 		},
 		Evals: []evalspec.Eval{{ID: "e1"}, {ID: "e2"}},
 	}}
@@ -156,16 +156,20 @@ func TestBuildWiden(t *testing.T) {
 	}
 }
 
-// TestBuildSkipProvider: a case the provider skips never appears in the plan.
-func TestBuildSkipProvider(t *testing.T) {
+// TestBuildModelsRestriction: a skill whose eval-set models restriction excludes
+// a model contributes no cases for it — the whole skill drops out of its plan.
+func TestBuildModelsRestriction(t *testing.T) {
 	cat := twoModelCatalog()
-	models := []harness.Selection{sel("skipped", "m1")}
-	s := partialSelection("skipped/m1")
-	p := Build(cat, models, s, PriorMetrics{})
-	for _, c := range p.Plugins[0].Skills[0].Models[0].Units[0].Cases {
-		if c.Label == "q2" {
-			t.Error("q2 skips the 'skipped' provider and must be absent")
-		}
+	cat[0].Models = []string{"fake"} // only the "fake" provider
+
+	excluded := Build(cat, []harness.Selection{sel("other", "m1")}, partialSelection("other/m1"), PriorMetrics{})
+	if len(excluded.Plugins) != 0 {
+		t.Errorf("plan = %+v, want empty: 'other' is outside the skill's models", excluded.Plugins)
+	}
+
+	included := Build(cat, []harness.Selection{sel("fake", "m1")}, partialSelection("fake/m1"), PriorMetrics{})
+	if len(included.Plugins) != 1 || len(included.Plugins[0].Skills[0].Models) != 1 {
+		t.Errorf("plan = %+v, want the skill present for the allowed 'fake' model", included.Plugins)
 	}
 }
 

@@ -13,7 +13,7 @@ func TestLoadTriggers(t *testing.T) {
 		"skill_name": "go-tests",
 		"triggers": [
 			{"query": "Write tests for this Go package", "should_trigger": true},
-			{"query": "Write pytest tests", "should_trigger": false, "skip_providers": ["cursor"]}
+			{"query": "Write pytest tests", "should_trigger": false}
 		]
 	}`)
 	spec, err := LoadTriggers(path)
@@ -26,9 +26,6 @@ func TestLoadTriggers(t *testing.T) {
 	triggers := spec.Triggers
 	if len(triggers) != 2 || !triggers[0].ShouldTrigger || triggers[1].ShouldTrigger {
 		t.Errorf("triggers = %+v", triggers)
-	}
-	if !triggers[1].SkipsProvider("cursor") || triggers[0].SkipsProvider("cursor") {
-		t.Error("skip_providers not honored")
 	}
 	if problems := ValidateTriggers(triggers); len(problems) != 0 {
 		t.Errorf("problems = %v", problems)

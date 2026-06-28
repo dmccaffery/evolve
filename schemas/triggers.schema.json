@@ -23,8 +23,7 @@
       "required": ["query", "should_trigger"],
       "properties": {
         "query": { "type": "string", "minLength": 1 },
-        "should_trigger": { "type": "boolean" },
-        "skip_providers": { "type": "array", "items": { "type": "string" } }
+        "should_trigger": { "type": "boolean" }
       },
       "additionalProperties": true
     }

@@ -78,9 +78,9 @@ type Options struct {
 	Stderr        io.Writer
 
 	// Filter narrows the sweep to specific skills and individual
-	// triggers/evals on top of the PluginFilter/SkillFilter/EvalFilter and
-	// SkipProviders. Nil means no extra narrowing. The TUI selection form
-	// builds it; the plain flag path leaves it nil.
+	// triggers/evals on top of the PluginFilter/SkillFilter/EvalFilter and the
+	// eval-set models restriction. Nil means no extra narrowing. The TUI
+	// selection form builds it; the plain flag path leaves it nil.
 	Filter *plan.Filter
 
 	// Reporter receives progress events. When nil the engine uses a

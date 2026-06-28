@@ -35,6 +35,27 @@ func TestBareIDUnqualified(t *testing.T) {
 	}
 }
 
+func TestMatchedBy(t *testing.T) {
+	m := Model{ID: "anthropic/claude-sonnet-4-6", ProviderID: "anthropic"}
+	for _, tt := range []struct {
+		name   string
+		tokens []string
+		want   bool
+	}{
+		{"provider id", []string{"anthropic"}, true},
+		{"canonical id", []string{"openai/gpt-5", "anthropic/claude-sonnet-4-6"}, true},
+		{"bare id", []string{"claude-sonnet-4-6"}, true},
+		{"all", []string{"all"}, true},
+		{"trimmed", []string{"  anthropic  "}, true},
+		{"no match", []string{"openai", "google/gemini"}, false},
+		{"empty", nil, false},
+	} {
+		if got := m.MatchedBy(tt.tokens); got != tt.want {
+			t.Errorf("%s: MatchedBy(%v) = %v, want %v", tt.name, tt.tokens, got, tt.want)
+		}
+	}
+}
+
 func TestPricingHelpers(t *testing.T) {
 	m := Model{InputUSD: usd(2.0), OutputUSD: usd(10.0)}
 	if got := InputCostUSD(m, new(1_000_000)); got == nil || *got != 2.0 {

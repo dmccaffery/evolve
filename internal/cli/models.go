@@ -147,23 +147,11 @@ func (o *Options) ConfiguredModels() ([]model.Model, error) {
 	}
 	var out []model.Model
 	for _, m := range models {
-		if modelMatchesAny(m, restrict) {
+		if m.MatchedBy(restrict) {
 			out = append(out, m)
 		}
 	}
 	return out, nil
-}
-
-// modelMatchesAny reports whether m is named by any token (provider id,
-// canonical id, or bare id).
-func modelMatchesAny(m model.Model, tokens []string) bool {
-	for _, t := range tokens {
-		t = strings.TrimSpace(t)
-		if t == "all" || t == m.ProviderID || t == m.ID || t == m.BareID() {
-			return true
-		}
-	}
-	return false
 }
 
 // ModelsSpec resolves the --model flag into a Select spec, falling back to the
