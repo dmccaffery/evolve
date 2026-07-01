@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.5.0](https://github.com/bitwise-media-group/evolve/compare/v0.4.0...v0.5.0) (2026-07-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **evalspec:** `skip_providers` on triggers/evals is removed. Restrict a skill's models with the top-level `models` field on its evals file instead; the effective set is the intersection with the root models.
+
+### Features
+
+* **report:** emit JUnit and Cobertura artifacts with a --strict gate ([bae2ca4](https://github.com/bitwise-media-group/evolve/commit/bae2ca42b846951014998ac9272eada062f43ae8)), closes [#37](https://github.com/bitwise-media-group/evolve/issues/37)
+
+
+### Bug Fixes
+
+* **checks:** added some testing around the outputs ([4fc0a4d](https://github.com/bitwise-media-group/evolve/commit/4fc0a4d9389f30372e23f2413db8738a06595adb))
+* corrected the descriptions of compatibility issue between codex and ([272e62c](https://github.com/bitwise-media-group/evolve/commit/272e62ce260e76d9f3d34805fdd7d3e851755919))
+* introduce checks.plugin_manifests ([4ef1756](https://github.com/bitwise-media-group/evolve/commit/4ef175660517cb53166f24fe63ffd159bff624d5))
+* remove many explicit references to claude and codex ([64b52af](https://github.com/bitwise-media-group/evolve/commit/64b52afdd00dbc0b61d1f9182d975c4cc98696e6))
+
+
+### Code Refactoring
+
+* **evalspec:** replace skip_providers with an eval-set models restriction ([ed15284](https://github.com/bitwise-media-group/evolve/commit/ed152849b24d1eae605bbd30335e26627c70dd42)), closes [#36](https://github.com/bitwise-media-group/evolve/issues/36)
+
 ## [0.4.0](https://github.com/bitwise-media-group/evolve/compare/v0.3.1...v0.4.0) (2026-06-25)
 
 
