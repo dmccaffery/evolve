@@ -1,5 +1,156 @@
 # Changelog
 
+## [0.8.3](https://github.com/dmccaffery/evolve/compare/v0.8.4...v0.8.3) (2026-11-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **grade:** harness.EvalRunner loses JudgeSpec and model.JudgeInput is removed; the LLM judge now reuses the eval posture.
+* **harness:** the allowed_tools eval field is removed from the evals schema and ignored where present (files still parse; the field is inert). EvalInput.AllowedTools is gone from the harness surface.
+* **report:** report --check no longer errors when no thresholds are configured — it gates both tiers at the built-in defaults (triggers 0.5, evals 0.66), and a tier left unset in config is gated at its default rather than skipped.
+* **evalspec:** `skip_providers` on triggers/evals is removed. Restrict a skill's models with the top-level `models` field on its evals file instead; the effective set is the intersection with the root models.
+* **report:** results.<ext> files bump to schema 5 (model-major nesting under a models map; previous/baseline snapshots as results arrays). Files written by an older evolve are migrated in place on load; a file from a newer evolve still resets.
+* **provider:** the `default_models` config key is renamed to `models`, internal/provider is removed, and committed results previously keyed under the copilot/cursor/antigravity providers are re-keyed to their canonical vendor model (anthropic/*, openai/*, google/*).
+
+### Features
+
+* --remote executes runs on a patchy cluster ([d6e8a0b](https://github.com/dmccaffery/evolve/commit/d6e8a0b489465579231fa490eca4aeb4c6dd7483))
+* add --modified flag to rerun cases whose content changed ([8fda8f4](https://github.com/dmccaffery/evolve/commit/8fda8f49637442d5fa0cc8c289e0d080ccd1827b))
+* add supported models for copilot cli ([e3292db](https://github.com/dmccaffery/evolve/commit/e3292dbe5f02838c1e4b94492eb5eb44227a3c11))
+* add tool_call assertion to verify tool and MCP invocations ([34a8885](https://github.com/dmccaffery/evolve/commit/34a8885262e3514f71960cdc412861da3f3ab7ef))
+* **agui:** add an AG-UI 1.0 client for hosted-agent conversations ([7124968](https://github.com/dmccaffery/evolve/commit/712496864b4b85d0debb3090d146e006749076ca))
+* **checks:** add non-blocking skill-quality signals ([dc0f000](https://github.com/dmccaffery/evolve/commit/dc0f000aa3404b2fe7eec0c0b9178e7b984912d9)), closes [#27](https://github.com/dmccaffery/evolve/issues/27)
+* **cli:** add hidden --profile flag for cpu/memory pprof ([e1d00b6](https://github.com/dmccaffery/evolve/commit/e1d00b60df852e4754ed3164d5ddb78387561a23))
+* **cli:** make the judge model configurable via judge_model ([cbd21fd](https://github.com/dmccaffery/evolve/commit/cbd21fdea21b0d5cab7491a3c397b0b618f7cb3b))
+* **cli:** select agent endpoints with --endpoint ([0d20ad9](https://github.com/dmccaffery/evolve/commit/0d20ad93e6325a35f892f891ab348ef8e247dd85))
+* **cli:** wire plain-output run commands with selection and sandbox flags ([5da5c7c](https://github.com/dmccaffery/evolve/commit/5da5c7c742d6ce664b11c66bc1b1349237560970))
+* **docs:** publish a zensical documentation site ([50671ce](https://github.com/dmccaffery/evolve/commit/50671ce707ade2c2a3453feb63a913b8e812a449))
+* **evalspec:** add agent suites and new assertion fields ([2601464](https://github.com/dmccaffery/evolve/commit/26014645c5c16e3d133c427499ae34dc6f058ee0))
+* evolve login via OIDC device-grade PKCE ([c3950b0](https://github.com/dmccaffery/evolve/commit/c3950b0b0570e7687300bce4d4f3446ca77efc14))
+* evolve-runner images for the patchy fleet ([2d1267e](https://github.com/dmccaffery/evolve/commit/2d1267e24a8992379d6fa6c9fc9f1f9c8f701516))
+* exec-unit, the hidden in-pod verb ([0146d14](https://github.com/dmccaffery/evolve/commit/0146d1458856b594765e3c4c961b0a77f11f23a7))
+* **grade:** batch llm judging into one full-tool session per case ([766db64](https://github.com/dmccaffery/evolve/commit/766db64c4079647185217d253aa3f71ff43942dd))
+* **grade:** default the LLM judge to Claude Sonnet 5 ([9a0e2e4](https://github.com/dmccaffery/evolve/commit/9a0e2e4572c26461694b42e2ac495e6cc496c88e))
+* **grade:** drive the LLM judge with any model via any supported harness ([1ad22f9](https://github.com/dmccaffery/evolve/commit/1ad22f9aeca7cdf6d9579801cad58c44180b9bda)), closes [#105](https://github.com/dmccaffery/evolve/issues/105)
+* **grade:** grade tool counts and sequences, state, HITL, outcome, and conformance ([f424b87](https://github.com/dmccaffery/evolve/commit/f424b87955cd8ad91e2d9590e3ea3a0dca5d2f30))
+* **grade:** judge with Claude Sonnet 5 by default ([0163e91](https://github.com/dmccaffery/evolve/commit/0163e91c3ff5173fcae235b525cbcfd9da9ce8f0))
+* **harness:** add Grok harness with xAI models ([081bde6](https://github.com/dmccaffery/evolve/commit/081bde627aca3116945b8cfaa31f325db7349d99)), closes [#75](https://github.com/dmccaffery/evolve/issues/75)
+* **harness:** bypass permissions in behavioral evals ([ec2f785](https://github.com/dmccaffery/evolve/commit/ec2f785b524097b558c1f66554118939662a7122))
+* **harness:** capture tool results from claude and codex ([38e88b1](https://github.com/dmccaffery/evolve/commit/38e88b16990820f672109721e6b2c182ff9fe098))
+* **layout:** detect hosted-agent repositories ([8e41b16](https://github.com/dmccaffery/evolve/commit/8e41b164135cd4cad928fa7a3708b5aa84679b60))
+* **model:** add Claude Opus 5 to the model registry ([7d9e26e](https://github.com/dmccaffery/evolve/commit/7d9e26ed4d0ea32494a36c08d5d7f53965db525a))
+* **model:** add Claude Sonnet 5 to the Anthropic registry ([f5c6728](https://github.com/dmccaffery/evolve/commit/f5c672805ef126abaed451051bdbf596cf639734))
+* **model:** add GPT-5.6 built-ins ([3a51b38](https://github.com/dmccaffery/evolve/commit/3a51b38e53243f6a9f6fba7bed3efa7617e672c5)), closes [#85](https://github.com/dmccaffery/evolve/issues/85)
+* **model:** add grok-4.6 to the model registry ([095a466](https://github.com/dmccaffery/evolve/commit/095a4666d25cb9120ede4dfe7c3701798ddc62c3))
+* **model:** refresh the registry with the latest vendor models ([7891c1f](https://github.com/dmccaffery/evolve/commit/7891c1f629a6ab411131295c2ac074039c51fe7a))
+* **models:** add discover verb with fuzzy picker and config injection ([09be408](https://github.com/dmccaffery/evolve/commit/09be408a24d8d8e22c6e5312772c0fe01d417164))
+* **release:** sign and notarize macOS binaries ([22b12c1](https://github.com/dmccaffery/evolve/commit/22b12c1b4bcf3ef929c04fb8edc56c514585be48))
+* **remote:** wire contract and the Reporter seam ([eb16e98](https://github.com/dmccaffery/evolve/commit/eb16e98a950b8410830a22f8235fdf3c980a5f9a))
+* **report:** add --migrate to upgrade stored results to the latest schema ([eacd6d0](https://github.com/dmccaffery/evolve/commit/eacd6d03b74e85fa4c3a04b6ba50ea7673b00755))
+* **report:** case-major plugin reports and normalized results schema (v5) ([1250054](https://github.com/dmccaffery/evolve/commit/125005458a0ae20ba3bc33c3dd0fc9cadb4e885c))
+* **report:** emit JUnit and Cobertura artifacts with a --strict gate ([bae2ca4](https://github.com/dmccaffery/evolve/commit/bae2ca42b846951014998ac9272eada062f43ae8)), closes [#37](https://github.com/dmccaffery/evolve/issues/37)
+* **report:** gate report --check at default pass-rate thresholds ([1888d5d](https://github.com/dmccaffery/evolve/commit/1888d5d763e66d42ff902617b60111f1acbfdec0))
+* **report:** maturity-aware evidence gating for report --check ([002cf81](https://github.com/dmccaffery/evolve/commit/002cf819162775e079cff99c2d96b94cb229b8d9)), closes [#73](https://github.com/dmccaffery/evolve/issues/73)
+* **report:** report agent repositories ([e113aaa](https://github.com/dmccaffery/evolve/commit/e113aaa2b4a0aaae99b936bd18cf8accd4f11ff4))
+* **results:** record eval assertion counts and auto-upgrade older schemas ([b18a336](https://github.com/dmccaffery/evolve/commit/b18a33645c78dc53a02749a3e220158ddcf40ea7))
+* **results:** refuse to overwrite newer-schema results and reports ([8279ddd](https://github.com/dmccaffery/evolve/commit/8279ddd3d43ed80eb2e6bae7a13b42388daab8e6)), closes [#44](https://github.com/dmccaffery/evolve/issues/44)
+* **run:** add --failed flag to select previously-failing triggers/evals ([f356f52](https://github.com/dmccaffery/evolve/commit/f356f52ee9fbb4e0babd977fd2c66dd72b84b4ff))
+* **run:** add --plugin filter and multi-value --skill/--model ([f81fd3f](https://github.com/dmccaffery/evolve/commit/f81fd3f74938c8a771cdf8c45b70bcc953562d54))
+* **run:** AssumeRunnable defers CLI eligibility to the server ([1429cc8](https://github.com/dmccaffery/evolve/commit/1429cc8be7de072e8832a800663ebebbefc66bbd))
+* **run:** baseline benchmarks, run history, and regression/improvement deltas ([4933dfb](https://github.com/dmccaffery/evolve/commit/4933dfb66218b350d1d1f5faac55b0117ddc59f3))
+* **runner:** support feeding stdin to a CommandSpec invocation ([5c9479f](https://github.com/dmccaffery/evolve/commit/5c9479fb88dce457363bd5b63716f18079d30927))
+* **run:** per-case trigger/eval selection with preselection reasons ([8468d80](https://github.com/dmccaffery/evolve/commit/8468d8031738156e00c93e5ec7c269cceb1a2309))
+* **run:** run agent suites against hosted endpoints ([38026b6](https://github.com/dmccaffery/evolve/commit/38026b6fb8c54c23f35340d3a033f580ffe7882a))
+* **telemetry:** OpenTelemetry instrumentation and --telemetry-dir flag ([cecd01e](https://github.com/dmccaffery/evolve/commit/cecd01ed600dcad9617faaf215493a66e3d99505))
+* **tui:** add mouse support to the run form and dashboard ([4218929](https://github.com/dmccaffery/evolve/commit/42189295ce40322bd8e6f5e2259c8a735ab8b25a)), closes [#69](https://github.com/dmccaffery/evolve/issues/69)
+* **tui:** deselect models the operator's installed CLIs do not offer ([ee3d011](https://github.com/dmccaffery/evolve/commit/ee3d011ea504de7190c9e0e71acc31efe2757fde))
+* **tui:** drive the selection form from a stateful plan.Session ([ba8ee34](https://github.com/dmccaffery/evolve/commit/ba8ee34addff2d791b9cf51281900613dd9d2fa8))
+* **tui:** interactive selection form and live run dashboard ([c4c4ce8](https://github.com/dmccaffery/evolve/commit/c4c4ce89ab0f03cce53000408fb9f6bc0241dcb5))
+* **tui:** reclaim selection-form space and mirror dashboard styling ([ad6c545](https://github.com/dmccaffery/evolve/commit/ad6c545437629765234d458bc0b53104eb01d6f2))
+* **tui:** render the EVOLVE wordmark in per-letter colour ([46e4e08](https://github.com/dmccaffery/evolve/commit/46e4e08c2221083723624796d9d335db08f62bb4))
+* **tui:** rework the run dashboard with a navigable execution tree ([ad2d01b](https://github.com/dmccaffery/evolve/commit/ad2d01b17eee7498b853cd9f6bd21ccb1e8aee76))
+* **tui:** scroll the dashboard rollup pane ([6687789](https://github.com/dmccaffery/evolve/commit/6687789e2459a333bcf3706b7bdd933468e3754e))
+* **tui:** seed queued rows from prior results and update them live ([4024d6c](https://github.com/dmccaffery/evolve/commit/4024d6c3efd6addb7887c102c262890754f3e554))
+* **tui:** show prior results for cases a partial run does not re-run ([78e19a8](https://github.com/dmccaffery/evolve/commit/78e19a8813b21930d810ba7eb656ddd0d8f4342b))
+* **tui:** threshold-based rollup indicators and an Execution legend ([cbba998](https://github.com/dmccaffery/evolve/commit/cbba99873465084f7e1bccdc89546dc0b4c84ae1))
+* **tui:** tint pane headings with each pane's accent color ([fbc3e49](https://github.com/dmccaffery/evolve/commit/fbc3e499c1f43bad6db1c7f3e7a8548bb006a534))
+* **tui:** upgrade to bubbletea v2 and recolor to cyberdream ([82f9863](https://github.com/dmccaffery/evolve/commit/82f986377e20a26bb94f7fbdad42131745d6bc75))
+* **view:** add web report viewer ([a8d72c8](https://github.com/dmccaffery/evolve/commit/a8d72c8d150d9b12c5d75d79991792f2b09fa201))
+* **workspace:** initialise each workspace as a git repository ([db802ab](https://github.com/dmccaffery/evolve/commit/db802ab392caa6dc7be4677fe6a8049a75bb3309))
+
+
+### Bug Fixes
+
+* **checks:** added some testing around the outputs ([4fc0a4d](https://github.com/dmccaffery/evolve/commit/4fc0a4d9389f30372e23f2413db8738a06595adb))
+* corrected the descriptions of compatibility issue between codex and ([272e62c](https://github.com/dmccaffery/evolve/commit/272e62ce260e76d9f3d34805fdd7d3e851755919))
+* **deps:** bump go to 1.27.4 ([e039a3c](https://github.com/dmccaffery/evolve/commit/e039a3ccda5c8fb99a8498d376897ac1212517b9))
+* **deps:** update bitwise-media-group/github-workflows action to v6.2.0 ([#148](https://github.com/dmccaffery/evolve/issues/148)) ([cb0e0cf](https://github.com/dmccaffery/evolve/commit/cb0e0cfe65d2084d93a78dd6bc1c96cd372c5f7a))
+* **deps:** update bitwise-media-group/github-workflows action to v6.3.0 ([#231](https://github.com/dmccaffery/evolve/issues/231)) ([8be1dd9](https://github.com/dmccaffery/evolve/commit/8be1dd9ffb5dee4ed2d7eaa4826b5bd80f5c7e48))
+* **deps:** update bitwise-media-group/github-workflows action to v7.0.1 ([#315](https://github.com/dmccaffery/evolve/issues/315)) ([9f6d5d4](https://github.com/dmccaffery/evolve/commit/9f6d5d4a83ad340e103cae8d7dd6e170bcdd9de2))
+* **deps:** update bitwise-media-group/github-workflows action to v8 ([#319](https://github.com/dmccaffery/evolve/issues/319)) ([dfbfb90](https://github.com/dmccaffery/evolve/commit/dfbfb90d3894a88bbd35ec0dd0a416f59eb7974d))
+* **deps:** update bitwise-media-group/github-workflows action to v8.0.1 ([#373](https://github.com/dmccaffery/evolve/issues/373)) ([dbf0abb](https://github.com/dmccaffery/evolve/commit/dbf0abb1e3afcdae89bb0a94881fe8a7997903df))
+* **deps:** update bitwise-media-group/github-workflows action to v8.1.0 ([#417](https://github.com/dmccaffery/evolve/issues/417)) ([f50e8b1](https://github.com/dmccaffery/evolve/commit/f50e8b14308b7fc0be877704528a5ec8da2b62f9))
+* **deps:** update bitwise-media-group/github-workflows action to v8.1.1 ([#432](https://github.com/dmccaffery/evolve/issues/432)) ([0c29401](https://github.com/dmccaffery/evolve/commit/0c29401b4c3f59154e01949a2411a25b288ff67d))
+* **deps:** update bitwise-media-group/github-workflows action to v8.3.0 ([#456](https://github.com/dmccaffery/evolve/issues/456)) ([eaeb33d](https://github.com/dmccaffery/evolve/commit/eaeb33d147a67a16d7fe3f65d848e5d170d8631a))
+* **deps:** update dependency preact to v11 ([#282](https://github.com/dmccaffery/evolve/issues/282)) ([e2ff87d](https://github.com/dmccaffery/evolve/commit/e2ff87d9cc975234b1e61b1d24c4b9d1a575f0ff))
+* **deps:** update Go to 1.27.2 and golang.org/x/net to v0.60.0 ([234c7d7](https://github.com/dmccaffery/evolve/commit/234c7d72b22f022c06f582c2555bc371f906b1ae))
+* **deps:** update module charm.land/bubbles/v2 to v2.2.0 ([#178](https://github.com/dmccaffery/evolve/issues/178)) ([f14440a](https://github.com/dmccaffery/evolve/commit/f14440a54b62d4ce965253eba8ecda29368f9454))
+* **deps:** update module charm.land/bubbles/v2 to v2.2.1 ([#193](https://github.com/dmccaffery/evolve/issues/193)) ([af164bb](https://github.com/dmccaffery/evolve/commit/af164bbe9149bce9b61196d39eebe78034a85399))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.10 ([#262](https://github.com/dmccaffery/evolve/issues/262)) ([18ba031](https://github.com/dmccaffery/evolve/commit/18ba031773399fc948bc4151b9bab2276e7de74b))
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.9 ([#174](https://github.com/dmccaffery/evolve/issues/174)) ([d19ecf6](https://github.com/dmccaffery/evolve/commit/d19ecf6c72e730c05f278f6eb584a8b55a97cf4c))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.0 ([#331](https://github.com/dmccaffery/evolve/issues/331)) ([01dfc6d](https://github.com/dmccaffery/evolve/commit/01dfc6df1eb24a61af5b3b75ae008b2a6c414994))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.1 ([#415](https://github.com/dmccaffery/evolve/issues/415)) ([59145fd](https://github.com/dmccaffery/evolve/commit/59145fd0a05ebc9f1e77e9837d472c91fc46d574))
+* **deps:** update module github.com/coreos/go-oidc/v3 to v3.21.0 ([#224](https://github.com/dmccaffery/evolve/issues/224)) ([e8216f9](https://github.com/dmccaffery/evolve/commit/e8216f985e096073189591f0fc3c7413bf996846))
+* **deps:** update module github.com/spf13/pflag to v1.1.0 ([#447](https://github.com/dmccaffery/evolve/issues/447)) ([4a2265f](https://github.com/dmccaffery/evolve/commit/4a2265f495e8077aeff6a83e96c92e4016468eb3))
+* **deps:** update module go.yaml.in/yaml/v3 to v3.0.6 ([#424](https://github.com/dmccaffery/evolve/issues/424)) ([78a9a27](https://github.com/dmccaffery/evolve/commit/78a9a2702a49f2aaeaa5ae6ed3f428adcad60217))
+* **deps:** update module go.yaml.in/yaml/v3 to v4 ([#440](https://github.com/dmccaffery/evolve/issues/440)) ([d19eee1](https://github.com/dmccaffery/evolve/commit/d19eee171a79f16a5086b84afae514f4bd38ec58))
+* **deps:** update module golang.org/x/oauth2 to v0.37.0 ([#237](https://github.com/dmccaffery/evolve/issues/237)) ([10ba797](https://github.com/dmccaffery/evolve/commit/10ba7978067dcb84bbf4b483461f1cd427a408ac))
+* **deps:** update module golang.org/x/oauth2 to v0.38.0 ([#448](https://github.com/dmccaffery/evolve/issues/448)) ([c2c413c](https://github.com/dmccaffery/evolve/commit/c2c413c0edbd9cc0adee6707f45c5fcde03d13d8))
+* **deps:** update module golang.org/x/sync to v0.23.0 ([#238](https://github.com/dmccaffery/evolve/issues/238)) ([80ed169](https://github.com/dmccaffery/evolve/commit/80ed169e1b05944d5559c67e494e318a0fa84b69))
+* **deps:** update module golang.org/x/sync to v0.24.0 ([#318](https://github.com/dmccaffery/evolve/issues/318)) ([874a7ca](https://github.com/dmccaffery/evolve/commit/874a7ca87d27e3c1533b06b2d0cda8f655783e6c))
+* **deps:** update module golang.org/x/sync to v0.25.0 ([#449](https://github.com/dmccaffery/evolve/issues/449)) ([8ddc4e5](https://github.com/dmccaffery/evolve/commit/8ddc4e51ac7e306472a627cb18935493f2a25404))
+* **deps:** update module golang.org/x/term to v0.46.0 ([#248](https://github.com/dmccaffery/evolve/issues/248)) ([f80d024](https://github.com/dmccaffery/evolve/commit/f80d024447308a517273992ebe96dd1036fe7d73))
+* **deps:** update module golang.org/x/term to v0.47.0 ([#337](https://github.com/dmccaffery/evolve/issues/337)) ([f2046b8](https://github.com/dmccaffery/evolve/commit/f2046b80c0c9e07b123d802ecf478abe35a5d40f))
+* **deps:** update opentelemetry-go monorepo ([#199](https://github.com/dmccaffery/evolve/issues/199)) ([bf24d40](https://github.com/dmccaffery/evolve/commit/bf24d40495dd15b428d625f42ba7c92bbd9f6fef))
+* **deps:** update opentelemetry-go-contrib monorepo ([#201](https://github.com/dmccaffery/evolve/issues/201)) ([b6b1ccc](https://github.com/dmccaffery/evolve/commit/b6b1ccc757c1219e1506ea63f962fd4800bb6170))
+* **deps:** update opentelemetry-go-contrib monorepo ([#292](https://github.com/dmccaffery/evolve/issues/292)) ([0a73d30](https://github.com/dmccaffery/evolve/commit/0a73d300a9ac270ba09c1c69b63f009f434d77e3))
+* **docker:** move runner images from debian to wolfi-base ([8c87491](https://github.com/dmccaffery/evolve/commit/8c87491b0580bcebf6500d5d83b965987ab69fe7))
+* **docs:** isolate GitHub source facts per site in sessionStorage ([0dd5e73](https://github.com/dmccaffery/evolve/commit/0dd5e738497bceab668f4a29871e70974c01c598))
+* fetch copilot from GitHub releases with renovate-managed digests ([b89d989](https://github.com/dmccaffery/evolve/commit/b89d9896d51ef5e7f11410d6df24157425bfc730))
+* **harness:** guard grok shell commands with a deny hook, not dontAsk ([a373d30](https://github.com/dmccaffery/evolve/commit/a373d305717cd8284f7e127b7d0faf0305b6643e))
+* **harness:** make Grok trigger detection reliable ([631ef9c](https://github.com/dmccaffery/evolve/commit/631ef9c1b18b655feb1b1376a06e4cb16d91d124))
+* **harness:** stop grok headless runs dying on permission prompts ([7b4e230](https://github.com/dmccaffery/evolve/commit/7b4e2308f90c948fb038cbc2d2eaae05c2469f55))
+* introduce checks.plugin_manifests ([4ef1756](https://github.com/dmccaffery/evolve/commit/4ef175660517cb53166f24fe63ffd159bff624d5))
+* isolate agent session history into throwaway workspace homes ([ad9cad4](https://github.com/dmccaffery/evolve/commit/ad9cad489ca2c122d10368fdf9806d5a4764d1c7)), closes [#88](https://github.com/dmccaffery/evolve/issues/88)
+* **make:** build golangci-lint before linting ([276d7fa](https://github.com/dmccaffery/evolve/commit/276d7fafa16ac883ad8fb3a2084da8d2917f1f65))
+* **plan:** restrict both tiers when a skill is queued via one ([126fa16](https://github.com/dmccaffery/evolve/commit/126fa16771f1e7fb3b983d46fab78f84286edabe))
+* **provider:** disable agent CLIs' own OS sandbox under evolve's ([360849d](https://github.com/dmccaffery/evolve/commit/360849d26acff2595cc91f2b0b86d60d1b09697f))
+* **release:** cosign the darwin binaries after notarization ([2bbc425](https://github.com/dmccaffery/evolve/commit/2bbc4259e16c68e84afa448f3c9a944c5d0b9fea))
+* **release:** pass mise trust through to the goreleaser sbom commands ([d14256b](https://github.com/dmccaffery/evolve/commit/d14256b4db0fd14e84c08d237b73ed26ffb2b00b))
+* **release:** ship static shell completions in the Homebrew cask ([0447c4d](https://github.com/dmccaffery/evolve/commit/0447c4d2e6f1fbba054bcb7fb3e43d301dbe06b1))
+* remove many explicit references to claude and codex ([64b52af](https://github.com/dmccaffery/evolve/commit/64b52afdd00dbc0b61d1f9182d975c4cc98696e6))
+* **run:** serialize PlainReporter writes for concurrent use ([2fff1a8](https://github.com/dmccaffery/evolve/commit/2fff1a83a4f2e7ec1492cc3a38a3db3576c96b9b))
+* **run:** surface claude stdout errors on the runtime-error path ([912a0a0](https://github.com/dmccaffery/evolve/commit/912a0a0d0ce6bef19b1acd12a104efc4a653d2fb))
+* strip ANSI escape sequences from captured execution output ([5ae2cff](https://github.com/dmccaffery/evolve/commit/5ae2cff0a655bc9f07349f2d9d3b76adff1cde3e))
+* **tui:** force full repaints around ultraviolet's broken scroll optimization ([6d279cf](https://github.com/dmccaffery/evolve/commit/6d279cff11f66def9586c12e3d998660ae7ddddc))
+* **tui:** spin only running rows; mark queued rows pending ([67d84ee](https://github.com/dmccaffery/evolve/commit/67d84ee8a0b797b35c96ad6763a8077dc865ba98))
+
+
+### Performance Improvements
+
+* **tui:** render only on-screen dashboard rows ([8743990](https://github.com/dmccaffery/evolve/commit/8743990a860ad46a9ff710538821a9091702d98e))
+
+
+### Code Refactoring
+
+* **evalspec:** replace skip_providers with an eval-set models restriction ([ed15284](https://github.com/dmccaffery/evolve/commit/ed152849b24d1eae605bbd30335e26627c70dd42)), closes [#36](https://github.com/dmccaffery/evolve/issues/36)
+* **provider:** split provider into harness, provider, and model ([aadbfaf](https://github.com/dmccaffery/evolve/commit/aadbfaf6009622ba05c2cccd430f637f9f31d5e8))
+
+
+### Continuous Integration
+
+* **release:** publish the homebrew cask via an app token pull request ([41cdce7](https://github.com/dmccaffery/evolve/commit/41cdce7baef78937882cc16a36bb2059f5a108de))
+
 ## [0.8.4](https://github.com/bitwise-media-group/evolve/compare/v0.8.3...v0.8.4) (2026-10-14)
 
 
